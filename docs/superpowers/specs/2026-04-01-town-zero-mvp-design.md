@@ -36,10 +36,28 @@ Multiplayer real-time ecosystem simulation .io game. Each world is a persistent 
 ### Information Transfer
 
 - Agents must be in **adjacent tiles** to exchange information (dialogue, intel, requests)
-- Each Agent has a personal **KnowledgeBase** — records what they know and when they learned it
+- Each Agent has a personal **MapMemory** — a sparse grid recording the last known state of each tile they've visited or seen
 - Intel goes stale: agents remember the state "as of last observation", not real-time
 - Settlements have no omniscient view — knowledge of the outside depends on what members bring back
 - Scouts and merchants become strategically important as information carriers
+
+### MapMemory
+
+Each Agent maintains a sparse record of tiles they have observed:
+
+```
+MapMemory = Map<TileCoord, {
+  terrain: TerrainType
+  entities: EntitySnapshot[]    // what was there when last seen
+  timestamp: number             // tick when last observed
+}>
+```
+
+- **Updated automatically** each tick for all tiles within the Agent's vision radius
+- Tiles outside vision retain their last recorded state (stale but available)
+- Tiles never observed are unknown (blank on fog of war)
+- Current vision is just the subset of MapMemory where `timestamp == currentTick`
+- When two Agents are adjacent, they can merge MapMemory entries (share intel)
 
 ### Territory
 
@@ -108,7 +126,7 @@ Agent
   inventory: { food, material, currency }
   state: FSMState               // "idle" | "moving" | "gathering" | "fighting" | ...
   plan: ActionCommand[]         // queued commands
-  knowledgeBase: KnownFact[]    // personal memory
+  mapMemory: MapMemory           // sparse grid of observed tiles
   controller: "player" | "llm" | "bot"
 ```
 
@@ -122,6 +140,7 @@ type ActionCommand =
   | { type: "deposit", settlementId: string }
   | { type: "talk", targetId: string, optionId: string }
   | { type: "trade", targetId: string, offer: Resource, want: Resource }
+  | { type: "take", settlementId: string, resource: Resource, amount: number }
   | { type: "idle" }
 ```
 
@@ -161,8 +180,10 @@ Resource tile ->[Agent gather]-> Agent inventory ->[Agent deposit]-> Settlement 
 
 ### Consumption
 
-- Each Agent consumes 1 food every N ticks (from settlement inventory)
-- Food reaches zero -> Agents start losing HP -> death -> population decline
+- Each Agent consumes 1 food every N ticks from their **personal inventory**
+- Agents must actively take food from settlement inventory into their backpack (via `take` action or automatic when in settlement territory)
+- Agent's personal food reaches zero -> starts losing HP -> death -> population decline
+- This applies everywhere — in settlement, in the field, on the road. No free feeding.
 
 ### External Merchants
 
@@ -181,7 +202,7 @@ Resource tile ->[Agent gather]-> Agent inventory ->[Agent deposit]-> Settlement 
 
 ### Input: Natural Language Summary
 
-LLM receives the Agent's knowledgeBase formatted as readable text:
+LLM receives the Agent's MapMemory + current vision formatted as readable text:
 
 ```
 You are [name], a [farmer] of [village name].
@@ -200,9 +221,34 @@ Available actions: move, gather, deposit, attack, idle
 
 ActionCommand array in JSON, fed directly into Agent's plan queue.
 
+### Dialogue Tree System
+
+NPCs have standard RPG-style dialogue trees defined as data scripts.
+
+```
+DialogueTree
+  id: string
+  nodes: Map<NodeId, DialogueNode>
+  locals: Map<string, any>         // per-NPC-instance local variables (affinity, flags, etc.)
+
+DialogueNode =
+  | { type: "text", speaker: AgentId, content: string, next: NodeId }
+  | { type: "choice", options: { label: string, next: NodeId, condition?: Expression }[] }
+  | { type: "request", label: string, gateType: "llm", next_yes: NodeId, next_no: NodeId }
+  | { type: "action", effect: Expression, next: NodeId }   // modify locals, give item, etc.
+  | { type: "end" }
+```
+
+- Each NPC role has one or more DialogueTree assigned
+- `locals` hold per-instance state: affinity toward player, quest flags, visit count, etc.
+- `choice` nodes present options to the player; `condition` can hide unavailable options
+- `request` nodes are where the player asks the NPC for something — these trigger the LLM dialogue gate
+- `action` nodes mutate locals or trigger game effects (hand over item, change NPC plan, etc.)
+- The `talk` ActionCommand opens the NPC's current dialogue tree at its root (or a resume point)
+
 ### Dialogue Gate
 
-When a player selects a pre-written request option for an NPC, trigger one extra LLM call:
+When the dialogue tree reaches a `request` node, trigger one extra LLM call:
 
 ```
 [Agent's environment summary]
@@ -247,13 +293,13 @@ Client
     Click entity -> interaction menu (attack/talk/trade)
     Dialogue menu -> talk command
   Fog of War
-    Filter display based on player Agent's knowledgeBase
+    Filter display based on player Agent's MapMemory
 ```
 
 ### Fog of War Implementation
 
 - Server syncs **full** WorldState to client (simplicity)
-- Client filters display based on player's knowledgeBase
+- Client filters display based on player's MapMemory
 - MVP does not prevent cheating — prototype trusts client
 
 ### Disconnect Handling
