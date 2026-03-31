@@ -1871,6 +1871,7 @@ function makeWorld(): SimulationState {
     agents: new Map([["a1", agent]]),
     settlements: new Map([["v1", settlement]]),
     tick: 0,
+    nextMerchantId: 0,
   };
 }
 
@@ -3347,6 +3348,11 @@ export class DialogueEngine {
   constructor(tree: DialogueTree) {
     this.tree = tree;
     this.currentNodeId = tree.root;
+    if (tree.defaultLocals) {
+      for (const [k, v] of Object.entries(tree.defaultLocals)) {
+        this.locals.set(k, v);
+      }
+    }
   }
 
   getCurrentNode(): DialogueNode {
@@ -3600,7 +3606,7 @@ function makeWorldWithRoad(): SimulationState {
   settlement.addResource("food", 10);
   settlement.addResource("material", 10);
 
-  return { grid, agents: new Map(), settlements: new Map([["v1", settlement]]), tick: 0 };
+  return { grid, agents: new Map(), settlements: new Map([["v1", settlement]]), tick: 0, nextMerchantId: 0 };
 }
 
 describe("spawnMerchant", () => {
