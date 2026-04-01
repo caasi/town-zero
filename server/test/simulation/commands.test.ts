@@ -79,6 +79,56 @@ describe("validateCommand", () => {
     const cmd: ActionCommand = { type: "attack", targetId: "nobody" };
     expect(validateCommand(cmd, ctx)).toBe(false);
   });
+
+  it("rejects take with negative amount", () => {
+    const ctx = makeContext();
+    const cmd: ActionCommand = { type: "take", settlementId: "v1", resource: "food", amount: -1 };
+    expect(validateCommand(cmd, ctx)).toBe(false);
+  });
+
+  it("rejects take with zero amount", () => {
+    const ctx = makeContext();
+    const cmd: ActionCommand = { type: "take", settlementId: "v1", resource: "food", amount: 0 };
+    expect(validateCommand(cmd, ctx)).toBe(false);
+  });
+
+  it("rejects take with NaN amount", () => {
+    const ctx = makeContext();
+    const cmd: ActionCommand = { type: "take", settlementId: "v1", resource: "food", amount: NaN };
+    expect(validateCommand(cmd, ctx)).toBe(false);
+  });
+
+  it("rejects take with Infinity amount", () => {
+    const ctx = makeContext();
+    const cmd: ActionCommand = { type: "take", settlementId: "v1", resource: "food", amount: Infinity };
+    expect(validateCommand(cmd, ctx)).toBe(false);
+  });
+
+  it("rejects take with fractional amount", () => {
+    const ctx = makeContext();
+    const cmd: ActionCommand = { type: "take", settlementId: "v1", resource: "food", amount: 2.5 };
+    expect(validateCommand(cmd, ctx)).toBe(false);
+  });
+
+  it("rejects trade with negative offerAmount", () => {
+    const ctx = makeContext();
+    const target = new Agent({ id: "a2", position: { x: 6, y: 5 }, faction: "v1", role: "farmer", controller: "llm" });
+    target.addToInventory("material", 5);
+    ctx.agents.set("a2", target);
+    ctx.agent.addToInventory("food", 5);
+    const cmd: ActionCommand = { type: "trade", targetId: "a2", offer: "food", offerAmount: -1, want: "material", wantAmount: 2 };
+    expect(validateCommand(cmd, ctx)).toBe(false);
+  });
+
+  it("rejects trade with NaN wantAmount", () => {
+    const ctx = makeContext();
+    const target = new Agent({ id: "a2", position: { x: 6, y: 5 }, faction: "v1", role: "farmer", controller: "llm" });
+    target.addToInventory("material", 5);
+    ctx.agents.set("a2", target);
+    ctx.agent.addToInventory("food", 5);
+    const cmd: ActionCommand = { type: "trade", targetId: "a2", offer: "food", offerAmount: 2, want: "material", wantAmount: NaN };
+    expect(validateCommand(cmd, ctx)).toBe(false);
+  });
 });
 
 describe("executeCommand", () => {

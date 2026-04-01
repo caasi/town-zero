@@ -11,6 +11,10 @@ export interface CommandContext {
   settlements: Map<string, Settlement>;
 }
 
+function isValidAmount(n: number): boolean {
+  return Number.isFinite(n) && n > 0 && Number.isInteger(n);
+}
+
 export function validateCommand(cmd: ActionCommand, ctx: CommandContext): boolean {
   const { grid, agent, agents, settlements } = ctx;
 
@@ -35,6 +39,7 @@ export function validateCommand(cmd: ActionCommand, ctx: CommandContext): boolea
       return true;
     }
     case "take": {
+      if (!isValidAmount(cmd.amount)) return false;
       const settlement = settlements.get(cmd.settlementId);
       if (!settlement) return false;
       if (!settlement.isInTerritory(agent.position)) return false;
@@ -48,6 +53,7 @@ export function validateCommand(cmd: ActionCommand, ctx: CommandContext): boolea
       return true;
     }
     case "trade": {
+      if (!isValidAmount(cmd.offerAmount) || !isValidAmount(cmd.wantAmount)) return false;
       const target = agents.get(cmd.targetId);
       if (!target || !target.isAlive()) return false;
       if (!grid.isAdjacent(agent.position, target.position)) return false;
