@@ -7,7 +7,8 @@ function append(msg: string) {
 }
 
 async function connect() {
-  const client = new Client(`http://${window.location.hostname}:2567`);
+  const protocol = window.location.protocol === "https:" ? "https" : "http";
+  const client = new Client(`${protocol}://${window.location.hostname}:2567`);
   const room = await client.joinOrCreate("chat");
   append(`Connected as ${room.sessionId}`);
 
