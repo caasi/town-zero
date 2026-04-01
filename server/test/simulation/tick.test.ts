@@ -75,7 +75,7 @@ describe("processTick", () => {
     expect(agent.hp).toBeLessThan(100);
   });
 
-  it("removes dead agents from settlements", () => {
+  it("kills agents that starve to death", () => {
     const world = makeWorld();
     const agent = world.agents.get("a1")!;
     agent.hp = 1;
