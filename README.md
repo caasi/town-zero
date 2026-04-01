@@ -6,7 +6,7 @@ A multiplayer real-time ecosystem simulation .io game with LLM-driven NPCs. Play
 
 ### Prerequisites
 
-- Node.js 20+
+- Node.js 22+
 - [pnpm](https://pnpm.io/) 10+
 
 ### Install
