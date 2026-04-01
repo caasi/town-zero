@@ -6,7 +6,7 @@ import type { SimulationState } from "../../src/simulation/tick.js";
 
 function makeWorldWithRoad(): SimulationState {
   const grid = new Grid(10, 10);
-  for (let x = 0; x <= 5; x++) {
+  for (let x = 0; x <= 9; x++) {
     grid.setTerrain(x, 5, "road");
   }
 
@@ -29,40 +29,33 @@ describe("spawnMerchant", () => {
 });
 
 describe("processMerchantTick", () => {
-  it("merchant moves along road toward village", () => {
+  it("merchant moves forward each tick", () => {
     const state = makeWorldWithRoad();
     spawnMerchant(state);
     const merchant = Array.from(state.agents.values()).find((a) => a.role === "merchant")!;
     const startX = merchant.position.x;
     processMerchantTick(merchant, state);
-    expect(merchant.position.x).toBeGreaterThan(startX);
+    expect(merchant.position.x).toBe(startX + 1);
   });
 
-  it("merchant trades at village then leaves", () => {
+  it("merchant does not auto-trade with settlement", () => {
     const state = makeWorldWithRoad();
     spawnMerchant(state);
     const merchant = Array.from(state.agents.values()).find((a) => a.role === "merchant")!;
     merchant.position = { x: 5, y: 5 };
+    const villageFoodBefore = state.settlements.get("v1")!.inventory.food;
     processMerchantTick(merchant, state);
-    const village = state.settlements.get("v1")!;
-    expect(village.inventory.currency).toBeGreaterThan(0);
+    // settlement inventory unchanged — no auto-trade
+    expect(state.settlements.get("v1")!.inventory.food).toBe(villageFoodBefore);
+    expect(state.settlements.get("v1")!.inventory.currency).toBe(0);
   });
 
-  it("merchant trades material when village has no food", () => {
+  it("merchant is removed when reaching map edge", () => {
     const state = makeWorldWithRoad();
-    const village = state.settlements.get("v1")!;
-    village.removeResource("food", village.inventory.food);
-    expect(village.inventory.food).toBe(0);
-    expect(village.inventory.material).toBeGreaterThan(0);
-
     spawnMerchant(state);
     const merchant = Array.from(state.agents.values()).find((a) => a.role === "merchant")!;
-    merchant.position = { x: 5, y: 5 };
-    const materialBefore = village.inventory.material;
+    merchant.position = { x: 9, y: 5 };
     processMerchantTick(merchant, state);
-
-    expect(village.inventory.material).toBeLessThan(materialBefore);
-    expect(merchant.inventory.material).toBeGreaterThan(0);
-    expect(village.inventory.currency).toBeGreaterThan(0);
+    expect(state.agents.has(merchant.id)).toBe(false);
   });
 });

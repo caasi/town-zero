@@ -1,4 +1,4 @@
-import { GATHER_DURATION, ATTACK_COOLDOWN_TICKS, MERCHANT_SPAWN_INTERVAL, MERCHANT_TRADE_RATE } from "@town-zero/shared";
+import { GATHER_DURATION, ATTACK_COOLDOWN_TICKS, MERCHANT_SPAWN_INTERVAL } from "@town-zero/shared";
 import { Agent } from "./agent.js";
 import type { Grid } from "./grid.js";
 import type { Settlement } from "./settlement.js";
@@ -31,35 +31,6 @@ export function spawnMerchant(state: SimulationState): void {
 
 export function processMerchantTick(merchant: Agent, state: SimulationState): void {
   if (merchant.role !== "merchant") return;
-
-  for (const [, settlement] of state.settlements) {
-    if (settlement.type === "village" && settlement.isInTerritory(merchant.position)) {
-      let remainingBudget = Math.min(merchant.inventory.currency, 3);
-      if (remainingBudget > 0 && settlement.inventory.food > 0) {
-        const foodToTake = Math.min(remainingBudget * MERCHANT_TRADE_RATE, settlement.inventory.food);
-        if (foodToTake > 0) {
-          settlement.removeResource("food", foodToTake);
-          merchant.addToInventory("food", foodToTake);
-          const currencyPaid = Math.ceil(foodToTake / MERCHANT_TRADE_RATE);
-          merchant.removeFromInventory("currency", currencyPaid);
-          settlement.addResource("currency", currencyPaid);
-          remainingBudget -= currencyPaid;
-        }
-      }
-      if (remainingBudget > 0 && settlement.inventory.material > 0) {
-        const materialToTake = Math.min(remainingBudget * MERCHANT_TRADE_RATE, settlement.inventory.material);
-        if (materialToTake > 0) {
-          settlement.removeResource("material", materialToTake);
-          merchant.addToInventory("material", materialToTake);
-          const currencyPaid = Math.ceil(materialToTake / MERCHANT_TRADE_RATE);
-          merchant.removeFromInventory("currency", currencyPaid);
-          settlement.addResource("currency", currencyPaid);
-        }
-      }
-      merchant.position = { x: merchant.position.x - 1, y: merchant.position.y };
-      return;
-    }
-  }
 
   const nextX = merchant.position.x + 1;
   if (state.grid.inBounds(nextX, merchant.position.y)) {
