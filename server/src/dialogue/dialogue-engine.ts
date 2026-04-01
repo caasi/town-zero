@@ -16,7 +16,9 @@ export class DialogueEngine {
   }
 
   getCurrentNode(): DialogueNode {
-    return this.tree.nodes[this.currentNodeId];
+    const node = this.tree.nodes[this.currentNodeId];
+    if (!node) throw new Error(`Dialogue node "${this.currentNodeId}" not found in tree "${this.tree.id}"`);
+    return node;
   }
 
   getCurrentNodeId(): DialogueNodeId {

@@ -72,4 +72,17 @@ describe("DialogueEngine", () => {
     engine.selectOption(1);
     expect(engine.isEnded()).toBe(true);
   });
+
+  it("throws on missing node id", () => {
+    const brokenTree: DialogueTree = {
+      id: "broken",
+      root: "start",
+      nodes: {
+        start: { type: "text", speaker: "npc", content: "Hello", next: "nonexistent" },
+      },
+    };
+    const engine = new DialogueEngine(brokenTree);
+    engine.advance(); // moves to "nonexistent"
+    expect(() => engine.getCurrentNode()).toThrow();
+  });
 });
