@@ -72,6 +72,10 @@ pnpm run test
 - Server runs on Node.js via tsx
 - Use pnpm, not bun — bun duplicates @colyseus/core instances causing matchmaker state isolation
 
+## Known Debt
+
+- `PRODUCTION_OUTPUT` constant comment says "food/material produced per cycle" but `processProduction` only converts material→food. Update comment or extend production to support material output when adding new production types.
+
 ## TODO: Wire Simulation Back to Colyseus
 
 Current state: minimal ChatRoom prototype running. Simulation engine (98 tests) exists but is not connected to Colyseus networking.
