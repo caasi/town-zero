@@ -3,8 +3,10 @@ import type { WorldStateSchema } from "./schemas/WorldStateSchema.js";
 import { AgentSchema } from "./schemas/AgentSchema.js";
 import { SettlementSchema } from "./schemas/SettlementSchema.js";
 import { StructureSchema } from "./schemas/StructureSchema.js";
+import { TileSchema } from "./schemas/TileSchema.js";
 import type { Agent } from "../simulation/agent.js";
 import type { Settlement } from "../simulation/settlement.js";
+import type { Grid } from "../simulation/grid.js";
 
 function syncAgent(agent: Agent, agentSchema: AgentSchema): void {
   agentSchema.id = agent.id;
@@ -77,5 +79,20 @@ export function syncToSchema(simState: SimulationState, roomState: WorldStateSch
       roomState.settlements.set(id, schema);
     }
     syncSettlement(settlement, schema);
+  }
+}
+
+export function syncTiles(grid: Grid, roomState: WorldStateSchema): void {
+  for (let y = 0; y < grid.height; y++) {
+    for (let x = 0; x < grid.width; x++) {
+      const key = `${x},${y}`;
+      const tile = new TileSchema();
+      tile.x = x;
+      tile.y = y;
+      tile.terrain = grid.getTerrain(x, y) ?? "plains";
+      tile.resourceYield = grid.getResourceYield(x, y) ?? "";
+      tile.ownerFaction = grid.getOwner(x, y) ?? "";
+      roomState.tiles.set(key, tile);
+    }
   }
 }

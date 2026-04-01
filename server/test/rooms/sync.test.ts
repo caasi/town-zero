@@ -1,6 +1,6 @@
 import "../../src/polyfill.js";
 import { describe, it, expect } from "vitest";
-import { syncToSchema } from "../../src/rooms/sync.js";
+import { syncToSchema, syncTiles } from "../../src/rooms/sync.js";
 import { WorldStateSchema } from "../../src/rooms/schemas/WorldStateSchema.js";
 import { Grid } from "../../src/simulation/grid.js";
 import { Agent } from "../../src/simulation/agent.js";
@@ -150,5 +150,25 @@ describe("syncToSchema", () => {
     agent.addToInventory("food", 10);
     syncToSchema(sim, state);
     expect(state.agents.get("a1")!.inventory.get("food")).toBe(10);
+  });
+});
+
+describe("syncTiles", () => {
+  it("populates tile schemas from grid", () => {
+    const grid = new Grid(3, 3);
+    grid.setTerrain(1, 1, "forest");
+    grid.setResourceYield(0, 0, "food");
+    grid.setOwner(2, 2, "village-1");
+
+    const state = new WorldStateSchema();
+    syncTiles(grid, state);
+
+    expect(state.tiles.size).toBe(9); // 3x3
+    expect(state.tiles.get("1,1")!.terrain).toBe("forest");
+    expect(state.tiles.get("0,0")!.resourceYield).toBe("food");
+    expect(state.tiles.get("2,2")!.ownerFaction).toBe("village-1");
+    expect(state.tiles.get("0,1")!.terrain).toBe("plains");
+    expect(state.tiles.get("0,1")!.resourceYield).toBe("");
+    expect(state.tiles.get("0,1")!.ownerFaction).toBe("");
   });
 });
