@@ -27,4 +27,49 @@ describe("parseResponse", () => {
     expect(result).toHaveLength(1);
     expect(result[0].type).toBe("move");
   });
+
+  it("filters out move without target", () => {
+    const raw = '[{"type":"move"},{"type":"idle"}]';
+    const result = parseResponse(raw);
+    expect(result).toHaveLength(1);
+    expect(result[0].type).toBe("idle");
+  });
+
+  it("filters out move with non-object target", () => {
+    const raw = '[{"type":"move","target":"north"}]';
+    const result = parseResponse(raw);
+    expect(result).toEqual([{ type: "idle" }]);
+  });
+
+  it("filters out gather without resourceTile", () => {
+    const raw = '[{"type":"gather"}]';
+    const result = parseResponse(raw);
+    expect(result).toEqual([{ type: "idle" }]);
+  });
+
+  it("filters out attack without targetId", () => {
+    const raw = '[{"type":"attack"}]';
+    const result = parseResponse(raw);
+    expect(result).toEqual([{ type: "idle" }]);
+  });
+
+  it("filters out take without required fields", () => {
+    const raw = '[{"type":"take","settlementId":"v1"}]';
+    const result = parseResponse(raw);
+    expect(result).toEqual([{ type: "idle" }]);
+  });
+
+  it("filters out trade without required fields", () => {
+    const raw = '[{"type":"trade","targetId":"a2"}]';
+    const result = parseResponse(raw);
+    expect(result).toEqual([{ type: "idle" }]);
+  });
+
+  it("keeps well-formed commands and drops malformed ones", () => {
+    const raw = '[{"type":"move","target":{"x":1,"y":1}},{"type":"attack"},{"type":"idle"}]';
+    const result = parseResponse(raw);
+    expect(result).toHaveLength(2);
+    expect(result[0].type).toBe("move");
+    expect(result[1].type).toBe("idle");
+  });
 });
