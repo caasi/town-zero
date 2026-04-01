@@ -1,6 +1,7 @@
 import "../../src/polyfill.js";
 import { describe, it, expect } from "vitest";
 import { TileSchema } from "../../src/rooms/schemas/TileSchema.js";
+import { StructureSchema } from "../../src/rooms/schemas/StructureSchema.js";
 
 describe("TileSchema", () => {
   it("creates a tile with default values", () => {
@@ -22,5 +23,26 @@ describe("TileSchema", () => {
     const tile = new TileSchema();
     tile.resourceYield = "";
     expect(tile.resourceYield).toBe("");
+  });
+});
+
+describe("StructureSchema", () => {
+  it("creates a structure with all fields", () => {
+    const s = new StructureSchema();
+    s.id = "vh1";
+    s.type = "production";
+    s.x = 10;
+    s.y = 20;
+    s.operatorId = "agent-1";
+
+    expect(s.id).toBe("vh1");
+    expect(s.type).toBe("production");
+    expect(s.operatorId).toBe("agent-1");
+  });
+
+  it("uses empty string for no operator", () => {
+    const s = new StructureSchema();
+    s.operatorId = "";
+    expect(s.operatorId).toBe("");
   });
 });
