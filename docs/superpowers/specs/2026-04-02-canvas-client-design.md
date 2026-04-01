@@ -137,10 +137,10 @@ Find the nearest adjacent (Manhattan distance 1) enemy agent (different faction,
 
 ### Trade Modal
 
-Minimal DOM modal triggered by E near a merchant. Shows fixed exchange rates (`MERCHANT_TRADE_RATE`). Two buttons:
+Minimal DOM modal triggered by E near a merchant. Merchants carry currency and buy resources from the village. Shows exchange rate: `MERCHANT_TRADE_RATE` resources per 1 currency. Two buttons:
 
-- **Buy Food:** `{ type: "trade", targetId: merchantId, offer: "material", offerAmount: MERCHANT_TRADE_RATE, want: "food", wantAmount: MERCHANT_TRADE_RATE }`
-- **Buy Material:** `{ type: "trade", targetId: merchantId, offer: "food", offerAmount: MERCHANT_TRADE_RATE, want: "material", wantAmount: MERCHANT_TRADE_RATE }`
+- **Sell Food:** `{ type: "trade", targetId: merchantId, offer: "food", offerAmount: MERCHANT_TRADE_RATE, want: "currency", wantAmount: 1 }`
+- **Sell Material:** `{ type: "trade", targetId: merchantId, offer: "material", offerAmount: MERCHANT_TRADE_RATE, want: "currency", wantAmount: 1 }`
 
 Closes on Escape or after sending the command.
 
