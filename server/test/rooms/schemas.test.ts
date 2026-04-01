@@ -2,6 +2,7 @@ import "../../src/polyfill.js";
 import { describe, it, expect } from "vitest";
 import { TileSchema } from "../../src/rooms/schemas/TileSchema.js";
 import { StructureSchema } from "../../src/rooms/schemas/StructureSchema.js";
+import { AgentSchema } from "../../src/rooms/schemas/AgentSchema.js";
 
 describe("TileSchema", () => {
   it("creates a tile with default values", () => {
@@ -44,5 +45,37 @@ describe("StructureSchema", () => {
     const s = new StructureSchema();
     s.operatorId = "";
     expect(s.operatorId).toBe("");
+  });
+});
+
+describe("AgentSchema", () => {
+  it("creates an agent with scalar fields", () => {
+    const a = new AgentSchema();
+    a.id = "agent-1";
+    a.faction = "village-1";
+    a.role = "farmer";
+    a.x = 10;
+    a.y = 20;
+    a.hp = 100;
+    a.maxHp = 100;
+    a.state = "idle";
+    a.controller = "player";
+    a.currentTargetId = "";
+
+    expect(a.id).toBe("agent-1");
+    expect(a.hp).toBe(100);
+    expect(a.state).toBe("idle");
+    expect(a.currentTargetId).toBe("");
+  });
+
+  it("supports inventory as MapSchema", () => {
+    const a = new AgentSchema();
+    a.inventory.set("food", 5);
+    a.inventory.set("material", 3);
+    a.inventory.set("currency", 0);
+
+    expect(a.inventory.get("food")).toBe(5);
+    expect(a.inventory.get("material")).toBe(3);
+    expect(a.inventory.get("currency")).toBe(0);
   });
 });
