@@ -126,6 +126,26 @@ describe("validateCommand", () => {
     expect(validateCommand(cmd, ctx)).toBe(false);
   });
 
+  it("rejects trade with invalid offer resource type", () => {
+    const ctx = makeContext();
+    const target = new Agent({ id: "a2", position: { x: 6, y: 5 }, faction: "v1", role: "farmer", controller: "llm" });
+    target.addToInventory("material", 5);
+    ctx.agents.set("a2", target);
+    ctx.agent.addToInventory("food", 5);
+    const cmd = { type: "trade", targetId: "a2", offer: "gold", offerAmount: 2, want: "material", wantAmount: 2 } as any as ActionCommand;
+    expect(validateCommand(cmd, ctx)).toBe(false);
+  });
+
+  it("rejects trade with invalid want resource type", () => {
+    const ctx = makeContext();
+    const target = new Agent({ id: "a2", position: { x: 6, y: 5 }, faction: "v1", role: "farmer", controller: "llm" });
+    target.addToInventory("material", 5);
+    ctx.agents.set("a2", target);
+    ctx.agent.addToInventory("food", 5);
+    const cmd = { type: "trade", targetId: "a2", offer: "food", offerAmount: 2, want: "__proto__", wantAmount: 2 } as any as ActionCommand;
+    expect(validateCommand(cmd, ctx)).toBe(false);
+  });
+
   it("rejects trade with NaN wantAmount", () => {
     const ctx = makeContext();
     const target = new Agent({ id: "a2", position: { x: 6, y: 5 }, faction: "v1", role: "farmer", controller: "llm" });

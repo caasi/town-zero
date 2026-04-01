@@ -1,4 +1,4 @@
-import type { ActionCommand } from "@town-zero/shared";
+import type { ActionCommand, ResourceType } from "@town-zero/shared";
 import { TERRAIN_MOVE_COST } from "@town-zero/shared";
 import type { Agent } from "./agent.js";
 import type { Grid } from "./grid.js";
@@ -57,6 +57,7 @@ export function validateCommand(cmd: ActionCommand, ctx: CommandContext): boolea
     }
     case "trade": {
       if (!isValidAmount(cmd.offerAmount) || !isValidAmount(cmd.wantAmount)) return false;
+      if (!VALID_RESOURCE_TYPES.has(cmd.offer) || !VALID_RESOURCE_TYPES.has(cmd.want)) return false;
       const target = agents.get(cmd.targetId);
       if (!target || !target.isAlive()) return false;
       if (!grid.isAdjacent(agent.position, target.position)) return false;
