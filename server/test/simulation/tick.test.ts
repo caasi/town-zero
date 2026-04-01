@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { SimulationState, processTick } from "../../src/simulation/tick.js";
+import type { SimulationState } from "../../src/simulation/tick.js";
+import { processTick } from "../../src/simulation/tick.js";
 import { Grid } from "../../src/simulation/grid.js";
 import { Agent } from "../../src/simulation/agent.js";
 import { Settlement } from "../../src/simulation/settlement.js";
