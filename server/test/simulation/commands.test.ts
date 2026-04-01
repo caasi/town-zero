@@ -1,0 +1,109 @@
+import { describe, it, expect } from "vitest";
+import { validateCommand, executeCommand, CommandContext } from "../../src/simulation/commands.js";
+import { Agent } from "../../src/simulation/agent.js";
+import { Grid } from "../../src/simulation/grid.js";
+import { Settlement } from "../../src/simulation/settlement.js";
+import type { ActionCommand } from "@town-zero/shared";
+
+function makeContext(): CommandContext {
+  const grid = new Grid(10, 10);
+  grid.setResourceYield(3, 3, "food");
+  const agent = new Agent({ id: "a1", position: { x: 5, y: 5 }, faction: "v1", role: "farmer", controller: "llm" });
+  const settlement = new Settlement({ id: "v1", faction: "v1", type: "village", territory: [{ x: 5, y: 5 }, { x: 5, y: 6 }] });
+  settlement.addResource("food", 10);
+  const agents = new Map<string, Agent>([["a1", agent]]);
+  const settlements = new Map<string, Settlement>([["v1", settlement]]);
+  return { grid, agent, agents, settlements };
+}
+
+describe("validateCommand", () => {
+  it("rejects move to impassable tile", () => {
+    const ctx = makeContext();
+    ctx.grid.setTerrain(6, 5, "water");
+    const cmd: ActionCommand = { type: "move", target: { x: 6, y: 5 } };
+    expect(validateCommand(cmd, ctx)).toBe(false);
+  });
+
+  it("accepts move to passable adjacent tile", () => {
+    const ctx = makeContext();
+    const cmd: ActionCommand = { type: "move", target: { x: 6, y: 5 } };
+    expect(validateCommand(cmd, ctx)).toBe(true);
+  });
+
+  it("rejects move to non-adjacent tile", () => {
+    const ctx = makeContext();
+    const cmd: ActionCommand = { type: "move", target: { x: 8, y: 8 } };
+    expect(validateCommand(cmd, ctx)).toBe(false);
+  });
+
+  it("rejects gather on tile without resources", () => {
+    const ctx = makeContext();
+    const cmd: ActionCommand = { type: "gather", resourceTile: { x: 5, y: 5 } };
+    expect(validateCommand(cmd, ctx)).toBe(false);
+  });
+
+  it("accepts gather on resource tile when agent is there", () => {
+    const ctx = makeContext();
+    ctx.agent.position = { x: 3, y: 3 };
+    const cmd: ActionCommand = { type: "gather", resourceTile: { x: 3, y: 3 } };
+    expect(validateCommand(cmd, ctx)).toBe(true);
+  });
+
+  it("rejects deposit when not in settlement territory", () => {
+    const ctx = makeContext();
+    ctx.agent.position = { x: 0, y: 0 };
+    const cmd: ActionCommand = { type: "deposit", settlementId: "v1" };
+    expect(validateCommand(cmd, ctx)).toBe(false);
+  });
+
+  it("accepts deposit when in settlement territory", () => {
+    const ctx = makeContext();
+    const cmd: ActionCommand = { type: "deposit", settlementId: "v1" };
+    expect(validateCommand(cmd, ctx)).toBe(true);
+  });
+
+  it("rejects take when settlement lacks resources", () => {
+    const ctx = makeContext();
+    const cmd: ActionCommand = { type: "take", settlementId: "v1", resource: "food", amount: 100 };
+    expect(validateCommand(cmd, ctx)).toBe(false);
+  });
+
+  it("accepts take when settlement has resources", () => {
+    const ctx = makeContext();
+    const cmd: ActionCommand = { type: "take", settlementId: "v1", resource: "food", amount: 5 };
+    expect(validateCommand(cmd, ctx)).toBe(true);
+  });
+
+  it("rejects attack on nonexistent target", () => {
+    const ctx = makeContext();
+    const cmd: ActionCommand = { type: "attack", targetId: "nobody" };
+    expect(validateCommand(cmd, ctx)).toBe(false);
+  });
+});
+
+describe("executeCommand", () => {
+  it("move changes agent position", () => {
+    const ctx = makeContext();
+    const cmd: ActionCommand = { type: "move", target: { x: 6, y: 5 } };
+    executeCommand(cmd, ctx);
+    expect(ctx.agent.position).toEqual({ x: 6, y: 5 });
+    expect(ctx.agent.state).toBe("idle");
+  });
+
+  it("deposit transfers agent inventory to settlement", () => {
+    const ctx = makeContext();
+    ctx.agent.addToInventory("material", 5);
+    const cmd: ActionCommand = { type: "deposit", settlementId: "v1" };
+    executeCommand(cmd, ctx);
+    expect(ctx.agent.inventory.material).toBe(0);
+    expect(ctx.settlements.get("v1")!.inventory.material).toBe(5);
+  });
+
+  it("take transfers settlement inventory to agent", () => {
+    const ctx = makeContext();
+    const cmd: ActionCommand = { type: "take", settlementId: "v1", resource: "food", amount: 3 };
+    executeCommand(cmd, ctx);
+    expect(ctx.agent.inventory.food).toBe(3);
+    expect(ctx.settlements.get("v1")!.inventory.food).toBe(7);
+  });
+});
