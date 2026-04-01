@@ -94,16 +94,26 @@ export function executeCommand(cmd: ActionCommand, ctx: CommandContext): void {
     }
     case "take": {
       const settlement = settlements.get(cmd.settlementId)!;
-      settlement.removeResource(cmd.resource, cmd.amount);
-      agent.addToInventory(cmd.resource, cmd.amount);
+      if (settlement.removeResource(cmd.resource, cmd.amount)) {
+        agent.addToInventory(cmd.resource, cmd.amount);
+      }
       break;
     }
     case "trade": {
       const target = agents.get(cmd.targetId)!;
-      agent.removeFromInventory(cmd.offer, cmd.offerAmount);
-      target.addToInventory(cmd.offer, cmd.offerAmount);
-      target.removeFromInventory(cmd.want, cmd.wantAmount);
-      agent.addToInventory(cmd.want, cmd.wantAmount);
+      const offerOk = agent.removeFromInventory(cmd.offer, cmd.offerAmount);
+      const wantOk = target.removeFromInventory(cmd.want, cmd.wantAmount);
+      if (offerOk) target.addToInventory(cmd.offer, cmd.offerAmount);
+      if (wantOk) agent.addToInventory(cmd.want, cmd.wantAmount);
+      // Rollback on partial failure
+      if (offerOk && !wantOk) {
+        agent.addToInventory(cmd.offer, cmd.offerAmount);
+        target.removeFromInventory(cmd.offer, cmd.offerAmount);
+      }
+      if (!offerOk && wantOk) {
+        target.addToInventory(cmd.want, cmd.wantAmount);
+        agent.removeFromInventory(cmd.want, cmd.wantAmount);
+      }
       break;
     }
     case "idle":

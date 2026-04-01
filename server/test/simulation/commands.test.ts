@@ -156,4 +156,24 @@ describe("executeCommand", () => {
     expect(ctx.agent.inventory.food).toBe(3);
     expect(ctx.settlements.get("v1")!.inventory.food).toBe(7);
   });
+
+  it("take does not credit agent when settlement debit fails", () => {
+    const ctx = makeContext();
+    const cmd: ActionCommand = { type: "take", settlementId: "v1", resource: "food", amount: 20 };
+    executeCommand(cmd, ctx);
+    expect(ctx.agent.inventory.food).toBe(0);
+    expect(ctx.settlements.get("v1")!.inventory.food).toBe(10);
+  });
+
+  it("trade does not credit when offer debit fails", () => {
+    const ctx = makeContext();
+    const target = new Agent({ id: "a2", position: { x: 6, y: 5 }, faction: "v1", role: "farmer", controller: "llm" });
+    target.addToInventory("material", 5);
+    ctx.agents.set("a2", target);
+    const cmd: ActionCommand = { type: "trade", targetId: "a2", offer: "food", offerAmount: 3, want: "material", wantAmount: 2 };
+    executeCommand(cmd, ctx);
+    expect(target.inventory.food).toBe(0);
+    expect(ctx.agent.inventory.material).toBe(0);
+    expect(target.inventory.material).toBe(5);
+  });
 });
