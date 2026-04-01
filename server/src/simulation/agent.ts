@@ -44,7 +44,7 @@ export class Agent {
     this.faction = init.faction;
     this.role = init.role;
     this.hp = init.hp ?? DEFAULT_MAX_HP;
-    this.maxHp = init.hp ?? DEFAULT_MAX_HP;
+    this.maxHp = DEFAULT_MAX_HP;
     this.inventory = emptyResourceStore();
     this.state = "idle";
     this.plan = [];

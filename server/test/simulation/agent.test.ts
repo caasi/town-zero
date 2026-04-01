@@ -17,9 +17,16 @@ describe("Agent", () => {
     const agent = makeAgent();
     expect(agent.id).toBe("agent-1");
     expect(agent.hp).toBe(100);
+    expect(agent.maxHp).toBe(100);
     expect(agent.state).toBe("idle");
     expect(agent.inventory).toEqual({ food: 0, material: 0, currency: 0 });
     expect(agent.plan).toEqual([]);
+  });
+
+  it("sets maxHp to DEFAULT_MAX_HP even when constructed with lower hp", () => {
+    const agent = makeAgent({ hp: 50 });
+    expect(agent.hp).toBe(50);
+    expect(agent.maxHp).toBe(100);
   });
 
   it("adds resources to inventory", () => {
