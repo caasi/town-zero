@@ -39,7 +39,13 @@ pnpm run build
 pnpm run test
 ```
 
-## How It Works
+## Current State
+
+**Working:** Minimal ChatRoom prototype — players can join a room and the server syncs state. Simulation engine (98 tests) is fully implemented but not yet wired to Colyseus networking.
+
+**Next:** Wire the simulation engine into a GameRoom with state sync, player commands, and a Canvas 2D client.
+
+## How It Works (Target)
 
 Players join a 40x40 grid world containing a **village** and a **monster den**. Each is a settlement with population, inventory, structures, and territory.
 
@@ -62,8 +68,8 @@ Players join a 40x40 grid world containing a **village** and a **monster den**. 
 ## Tech Stack
 
 - **Monorepo:** pnpm workspaces (`shared/`, `server/`, `client/`)
-- **Server:** Colyseus 0.17 + Express
-- **Client:** Colyseus SDK + Canvas 2D + Vite
+- **Server:** Colyseus 0.17 (`@colyseus/core` + `@colyseus/ws-transport` + `@colyseus/schema` v4)
+- **Client:** Colyseus SDK + Vite
 - **Testing:** Vitest
 - **Language:** TypeScript (strict, ES2022)
 
@@ -77,10 +83,9 @@ server/
     ai/          # LLM prompt builder, response parser, scheduler, bot controller
     dialogue/    # Dialogue tree engine, LLM gate, tree data
     map/         # Map generator
-    schema/      # Colyseus state schemas
-    rooms/       # Colyseus GameRoom
+    rooms/       # Colyseus ChatRoom (minimal prototype)
 client/
-  src/           # Canvas 2D renderer, input handler, fog of war, HUD
+  src/           # Minimal Colyseus client (chat prototype)
 ```
 
 ## License

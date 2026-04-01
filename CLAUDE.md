@@ -62,7 +62,9 @@ pnpm run test
 
 ## Development Notes
 
-- Colyseus schemas use `defineTypes()` (not `@type()` decorator) — @colyseus/schema v4 TC39 decorators are incompatible with TypeScript's `experimentalDecorators`
+- Colyseus schemas use `schema()` function API (not `@type()` decorator, not `defineTypes()`) — @colyseus/schema v4 recommended approach
+- `server/src/polyfill.ts` provides `Symbol.metadata` — V8 hasn't implemented it yet, @colyseus/schema v4 needs it; imported as first line in `server/src/index.ts`
+- Use `@colyseus/core` directly, not the `colyseus` meta-package — the meta-package pulls in many sub-packages that cause duplicate `@colyseus/core` instances
 - Server simulation is authoritative; client only renders and sends commands
 - MVP fog of war is client-side only (trusts client, no anti-cheat)
 - `SimulationState` includes `nextMerchantId` to avoid module-level mutable state
@@ -74,7 +76,7 @@ pnpm run test
 
 Current state: minimal ChatRoom prototype running. Simulation engine (98 tests) exists but is not connected to Colyseus networking.
 
-- [ ] Create Colyseus schemas for WorldState, Agent, Settlement, Tile, Structure (use `defineTypes`)
+- [ ] Create Colyseus schemas for WorldState, Agent, Settlement, Tile, Structure (use `schema()` API)
 - [ ] Create GameRoom that wraps SimulationState with tick loop (`setSimulationInterval`)
 - [ ] Sync simulation state → Colyseus schemas each tick
 - [ ] Handle player join/leave with Agent creation and bot takeover
