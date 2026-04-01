@@ -8,8 +8,9 @@ export async function evaluateDialogueGate(
   playerName: string,
   callFn: LLMCallFn,
   settlementInventory: { food: number; material: number; currency: number },
+  currentTick: number,
 ): Promise<boolean> {
-  const basePrompt = buildPrompt(npc, settlementInventory);
+  const basePrompt = buildPrompt(npc, settlementInventory, currentTick);
   const gatePrompt = [
     basePrompt,
     "",

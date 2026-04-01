@@ -4,7 +4,7 @@ import type { ResourceStore } from "@town-zero/shared";
 export function buildPrompt(
   agent: Agent,
   settlementInventory: ResourceStore,
-  currentTick: number = 0,
+  currentTick: number,
 ): string {
   const lines: string[] = [];
 
@@ -25,7 +25,7 @@ export function buildPrompt(
     if (mem.timestamp === currentTick) {
       seen.push(`- ${pos}: ${desc}`);
     } else {
-      const ticksAgo = currentTick - mem.timestamp;
+      const ticksAgo = Math.max(0, currentTick - mem.timestamp);
       remembered.push(`- ${ticksAgo} ticks ago at ${pos}: ${desc}`);
     }
   }
