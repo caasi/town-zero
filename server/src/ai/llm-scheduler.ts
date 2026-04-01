@@ -56,6 +56,7 @@ export class LLMScheduler {
         agent.setPlan(commands);
         entry.lastCallTime = now;
       } catch (err) {
+        entry.lastCallTime = now;
         console.error(`LLM call failed for ${entry.agentId}:`, err);
       }
     }

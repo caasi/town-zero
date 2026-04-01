@@ -51,4 +51,21 @@ describe("LLMScheduler", () => {
     await scheduler.update(agents, settlements, 1000, 10);
     expect(callFn).toHaveBeenCalledOnce();
   });
+
+  it("does not retry immediately after LLM call failure", async () => {
+    const callFn = vi.fn().mockRejectedValue(new Error("API error"));
+    const scheduler = new LLMScheduler(callFn, 5000);
+    const { agent, agents, settlements } = makeTestContext();
+
+    scheduler.register("a1");
+    agent.state = "idle";
+    agent.plan = [];
+
+    await scheduler.update(agents, settlements, 10000, 10);
+    expect(callFn).toHaveBeenCalledOnce();
+
+    // Immediately retry — should be skipped due to lastCallTime update on failure
+    await scheduler.update(agents, settlements, 10001, 11);
+    expect(callFn).toHaveBeenCalledOnce();
+  });
 });
