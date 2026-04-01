@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { spawnMerchant, processMerchantTick } from "../../src/simulation/tick.js";
+import { spawnMerchant, processMerchantTick, processTick } from "../../src/simulation/tick.js";
 import { Grid } from "../../src/simulation/grid.js";
 import { Settlement } from "../../src/simulation/settlement.js";
 import type { SimulationState } from "../../src/simulation/tick.js";
@@ -48,6 +48,14 @@ describe("processMerchantTick", () => {
     // settlement inventory unchanged — no auto-trade
     expect(state.settlements.get("v1")!.inventory.food).toBe(villageFoodBefore);
     expect(state.settlements.get("v1")!.inventory.currency).toBe(0);
+  });
+
+  it("newly spawned merchant stays at x=0 on spawn tick", () => {
+    const state = makeWorldWithRoad();
+    state.tick = 119; // MERCHANT_SPAWN_INTERVAL - 1, next processTick triggers spawn
+    processTick(state);
+    const merchant = Array.from(state.agents.values()).find((a) => a.role === "merchant")!;
+    expect(merchant.position.x).toBe(0);
   });
 
   it("merchant is removed when reaching map edge", () => {

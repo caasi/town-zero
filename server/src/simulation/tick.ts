@@ -131,14 +131,14 @@ export function processTick(state: SimulationState): void {
     processConsumption(agent, tick);
   }
 
-  // Phase 5: Merchant spawning and movement
-  if (tick % MERCHANT_SPAWN_INTERVAL === 0 && tick > 0) {
-    spawnMerchant(state);
-  }
+  // Phase 5: Merchant movement and spawning
   for (const [, agent] of agents) {
     if (agent.role === "merchant") {
       processMerchantTick(agent, state);
     }
+  }
+  if (tick % MERCHANT_SPAWN_INTERVAL === 0 && tick > 0) {
+    spawnMerchant(state);
   }
 
   // Phase 6: Vision update
