@@ -42,6 +42,21 @@ describe("updateVision", () => {
     expect(mem!.entities).toHaveLength(1);
     expect(mem!.entities[0].id).toBe("a2");
   });
+
+  it("derives entity snapshot type from role and faction", () => {
+    const grid = new Grid(20, 20);
+    const observer = new Agent({ id: "a1", position: { x: 5, y: 5 }, faction: "v1", role: "farmer", controller: "llm" });
+    const merchant = new Agent({ id: "m1", position: { x: 6, y: 5 }, faction: "merchant", role: "merchant", controller: "bot" });
+    const monster = new Agent({ id: "b1", position: { x: 4, y: 5 }, faction: "den-1", role: "beast", controller: "bot" });
+    const ally = new Agent({ id: "a2", position: { x: 5, y: 6 }, faction: "v1", role: "scout", controller: "llm" });
+    const allAgents = new Map([["a1", observer], ["m1", merchant], ["b1", monster], ["a2", ally]]);
+
+    updateVision(observer, grid, allAgents, 10);
+
+    expect(observer.getMemory(6, 5)!.entities[0].type).toBe("merchant");
+    expect(observer.getMemory(4, 5)!.entities[0].type).toBe("monster");
+    expect(observer.getMemory(5, 6)!.entities[0].type).toBe("agent");
+  });
 });
 
 describe("mergeAdjacentMemories", () => {

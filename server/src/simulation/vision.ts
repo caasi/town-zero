@@ -33,7 +33,7 @@ export function updateVision(
     const agentsHere = agentsByPos.get(key) ?? [];
     const snapshots: EntitySnapshot[] = agentsHere.map((a) => ({
       id: a.id,
-      type: "agent",
+      type: a.role === "merchant" ? "merchant" : a.faction.startsWith("den") ? "monster" : "agent",
       faction: a.faction,
       position: { ...a.position },
     }));
