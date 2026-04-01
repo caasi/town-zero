@@ -10,8 +10,8 @@
     "test:watch": "vitest watch"
   },
   "dependencies": {
-    "@town-zero/shared": "*",
-    "colyseus": "^0.17.8",
+    "@town-zero/shared": "workspace:*",
+    "@colyseus/core": "^0.17.39",
     "@colyseus/ws-transport": "^0.17.9",
     "@colyseus/schema": "^4.0.0",
     "express": "^4.21.0"
@@ -19,7 +19,6 @@
   "devDependencies": {
     "tsx": "^4.19.0",
     "typescript": "^5.6.0",
-    "vitest": "^3.0.0",
-    "@types/express": "^5.0.0"
+    "vitest": "^3.0.0"
   }
 }

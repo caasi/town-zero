@@ -8,7 +8,7 @@
     "build": "vite build"
   },
   "dependencies": {
-    "@town-zero/shared": "*",
+    "@town-zero/shared": "workspace:*",
     "@colyseus/sdk": "^0.17.0"
   },
   "devDependencies": {

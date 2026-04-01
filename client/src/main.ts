@@ -1,59 +1,30 @@
 import { Client } from "@colyseus/sdk";
-import { Renderer } from "./renderer.js";
-import { InputHandler } from "./input.js";
-import { HUD } from "./ui.js";
-import { FogOfWar } from "./fog.js";
-import type { ActionCommand } from "@town-zero/shared";
 
-const canvas = document.getElementById("game") as HTMLCanvasElement;
-const renderer = new Renderer(canvas);
-const hud = new HUD();
-const fog = new FogOfWar();
+function append(msg: string) {
+  const log = document.getElementById("log")!;
+  log.textContent += "\n" + msg;
+  log.scrollTop = log.scrollHeight;
+}
 
-const serverUrl = `ws://${window.location.hostname}:2567`;
-const client = new Client(serverUrl);
+async function connect() {
+  const client = new Client(`http://${window.location.hostname}:2567`);
+  const room = await client.joinOrCreate("chat");
+  append(`Connected as ${room.sessionId}`);
 
-let playerId: string | null = null;
-
-async function connect(): Promise<void> {
-  const room = await client.joinOrCreate("game");
-
-  room.onMessage("assignAgent", (data: { agentId: string }) => {
-    playerId = data.agentId;
+  room.onStateChange((state: any) => {
+    append(`State updated, players: ${state.players?.size ?? "?"}`);
   });
 
-  const input = new InputHandler(canvas, renderer, (cmd: ActionCommand) => {
-    room.send("command", cmd);
+  room.onMessage("chat", (msg: { from: string; text: string }) => {
+    append(`[${msg.from}] ${msg.text}`);
   });
 
-  function frame(): void {
-    if (playerId) {
-      const playerAgent = room.state.agents.get(playerId);
-      if (playerAgent) {
-        input.setPlayerPosition(playerAgent.x, playerAgent.y);
-        renderer.centerOn(playerAgent.x, playerAgent.y);
-        fog.update(playerAgent.x, playerAgent.y, 40, 40);
-        hud.update({
-          tick: room.state.tick,
-          food: playerAgent.food,
-          material: playerAgent.material,
-          currency: playerAgent.currency,
-          hp: playerAgent.hp,
-          maxHp: playerAgent.maxHp,
-        });
-      }
-    }
-
-    renderer.render(room.state as any, playerId, fog);
-    requestAnimationFrame(frame);
-  }
-
-  requestAnimationFrame(frame);
+  document.getElementById("hello")!.addEventListener("click", () => {
+    append("(sending hello...)");
+    room.send("hello");
+  });
 }
 
 connect().catch((err) => {
-  const ctx = canvas.getContext("2d")!;
-  ctx.fillStyle = "#f00";
-  ctx.font = "20px monospace";
-  ctx.fillText(`Connection failed: ${err.message}`, 20, 40);
+  append(`Connection failed: ${err.message}`);
 });

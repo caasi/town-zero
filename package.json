@@ -2,10 +2,13 @@
   "name": "town-zero",
   "private": true,
   "workspaces": ["shared", "server", "client"],
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  },
   "scripts": {
-    "dev:server": "npm run dev --workspace=server",
-    "dev:client": "npm run dev --workspace=client",
-    "test": "npm run test --workspace=server",
-    "build": "npm run build --workspaces"
+    "build": "pnpm --filter @town-zero/shared build && pnpm --filter @town-zero/server build",
+    "dev:server": "pnpm --filter @town-zero/shared build && pnpm --filter @town-zero/server dev",
+    "dev:client": "pnpm --filter @town-zero/client dev",
+    "test": "pnpm --filter @town-zero/server test"
   }
 }

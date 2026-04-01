@@ -8,35 +8,31 @@ town-zero is a multiplayer real-time ecosystem simulation .io game with LLM-driv
 
 ## Tech Stack
 
-- **Monorepo:** npm workspaces (`shared/`, `server/`, `client/`)
-- **Server:** Colyseus 0.17.x + @colyseus/schema 2.x + Express
-- **Client:** @colyseus/sdk + Canvas 2D + Vite
+- **Monorepo:** pnpm workspaces (`shared/`, `server/`, `client/`)
+- **Package Manager:** pnpm
+- **Server Runtime:** Node.js via tsx (Colyseus requires Node HTTP compatibility)
+- **Server:** Colyseus 0.17.x + @colyseus/schema 4.x
+- **Client:** @colyseus/sdk + Vite
 - **Testing:** Vitest
-- **Language:** TypeScript (strict, ES2022, experimental decorators for Colyseus schemas)
+- **Language:** TypeScript (strict, ES2022)
 
 ## Commands
 
 ```bash
 # Install all workspace dependencies
-npm install
+pnpm install
 
-# Run server (dev mode with hot reload)
-npm run dev --workspace=server
+# Build shared types + server
+pnpm run build
 
-# Run client (Vite dev server on port 3000)
-npm run dev --workspace=client
+# Run server (dev mode with hot reload, port 2567)
+pnpm run dev:server
+
+# Run client (Vite dev server, port 3000)
+pnpm run dev:client
 
 # Run server tests
-npm test --workspace=server
-
-# Run tests in watch mode
-npm run test:watch --workspace=server
-
-# Build shared types (must run before server/client if types changed)
-npm run build --workspace=shared
-
-# Build all workspaces
-npm run build --workspaces
+pnpm run test
 ```
 
 ## Architecture
@@ -66,8 +62,22 @@ npm run build --workspaces
 
 ## Development Notes
 
-- Colyseus schemas use v2 `@type()` decorator syntax (not v3)
+- Colyseus schemas use `defineTypes()` (not `@type()` decorator) — @colyseus/schema v4 TC39 decorators are incompatible with TypeScript's `experimentalDecorators`
 - Server simulation is authoritative; client only renders and sends commands
 - MVP fog of war is client-side only (trusts client, no anti-cheat)
 - `SimulationState` includes `nextMerchantId` to avoid module-level mutable state
 - Food consumption is from agent personal inventory, not settlement (agents must `take` from settlement)
+- Server runs on Node.js via tsx
+- Use pnpm, not bun — bun duplicates @colyseus/core instances causing matchmaker state isolation
+
+## TODO: Wire Simulation Back to Colyseus
+
+Current state: minimal ChatRoom prototype running. Simulation engine (98 tests) exists but is not connected to Colyseus networking.
+
+- [ ] Create Colyseus schemas for WorldState, Agent, Settlement, Tile, Structure (use `defineTypes`)
+- [ ] Create GameRoom that wraps SimulationState with tick loop (`setSimulationInterval`)
+- [ ] Sync simulation state → Colyseus schemas each tick
+- [ ] Handle player join/leave with Agent creation and bot takeover
+- [ ] Handle player commands via `onMessage`
+- [ ] Restore Canvas 2D client with renderer, input, fog of war, HUD
+- [ ] Wire LLM scheduler into GameRoom tick

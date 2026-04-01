@@ -7,33 +7,36 @@ A multiplayer real-time ecosystem simulation .io game with LLM-driven NPCs. Play
 ### Prerequisites
 
 - Node.js 20+
-- npm 9+
+- [pnpm](https://pnpm.io/) 10+
 
 ### Install
 
 ```bash
-npm install
+pnpm install
 ```
 
 ### Run
 
 ```bash
-# 1. Build shared types (required before first run)
-npm run build --workspace=shared
+# Start the server (builds shared types automatically, port 2567)
+pnpm run dev:server
 
-# 2. Start the server (port 2567)
-npm run dev --workspace=server
-
-# 3. In another terminal, start the client (port 3000)
-npm run dev --workspace=client
+# In another terminal, start the client (port 3000)
+pnpm run dev:client
 ```
 
-Open `http://localhost:3000` in your browser. Click adjacent tiles to move your character.
+Open `http://localhost:3000` in your browser.
+
+### Build
+
+```bash
+pnpm run build
+```
 
 ### Test
 
 ```bash
-npm test --workspace=server
+pnpm run test
 ```
 
 ## How It Works
@@ -58,7 +61,7 @@ Players join a 40x40 grid world containing a **village** and a **monster den**. 
 
 ## Tech Stack
 
-- **Monorepo:** npm workspaces (`shared/`, `server/`, `client/`)
+- **Monorepo:** pnpm workspaces (`shared/`, `server/`, `client/`)
 - **Server:** Colyseus 0.17 + Express
 - **Client:** Colyseus SDK + Canvas 2D + Vite
 - **Testing:** Vitest
