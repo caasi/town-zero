@@ -47,4 +47,22 @@ describe("processMerchantTick", () => {
     const village = state.settlements.get("v1")!;
     expect(village.inventory.currency).toBeGreaterThan(0);
   });
+
+  it("merchant trades material when village has no food", () => {
+    const state = makeWorldWithRoad();
+    const village = state.settlements.get("v1")!;
+    village.removeResource("food", village.inventory.food);
+    expect(village.inventory.food).toBe(0);
+    expect(village.inventory.material).toBeGreaterThan(0);
+
+    spawnMerchant(state);
+    const merchant = Array.from(state.agents.values()).find((a) => a.role === "merchant")!;
+    merchant.position = { x: 5, y: 5 };
+    const materialBefore = village.inventory.material;
+    processMerchantTick(merchant, state);
+
+    expect(village.inventory.material).toBeLessThan(materialBefore);
+    expect(merchant.inventory.material).toBeGreaterThan(0);
+    expect(village.inventory.currency).toBeGreaterThan(0);
+  });
 });

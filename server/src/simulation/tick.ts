@@ -34,13 +34,24 @@ export function processMerchantTick(merchant: Agent, state: SimulationState): vo
 
   for (const [, settlement] of state.settlements) {
     if (settlement.type === "village" && settlement.isInTerritory(merchant.position)) {
-      const tradeAmount = Math.min(merchant.inventory.currency, 3);
-      if (tradeAmount > 0 && (settlement.inventory.food > 0 || settlement.inventory.material > 0)) {
-        const foodToTake = Math.min(tradeAmount * MERCHANT_TRADE_RATE, settlement.inventory.food);
+      let remainingBudget = Math.min(merchant.inventory.currency, 3);
+      if (remainingBudget > 0 && settlement.inventory.food > 0) {
+        const foodToTake = Math.min(remainingBudget * MERCHANT_TRADE_RATE, settlement.inventory.food);
         if (foodToTake > 0) {
           settlement.removeResource("food", foodToTake);
           merchant.addToInventory("food", foodToTake);
           const currencyPaid = Math.ceil(foodToTake / MERCHANT_TRADE_RATE);
+          merchant.removeFromInventory("currency", currencyPaid);
+          settlement.addResource("currency", currencyPaid);
+          remainingBudget -= currencyPaid;
+        }
+      }
+      if (remainingBudget > 0 && settlement.inventory.material > 0) {
+        const materialToTake = Math.min(remainingBudget * MERCHANT_TRADE_RATE, settlement.inventory.material);
+        if (materialToTake > 0) {
+          settlement.removeResource("material", materialToTake);
+          merchant.addToInventory("material", materialToTake);
+          const currencyPaid = Math.ceil(materialToTake / MERCHANT_TRADE_RATE);
           merchant.removeFromInventory("currency", currencyPaid);
           settlement.addResource("currency", currencyPaid);
         }
