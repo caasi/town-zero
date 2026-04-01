@@ -6,6 +6,7 @@ import { validateCommand, executeCommand } from "./commands.js";
 import { processGathering, processProduction, processConsumption } from "./resources.js";
 import { processCombat } from "./combat.js";
 import { updateVision, mergeAdjacentMemories } from "./vision.js";
+import { decideBotAction } from "../ai/bot-controller.js";
 
 export interface SimulationState {
   grid: Grid;
@@ -110,6 +111,21 @@ export function processTick(state: SimulationState): void {
         case "talk":
           break;
       }
+    }
+  }
+
+  // Phase 2.5: Bot controller for idle bot agents
+  for (const [, agent] of agents) {
+    if (!agent.isAlive() || agent.controller !== "bot") continue;
+    if (agent.state !== "idle" || agent.plan.length > 0) continue;
+    if (agent.role === "merchant") continue; // merchants have their own logic
+
+    const settlement = Array.from(settlements.values()).find((s) =>
+      s.populationIds.includes(agent.id),
+    );
+    if (settlement) {
+      const cmd = decideBotAction(agent, settlement);
+      agent.setPlan([cmd]);
     }
   }
 
