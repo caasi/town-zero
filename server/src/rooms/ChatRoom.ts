@@ -9,7 +9,7 @@ const ChatState = schema({
 }, "ChatState");
 type ChatState = SchemaType<typeof ChatState>;
 
-export class ChatRoom extends Room {
+export class ChatRoom extends Room<ChatState> {
   private nextId = 0;
 
   onCreate() {
