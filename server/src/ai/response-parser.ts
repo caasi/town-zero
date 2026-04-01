@@ -1,6 +1,7 @@
 import type { ActionCommand } from "@town-zero/shared";
 
 const VALID_TYPES = new Set(["move", "gather", "attack", "deposit", "take", "talk", "trade", "idle"]);
+const VALID_RESOURCES = new Set(["food", "material", "currency"]);
 
 function isPosition(v: unknown): v is { x: number; y: number } {
   return typeof v === "object" && v !== null && typeof (v as any).x === "number" && typeof (v as any).y === "number";
@@ -19,13 +20,13 @@ function isValidCommand(cmd: any): boolean {
     case "deposit":
       return typeof cmd.settlementId === "string";
     case "take":
-      return typeof cmd.settlementId === "string" && typeof cmd.resource === "string" && typeof cmd.amount === "number";
+      return typeof cmd.settlementId === "string" && VALID_RESOURCES.has(cmd.resource) && typeof cmd.amount === "number";
     case "talk":
       return typeof cmd.targetId === "string" && typeof cmd.optionId === "string";
     case "trade":
       return typeof cmd.targetId === "string"
-        && typeof cmd.offer === "string" && typeof cmd.offerAmount === "number"
-        && typeof cmd.want === "string" && typeof cmd.wantAmount === "number";
+        && VALID_RESOURCES.has(cmd.offer) && typeof cmd.offerAmount === "number"
+        && VALID_RESOURCES.has(cmd.want) && typeof cmd.wantAmount === "number";
     case "idle":
       return true;
     default:

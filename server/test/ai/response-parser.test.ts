@@ -65,6 +65,18 @@ describe("parseResponse", () => {
     expect(result).toEqual([{ type: "idle" }]);
   });
 
+  it("filters out take with invalid resource type", () => {
+    const raw = '[{"type":"take","settlementId":"v1","resource":"gold","amount":1}]';
+    const result = parseResponse(raw);
+    expect(result).toEqual([{ type: "idle" }]);
+  });
+
+  it("filters out trade with invalid offer/want resource types", () => {
+    const raw = '[{"type":"trade","targetId":"a2","offer":"gems","offerAmount":1,"want":"food","wantAmount":1}]';
+    const result = parseResponse(raw);
+    expect(result).toEqual([{ type: "idle" }]);
+  });
+
   it("keeps well-formed commands and drops malformed ones", () => {
     const raw = '[{"type":"move","target":{"x":1,"y":1}},{"type":"attack"},{"type":"idle"}]';
     const result = parseResponse(raw);
