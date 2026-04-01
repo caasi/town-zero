@@ -1,4 +1,4 @@
-import type { ActionCommand, ResourceType } from "@town-zero/shared";
+import type { ActionCommand } from "@town-zero/shared";
 import { TERRAIN_MOVE_COST } from "@town-zero/shared";
 import type { Agent } from "./agent.js";
 import type { Grid } from "./grid.js";
@@ -14,6 +14,8 @@ export interface CommandContext {
 function isValidAmount(n: number): boolean {
   return Number.isFinite(n) && n > 0 && Number.isInteger(n);
 }
+
+const VALID_RESOURCE_TYPES = new Set(["food", "material", "currency"]);
 
 export function validateCommand(cmd: ActionCommand, ctx: CommandContext): boolean {
   const { grid, agent, agents, settlements } = ctx;
@@ -40,6 +42,7 @@ export function validateCommand(cmd: ActionCommand, ctx: CommandContext): boolea
     }
     case "take": {
       if (!isValidAmount(cmd.amount)) return false;
+      if (!VALID_RESOURCE_TYPES.has(cmd.resource)) return false;
       const settlement = settlements.get(cmd.settlementId);
       if (!settlement) return false;
       if (!settlement.isInTerritory(agent.position)) return false;

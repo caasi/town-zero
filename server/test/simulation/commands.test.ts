@@ -80,6 +80,12 @@ describe("validateCommand", () => {
     expect(validateCommand(cmd, ctx)).toBe(false);
   });
 
+  it("rejects take with invalid resource type", () => {
+    const ctx = makeContext();
+    const cmd = { type: "take", settlementId: "v1", resource: "__proto__", amount: 1 } as any as ActionCommand;
+    expect(validateCommand(cmd, ctx)).toBe(false);
+  });
+
   it("rejects take with negative amount", () => {
     const ctx = makeContext();
     const cmd: ActionCommand = { type: "take", settlementId: "v1", resource: "food", amount: -1 };
