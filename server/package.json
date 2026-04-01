@@ -10,12 +10,14 @@
     "test:watch": "vitest watch"
   },
   "dependencies": {
-    "@town-zero/shared": "workspace:*",
     "@colyseus/core": "^0.17.39",
+    "@colyseus/schema": "^4.0.0",
     "@colyseus/ws-transport": "^0.17.9",
-    "@colyseus/schema": "^4.0.0"
+    "@town-zero/shared": "workspace:*"
   },
   "devDependencies": {
+    "@colyseus/sdk": "^0.17.35",
+    "@colyseus/testing": "^0.17.11",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0",
     "vitest": "^3.0.0"

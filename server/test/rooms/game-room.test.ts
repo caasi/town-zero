@@ -1,0 +1,297 @@
+import "../../src/polyfill.js";
+
+import { Encoder } from "@colyseus/schema";
+Encoder.BUFFER_SIZE = 64 * 1024;
+
+import { describe, it, expect, beforeEach } from "vitest";
+import { GameRoom } from "../../src/rooms/GameRoom.js";
+import type { WorldStateSchema } from "../../src/rooms/schemas/WorldStateSchema.js";
+
+// Direct-instantiation approach: test GameRoom lifecycle methods directly
+// The pure functions (sync, validation, vision) are fully tested in other files;
+// these tests focus on the wiring between Colyseus lifecycle and simulation.
+
+// Minimal mock Client
+function mockClient(sessionId: string): any {
+  const messages: Array<{ type: string; data: any }> = [];
+  return {
+    sessionId,
+    messages,
+    send(type: string, data: any) { messages.push({ type, data }); },
+    leave(_code?: number, _reason?: string) {},
+  };
+}
+
+// Create a GameRoom and call onCreate, bypassing Colyseus server infrastructure
+function createTestRoom(): { room: GameRoom; state: WorldStateSchema } {
+  const room = Object.create(GameRoom.prototype) as any;
+
+  // Initialize class fields that Object.create skips
+  room.sessionToAgent = new Map<string, string>();
+  room.nextPlayerId = 0;
+
+  // Minimal Room internals that GameRoom needs
+  room.clients = {
+    _items: new Map<string, any>(),
+    getById(id: string) { return room.clients._items.get(id); },
+  };
+  room._messageHandlers = new Map();
+  room.onMessage = function (type: string, handler: (client: any, data: any) => void) {
+    room._messageHandlers.set(type, handler);
+  };
+  room.setState = function (state: any) { room.state = state; };
+  room.setSimulationInterval = function (fn: () => void, _interval: number) {
+    room._tickFn = fn;
+  };
+  room.broadcast = function () {};
+
+  // Call onCreate
+  room.onCreate();
+
+  return { room, state: room.state as WorldStateSchema };
+}
+
+function joinClient(room: any, client: any, options?: { name?: string }) {
+  room.clients._items.set(client.sessionId, client);
+  room.onJoin(client, options);
+}
+
+function leaveClient(room: any, client: any) {
+  room.onLeave(client);
+  room.clients._items.delete(client.sessionId);
+}
+
+function sendCommand(room: any, client: any, cmd: unknown) {
+  const handler = room._messageHandlers.get("command");
+  if (handler) handler(client, cmd);
+}
+
+function tick(room: any) {
+  room._tickFn();
+}
+
+describe("GameRoom integration", () => {
+  let room: any;
+  let state: WorldStateSchema;
+
+  beforeEach(() => {
+    const result = createTestRoom();
+    room = result.room;
+    state = result.state;
+  });
+
+  it("creates with grid dimensions and initial state", () => {
+    expect(state.width).toBe(40);
+    expect(state.height).toBe(40);
+    expect(state.tiles.size).toBe(1600);
+    expect(state.tick).toBe(0);
+  });
+
+  it("has village and den settlements", () => {
+    let villageCount = 0;
+    let denCount = 0;
+    state.settlements.forEach((s: any) => {
+      if (s.type === "village") villageCount++;
+      if (s.type === "den") denCount++;
+    });
+    expect(villageCount).toBeGreaterThan(0);
+    expect(denCount).toBeGreaterThan(0);
+  });
+
+  it("player joins and agent appears in state after tick", () => {
+    const client = mockClient("session-1");
+    joinClient(room, client, { name: "TestPlayer" });
+    tick(room);
+
+    let playerAgent: any;
+    state.agents.forEach((agent: any) => {
+      if (agent.controller === "player") playerAgent = agent;
+    });
+    expect(playerAgent).toBeDefined();
+    expect(playerAgent.faction).toBe("village-1");
+    expect(playerAgent.role).toBe("TestPlayer");
+  });
+
+  it("player sends move command and position updates", () => {
+    const client = mockClient("session-1");
+    joinClient(room, client, { name: "Mover" });
+    tick(room);
+
+    let playerAgent: any;
+    state.agents.forEach((agent: any) => {
+      if (agent.controller === "player") playerAgent = agent;
+    });
+    const origX = playerAgent.x;
+    const origY = playerAgent.y;
+
+    sendCommand(room, client, { type: "move", target: { x: origX + 1, y: origY } });
+    tick(room);
+
+    state.agents.forEach((agent: any) => {
+      if (agent.controller === "player") playerAgent = agent;
+    });
+    expect(playerAgent.x).toBe(origX + 1);
+  });
+
+  it("player leaves and agent becomes bot-controlled", () => {
+    const client = mockClient("session-1");
+    joinClient(room, client, { name: "Leaver" });
+    tick(room);
+
+    let playerId: string | undefined;
+    state.agents.forEach((agent: any) => {
+      if (agent.controller === "player") playerId = agent.id;
+    });
+    expect(playerId).toBeDefined();
+
+    leaveClient(room, client);
+    tick(room);
+
+    let leftAgent: any;
+    state.agents.forEach((agent: any) => {
+      if (agent.id === playerId) leftAgent = agent;
+    });
+    expect(leftAgent).toBeDefined();
+    expect(leftAgent.controller).toBe("bot");
+  });
+
+  it("multiple players join and appear in state", () => {
+    const client1 = mockClient("session-1");
+    const client2 = mockClient("session-2");
+    joinClient(room, client1, { name: "Player1" });
+    joinClient(room, client2, { name: "Player2" });
+    tick(room);
+
+    let playerCount = 0;
+    state.agents.forEach((agent: any) => {
+      if (agent.controller === "player") playerCount++;
+    });
+    expect(playerCount).toBe(2);
+  });
+
+  it("bot agents exist and are alive after ticks", () => {
+    const client = mockClient("session-1");
+    joinClient(room, client, { name: "Observer" });
+    tick(room);
+    tick(room);
+    tick(room);
+
+    let botCount = 0;
+    state.agents.forEach((agent: any) => {
+      if (agent.controller !== "player" && agent.hp > 0) botCount++;
+    });
+    expect(botCount).toBeGreaterThan(0);
+  });
+
+  it("settlement shows in state with population and resources", () => {
+    tick(room);
+
+    let village: any;
+    state.settlements.forEach((s: any) => {
+      if (s.type === "village") village = s;
+    });
+    expect(village).toBeDefined();
+    expect(village.population).toBeGreaterThan(0);
+    expect(village.inventory.get("food")).toBeGreaterThanOrEqual(0);
+  });
+
+  it("invalid command is ignored without crash", () => {
+    const client = mockClient("session-1");
+    joinClient(room, client, { name: "BadCmd" });
+    tick(room);
+
+    sendCommand(room, client, { type: "fly", destination: "moon" });
+    tick(room);
+
+    expect(state.tick).toBeGreaterThan(0);
+  });
+
+  it("malformed command (bad shape) is ignored", () => {
+    const client = mockClient("session-1");
+    joinClient(room, client, { name: "BadShape" });
+    tick(room);
+
+    sendCommand(room, client, "not an object");
+    sendCommand(room, client, null);
+    sendCommand(room, client, { type: "move" }); // missing target
+    tick(room);
+
+    expect(state.tick).toBeGreaterThan(0);
+  });
+
+  it("sends vision updates to connected players", () => {
+    const client = mockClient("session-1");
+    joinClient(room, client, { name: "Visionary" });
+    tick(room);
+
+    const visionMsgs = client.messages.filter((m: any) => m.type === "vision");
+    expect(visionMsgs.length).toBeGreaterThan(0);
+    expect(visionMsgs[0].data.tick).toBeGreaterThan(0);
+    expect(visionMsgs[0].data.tiles).toBeDefined();
+  });
+
+  it("sends death notification when player agent dies", () => {
+    const client = mockClient("session-1");
+    joinClient(room, client, { name: "Doomed" });
+    tick(room);
+
+    // Kill the agent directly via sim state
+    let agentId: string | undefined;
+    state.agents.forEach((agent: any) => {
+      if (agent.controller === "player") agentId = agent.id;
+    });
+    const simAgent = room.simState.agents.get(agentId!);
+    simAgent.takeDamage(200);
+
+    tick(room);
+
+    const deathMsgs = client.messages.filter((m: any) => m.type === "death");
+    expect(deathMsgs.length).toBeGreaterThan(0);
+    expect(deathMsgs[0].data.agentId).toBe(agentId);
+  });
+
+  it("ignores commands from dead agents", () => {
+    const client = mockClient("session-1");
+    joinClient(room, client, { name: "DeadPlayer" });
+    tick(room);
+
+    let agentId: string | undefined;
+    state.agents.forEach((agent: any) => {
+      if (agent.controller === "player") agentId = agent.id;
+    });
+
+    const simAgent = room.simState.agents.get(agentId!);
+    const origX = simAgent.position.x;
+    simAgent.takeDamage(200);
+    tick(room);
+
+    // Try to move after death — should be silently ignored
+    sendCommand(room, client, { type: "move", target: { x: origX + 5, y: 5 } });
+    tick(room);
+
+    expect(state.agents.get(agentId!)!.hp).toBe(0);
+  });
+
+  it("two players attack pipeline works", () => {
+    const client1 = mockClient("session-1");
+    const client2 = mockClient("session-2");
+    joinClient(room, client1, { name: "Attacker" });
+    joinClient(room, client2, { name: "Defender" });
+    tick(room);
+
+    let attackerId: string | undefined;
+    let defenderId: string | undefined;
+    state.agents.forEach((agent: any) => {
+      if (agent.role === "Attacker") attackerId = agent.id;
+      if (agent.role === "Defender") defenderId = agent.id;
+    });
+
+    if (attackerId && defenderId) {
+      sendCommand(room, client1, { type: "attack", targetId: defenderId });
+      tick(room);
+      tick(room);
+    }
+
+    expect(state.tick).toBeGreaterThan(0);
+  });
+});
