@@ -36,6 +36,7 @@ export class Agent {
   // FSM execution state
   currentCommandTicks: number = 0;
   currentCommandTarget: number = 0;
+  currentTargetId: string | null = null;
 
   constructor(init: AgentInit) {
     this.id = init.id;

@@ -3,7 +3,7 @@ import { SimulationState, processTick } from "../../src/simulation/tick.js";
 import { Grid } from "../../src/simulation/grid.js";
 import { Agent } from "../../src/simulation/agent.js";
 import { Settlement } from "../../src/simulation/settlement.js";
-import { FOOD_CONSUMPTION_INTERVAL, GATHER_DURATION } from "@town-zero/shared";
+import { FOOD_CONSUMPTION_INTERVAL, GATHER_DURATION, ATTACK_COOLDOWN_TICKS, BASE_ATTACK_DAMAGE } from "@town-zero/shared";
 
 function makeWorld(): SimulationState {
   const grid = new Grid(10, 10);
@@ -85,5 +85,42 @@ describe("processTick", () => {
       if (!agent.isAlive()) break;
     }
     expect(agent.isAlive()).toBe(false);
+  });
+
+  it("completes combat after ATTACK_COOLDOWN_TICKS", () => {
+    const world = makeWorld();
+    const attacker = world.agents.get("a1")!;
+    attacker.addToInventory("food", 100);
+    const target = new Agent({ id: "enemy", position: { x: 5, y: 6 }, faction: "den-1", role: "beast", controller: "bot" });
+    target.addToInventory("food", 100);
+    world.agents.set("enemy", target);
+
+    attacker.setPlan([{ type: "attack", targetId: "enemy" }]);
+    // Dispatch tick: attack command dequeued, first processCombat call
+    processTick(world);
+    expect(attacker.state).toBe("fighting");
+
+    // Run remaining cooldown ticks
+    for (let i = 1; i < ATTACK_COOLDOWN_TICKS; i++) {
+      processTick(world);
+    }
+    expect(attacker.state).toBe("idle");
+    expect(target.hp).toBe(100 - BASE_ATTACK_DAMAGE * ATTACK_COOLDOWN_TICKS);
+  });
+
+  it("returns attacker to idle when target dies mid-combat", () => {
+    const world = makeWorld();
+    const attacker = world.agents.get("a1")!;
+    attacker.addToInventory("food", 100);
+    const target = new Agent({ id: "enemy", position: { x: 5, y: 6 }, faction: "den-1", role: "beast", controller: "bot", hp: 1 });
+    target.addToInventory("food", 100);
+    world.agents.set("enemy", target);
+
+    attacker.setPlan([{ type: "attack", targetId: "enemy" }]);
+    processTick(world); // dispatch + first combat → target dies
+    expect(target.isAlive()).toBe(false);
+
+    processTick(world); // attacker should recover to idle, not stay stuck
+    expect(attacker.state).toBe("idle");
   });
 });

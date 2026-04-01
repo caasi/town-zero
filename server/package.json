@@ -13,8 +13,7 @@
     "@town-zero/shared": "workspace:*",
     "@colyseus/core": "^0.17.39",
     "@colyseus/ws-transport": "^0.17.9",
-    "@colyseus/schema": "^4.0.0",
-    "express": "^4.21.0"
+    "@colyseus/schema": "^4.0.0"
   },
   "devDependencies": {
     "tsx": "^4.19.0",

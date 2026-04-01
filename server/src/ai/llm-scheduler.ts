@@ -41,7 +41,7 @@ export class LLMScheduler {
       const agent = agents.get(entry.agentId);
       if (!agent || !agent.isAlive()) continue;
       if (agent.controller !== "llm") continue;
-      if (agent.state !== "idle" && agent.plan.length > 0) continue;
+      if (agent.state !== "idle" || agent.plan.length > 0) continue;
 
       const settlement = Array.from(settlements.values()).find((s) =>
         s.populationIds.includes(agent.id),

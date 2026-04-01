@@ -73,6 +73,15 @@ export function processTick(state: SimulationState): void {
     }
 
     if (agent.state === "fighting") {
+      const target = agent.currentTargetId ? agents.get(agent.currentTargetId) : undefined;
+      if (target && target.isAlive()) {
+        processCombat(agent, target);
+      } else {
+        agent.state = "idle";
+        agent.currentCommandTicks = 0;
+        agent.currentCommandTarget = 0;
+        agent.currentTargetId = null;
+      }
       continue;
     }
 
@@ -104,6 +113,7 @@ export function processTick(state: SimulationState): void {
             agent.state = "fighting";
             agent.currentCommandTicks = 0;
             agent.currentCommandTarget = ATTACK_COOLDOWN_TICKS;
+            agent.currentTargetId = cmd.targetId;
             processCombat(agent, target);
           }
           break;

@@ -31,7 +31,7 @@ export function processProduction(settlement: Settlement, agents: Map<string, Ag
     if (!structure.operatorId) continue;
 
     const operator = agents.get(structure.operatorId);
-    if (!operator || !operator.isAlive() || operator.state !== "operating") continue;
+    if (!operator || !operator.isAlive()) continue;
 
     if (settlement.removeResource("material", PRODUCTION_INPUT_COST)) {
       settlement.addResource("food", PRODUCTION_OUTPUT);

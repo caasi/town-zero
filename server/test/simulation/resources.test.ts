@@ -40,7 +40,7 @@ describe("processProduction", () => {
     settlement.addResource("material", PRODUCTION_INPUT_COST);
 
     const agents = new Map([["a1", new Agent({ id: "a1", position: { x: 0, y: 0 }, faction: "v1", role: "farmer", controller: "llm" })]]);
-    agents.get("a1")!.state = "operating";
+    // Operator just needs to be alive — no special "operating" state required
 
     processProduction(settlement, agents, PRODUCTION_CYCLE_TICKS); // tick == cycle boundary
     expect(settlement.inventory.food).toBe(PRODUCTION_OUTPUT);
