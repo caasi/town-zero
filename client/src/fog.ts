@@ -79,6 +79,22 @@ export class FogManager {
     return "unknown";
   }
 
+  /**
+   * Returns a tile-source backed by fog snapshots (not raw server state).
+   * Prediction should use this so it only knows about tiles the player
+   * has actually seen — unknown tiles return undefined.
+   */
+  tileSource(): { get(key: string): { terrain: string } | undefined } {
+    const snapshots = this.snapshots;
+    return {
+      get(key: string): { terrain: string } | undefined {
+        const snapshot = snapshots.get(key);
+        if (!snapshot) return undefined;
+        return { terrain: snapshot.terrain };
+      },
+    };
+  }
+
   getSnapshot(x: number, y: number): TileSnapshot | undefined {
     return this.snapshots.get(`${x},${y}`);
   }

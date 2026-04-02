@@ -6,6 +6,8 @@ import type { DisplayState } from "./display.js";
 
 const TILE_SIZE = 32;
 
+const EIGENGRAU = "#16161d"; // perceived color of darkness — used for unknown tiles
+
 const TERRAIN_COLORS: Record<string, string> = {
   plains: "#3a6a3e",
   forest: "#1a4a1a",
@@ -47,7 +49,8 @@ export class Renderer {
       if (pa) playerFaction = pa.faction;
     }
 
-    ctx.fillStyle = "#111";
+    // Void (outside map) is true black
+    ctx.fillStyle = "#000";
     ctx.fillRect(0, 0, width, height);
 
     // Draw tiles
@@ -56,7 +59,13 @@ export class Renderer {
         const px = (x - vp.startX) * TILE_SIZE + vp.offsetX;
         const py = (y - vp.startY) * TILE_SIZE + vp.offsetY;
         const fogLevel = fog.getLevel(x, y);
-        if (fogLevel === "unknown") continue; // background #111 is the "black"
+
+        if (fogLevel === "unknown") {
+          // Eigengrau — distinguishes "unseen tile" from "void outside map"
+          ctx.fillStyle = EIGENGRAU;
+          ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+          continue;
+        }
 
         this.drawTile(ctx, px, py, state, x, y, fogLevel);
       }

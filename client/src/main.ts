@@ -222,7 +222,7 @@ async function connect(): Promise<void> {
     input = new InputHandler((cmd) => network.send(cmd));
     input.setModalHandler(handleModal);
     displayState.setLocalPlayer(network.playerId);
-    input.setPredictionContext(displayState, network.state?.tiles);
+    input.setPredictionContext(displayState, fog.tileSource());
 
     network.onVision((vision) => fog.update(vision));
     network.onDeath(() => {

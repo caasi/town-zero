@@ -51,13 +51,13 @@ export class DisplayState {
     // Reject if agent is not idle
     if (agentState !== "idle") return false;
 
-    // Reject if tile does not exist (out of bounds)
+    // Check tile from fog snapshots (not raw server state)
     const tile = tiles.get(`${targetX},${targetY}`);
-    if (!tile) return false;
+    if (!tile) return true; // Unknown tile — allow optimistically, server validates
 
-    // Reject if terrain is unknown or impassable
+    // Reject if terrain is impassable
     const terrain = tile.terrain as TerrainType;
-    if (!(terrain in TERRAIN_MOVE_COST)) return false;
+    if (!(terrain in TERRAIN_MOVE_COST)) return true; // Unknown terrain — allow
     if (TERRAIN_MOVE_COST[terrain] === Infinity) return false;
 
     // Apply prediction: snap displayX/Y to target tile
