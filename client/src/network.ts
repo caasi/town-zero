@@ -29,20 +29,27 @@ export class NetworkClient {
     const joinedPromise = new Promise<string>((resolve, reject) => {
       this.joinedResolve = resolve;
       this.joinedReject = reject;
-      this.joinedTimeout = setTimeout(() => reject(new Error("Timed out waiting for joined message")), 10_000);
+      this.joinedTimeout = setTimeout(() => {
+        this.joinedTimeout = null;
+        this.joinedResolve = null;
+        this.joinedReject = null;
+        this.room?.leave();
+        this.room = null;
+        this.client = null;
+        reject(new Error("Timed out waiting for joined message"));
+      }, 10_000);
     });
 
     this.room.onMessage("joined", (data: { agentId: string }) => {
+      if (!this.joinedResolve) return;
       this._playerId = data.agentId;
       if (this.joinedTimeout) {
         clearTimeout(this.joinedTimeout);
         this.joinedTimeout = null;
       }
-      if (this.joinedResolve) {
-        this.joinedResolve(data.agentId);
-        this.joinedResolve = null;
-        this.joinedReject = null;
-      }
+      this.joinedResolve(data.agentId);
+      this.joinedResolve = null;
+      this.joinedReject = null;
     });
 
     this.room.onMessage("vision", (data: VisionData) => {
