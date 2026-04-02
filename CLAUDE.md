@@ -67,6 +67,10 @@ pnpm run test
 - Use `@colyseus/core` directly, not the `colyseus` meta-package — the meta-package pulls in many sub-packages that cause duplicate `@colyseus/core` instances
 - Server simulation is authoritative; client only renders and sends commands
 - MVP fog of war is client-side only (trusts client, no anti-cheat)
+- Player agents use `role: "player"` — `role` is a functional type tag (`"merchant"`, `"scout"`, etc.), not a display name
+- Client modules: `network.ts` (Colyseus connection), `renderer.ts` (Canvas 2D), `camera.ts` (viewport), `fog.ts` (fog of war), `input.ts` (WASD + action keys), `main.ts` (game loop + HUD)
+- `NetworkClient.connect()` has a 10s join timeout with full cleanup on expiry, a concurrent-call guard (`isConnecting` in main.ts), and `disconnect()` rejects any in-flight join promise
+- Colyseus Client constructor uses `http://`/`https://` scheme (not `ws://`/`wss://`) — SDK handles WebSocket upgrade internally
 - `SimulationState` includes `nextMerchantId` to avoid module-level mutable state
 - Food consumption is from agent personal inventory, not settlement (agents must `take` from settlement)
 - Server runs on Node.js via tsx
@@ -76,14 +80,12 @@ pnpm run test
 
 - `PRODUCTION_OUTPUT` constant comment says "food/material produced per cycle" but `processProduction` only converts material→food. Update comment or extend production to support material output when adding new production types.
 
-## TODO: Wire Simulation Back to Colyseus
+## TODO
 
-Current state: minimal ChatRoom prototype running. Simulation engine (98 tests) exists but is not connected to Colyseus networking.
-
-- [ ] Create Colyseus schemas for WorldState, Agent, Settlement, Tile, Structure (use `schema()` API)
-- [ ] Create GameRoom that wraps SimulationState with tick loop (`setSimulationInterval`)
-- [ ] Sync simulation state → Colyseus schemas each tick
-- [ ] Handle player join/leave with Agent creation and bot takeover
-- [ ] Handle player commands via `onMessage`
-- [ ] Restore Canvas 2D client with renderer, input, fog of war, HUD
+- [x] Create Colyseus schemas for WorldState, Agent, Settlement, Tile, Structure (use `schema()` API)
+- [x] Create GameRoom that wraps SimulationState with tick loop (`setSimulationInterval`)
+- [x] Sync simulation state → Colyseus schemas each tick
+- [x] Handle player join/leave with Agent creation and bot takeover
+- [x] Handle player commands via `onMessage`
+- [x] Restore Canvas 2D client with renderer, input, fog of war, HUD
 - [ ] Wire LLM scheduler into GameRoom tick
