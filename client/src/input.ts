@@ -49,7 +49,7 @@ export function formatKeyHints(labels: Record<string, string>): string {
   return `${move}:Move  ${labels.KeyE}:Interact  ${labels.KeyQ}:Attack  ${labels.KeyG}:Gather  ${labels.KeyT}:Deposit`;
 }
 
-const MOVE_THROTTLE_MS = 200;
+const MOVE_THROTTLE_MS = 150;
 
 const MOVE_KEYS: Record<string, { dx: number; dy: number }> = {
   KeyW: { dx: 0, dy: -1 }, ArrowUp: { dx: 0, dy: -1 },
@@ -110,11 +110,11 @@ export class InputHandler {
 
   private handleKey(e: KeyboardEvent): void {
     if (!this.enabled || !this.playerAgent) return;
-    if (e.repeat) return;
 
     const code = e.code;
 
     // WASD / arrow movement (physical key position, layout-independent)
+    // Allow e.repeat so holding a key keeps moving — throttle handles rate-limiting
     const move = MOVE_KEYS[code];
     if (move) {
       const now = Date.now();
@@ -142,6 +142,9 @@ export class InputHandler {
       });
       return;
     }
+
+    // Block repeat for non-movement action keys
+    if (e.repeat) return;
 
     const { x, y, faction } = this.playerAgent;
 

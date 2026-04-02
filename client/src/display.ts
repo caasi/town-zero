@@ -3,7 +3,7 @@ import { TERRAIN_MOVE_COST } from "@town-zero/shared";
 import type { TerrainType } from "@town-zero/shared";
 
 const TILE_SIZE = 32;
-const BASE_LERP_FACTOR = 0.2;
+const BASE_LERP_FACTOR = 0.35;
 const BASE_FRAME_MS = 16.67; // 60fps baseline
 
 export interface AgentDisplay {
