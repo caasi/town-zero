@@ -1,4 +1,5 @@
 // client/src/fog.ts
+import { tilesInManhattanRadius } from "@town-zero/shared";
 import type { FogLevel, FogEntry, VisionData } from "./types.js";
 
 export class FogManager {
@@ -21,29 +22,17 @@ export class FogManager {
 
   /**
    * Optimistically mark tiles around a predicted position as "visible".
-   * Uses Manhattan distance (diamond shape) to match server vision.
-   * Only promotes tiles that already have a fog entry (explored or
-   * previously visible) — does not reveal truly unknown tiles.
+   * Uses tilesInManhattanRadius (shared with server) for consistent shape.
    */
   revealAround(cx: number, cy: number, radius: number): void {
     this.predictedVisible.clear();
-    for (let dy = -radius; dy <= radius; dy++) {
-      for (let dx = -radius; dx <= radius; dx++) {
-        if (Math.abs(dx) + Math.abs(dy) > radius) continue;
-        const key = `${cx + dx},${cy + dy}`;
-        // Only promote tiles we've seen before — don't reveal truly unknown areas
-        if (this.entries.has(key)) {
-          this.predictedVisible.add(key);
-        }
-      }
+    for (const pos of tilesInManhattanRadius({ x: cx, y: cy }, radius)) {
+      this.predictedVisible.add(`${pos.x},${pos.y}`);
     }
   }
 
   getLevel(x: number, y: number): FogLevel {
     const key = `${x},${y}`;
-    // Predicted visible overrides "explored" back to "visible" within
-    // the predicted vision radius. Tiles outside radius keep their
-    // real fog level (explored stays grey, unknown stays dark).
     if (this.predictedVisible.has(key)) return "visible";
     return this.entries.get(key)?.level ?? "unknown";
   }

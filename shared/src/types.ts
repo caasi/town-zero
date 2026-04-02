@@ -31,6 +31,22 @@ export interface Position {
   y: number;
 }
 
+/**
+ * Returns all positions within Manhattan distance `radius` of `center`.
+ * Used by both server vision and client fog prediction.
+ */
+export function tilesInManhattanRadius(center: Position, radius: number): Position[] {
+  const result: Position[] = [];
+  for (let dy = -radius; dy <= radius; dy++) {
+    for (let dx = -radius; dx <= radius; dx++) {
+      if (Math.abs(dx) + Math.abs(dy) <= radius) {
+        result.push({ x: center.x + dx, y: center.y + dy });
+      }
+    }
+  }
+  return result;
+}
+
 // --- FSM ---
 
 export type FSMState =
