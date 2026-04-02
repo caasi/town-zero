@@ -20,23 +20,30 @@ export class FogManager {
   }
 
   /**
-   * Optimistically reveal tiles around a predicted position.
-   * Call once per frame before rendering. Only promotes already-explored
-   * or unknown tiles to "visible" temporarily — the real fog state is
-   * unchanged and next server vision will overwrite as usual.
+   * Optimistically mark tiles around a predicted position as "visible".
+   * Uses Manhattan distance (diamond shape) to match server vision.
+   * Only promotes tiles that already have a fog entry (explored or
+   * previously visible) — does not reveal truly unknown tiles.
    */
   revealAround(cx: number, cy: number, radius: number): void {
     this.predictedVisible.clear();
     for (let dy = -radius; dy <= radius; dy++) {
       for (let dx = -radius; dx <= radius; dx++) {
-        if (dx * dx + dy * dy > radius * radius) continue;
-        this.predictedVisible.add(`${cx + dx},${cy + dy}`);
+        if (Math.abs(dx) + Math.abs(dy) > radius) continue;
+        const key = `${cx + dx},${cy + dy}`;
+        // Only promote tiles we've seen before — don't reveal truly unknown areas
+        if (this.entries.has(key)) {
+          this.predictedVisible.add(key);
+        }
       }
     }
   }
 
   getLevel(x: number, y: number): FogLevel {
     const key = `${x},${y}`;
+    // Predicted visible overrides "explored" back to "visible" within
+    // the predicted vision radius. Tiles outside radius keep their
+    // real fog level (explored stays grey, unknown stays dark).
     if (this.predictedVisible.has(key)) return "visible";
     return this.entries.get(key)?.level ?? "unknown";
   }
