@@ -83,7 +83,7 @@ The simulation-side `Grid` class (`server/src/simulation/grid.ts`) uses `TileDat
 interface TileData {
   terrain: TerrainType;
   owner: string | null;
-  resourceYield: ResourceYield;
+  resourceYield: ResourceType | null;
   zoneType: string;              // new — ZoneType enum value, default ""
 }
 ```
