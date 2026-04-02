@@ -10,6 +10,7 @@ export class NetworkClient {
   private visionCallbacks: Array<(data: VisionData) => void> = [];
   private deathCallbacks: Array<(agentId: string) => void> = [];
   private joinedResolve: ((agentId: string) => void) | null = null;
+  private joinedReject: ((reason: Error) => void) | null = null;
 
   get state(): any {
     return this.room?.state ?? null;
@@ -26,6 +27,7 @@ export class NetworkClient {
 
     const joinedPromise = new Promise<string>((resolve, reject) => {
       this.joinedResolve = resolve;
+      this.joinedReject = reject;
       setTimeout(() => reject(new Error("Timed out waiting for joined message")), 10_000);
     });
 
@@ -61,6 +63,11 @@ export class NetworkClient {
   }
 
   disconnect(): void {
+    if (this.joinedReject) {
+      this.joinedReject(new Error("Disconnected"));
+      this.joinedResolve = null;
+      this.joinedReject = null;
+    }
     this.room?.leave();
     this.room = null;
     this.client = null;
