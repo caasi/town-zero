@@ -1,6 +1,7 @@
 // client/src/fog.ts
 import { tilesInManhattanRadius } from "@town-zero/shared";
 import type { TerrainType } from "@town-zero/shared";
+import type { EntitySnapshot } from "@town-zero/shared";
 import type { FogLevel, FogEntry, VisionData } from "./types.js";
 
 export class FogManager {
@@ -51,6 +52,39 @@ export class FogManager {
             timestamp: 0,
           });
         }
+      }
+    }
+  }
+
+  /**
+   * Update lastEntities for predicted-visible tiles from live agent state.
+   * This ensures mobs are remembered at their last-seen position when
+   * tiles transition from visible to explored.
+   */
+  snapshotAgents(
+    agents: Iterable<{ id: string; x: number; y: number; role: string; faction: string }>,
+    localPlayerId: string | null,
+  ): void {
+    // Index agents by tile key, only for predicted-visible tiles
+    const byTile = new Map<string, EntitySnapshot[]>();
+    for (const agent of agents) {
+      if (agent.id === localPlayerId) continue;
+      const key = `${agent.x},${agent.y}`;
+      if (!this.predictedVisible.has(key)) continue;
+      const arr = byTile.get(key) ?? [];
+      arr.push({
+        id: agent.id,
+        type: agent.role === "merchant" ? "merchant" : "agent",
+        faction: agent.faction,
+        position: { x: agent.x, y: agent.y },
+      });
+      byTile.set(key, arr);
+    }
+    // Update entries for all predicted-visible tiles
+    for (const key of this.predictedVisible) {
+      const entry = this.entries.get(key);
+      if (entry) {
+        entry.lastEntities = byTile.get(key) ?? [];
       }
     }
   }

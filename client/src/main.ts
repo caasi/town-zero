@@ -188,6 +188,15 @@ function gameLoop(now: number): void {
         fog.revealAround(player.x, player.y, DEFAULT_VISION_RADIUS, network.state?.tiles);
         camera.update(player.x, player.y);
       }
+
+      // Snapshot agent positions on visible tiles for fog-of-war memory
+      if (network.state?.agents) {
+        const agentList: Array<{ id: string; x: number; y: number; role: string; faction: string }> = [];
+        network.state.agents.forEach((a: any) => {
+          agentList.push({ id: a.id, x: a.x, y: a.y, role: a.role, faction: a.faction });
+        });
+        fog.snapshotAgents(agentList, network.playerId);
+      }
     }
 
     renderer.draw(network.state, fog, camera, network.playerId, displayState);
