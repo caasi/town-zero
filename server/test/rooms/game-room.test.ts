@@ -107,7 +107,7 @@ describe("GameRoom integration", () => {
     });
     expect(playerAgent).toBeDefined();
     expect(playerAgent.faction).toBe("village-1");
-    expect(playerAgent.role).toBe("TestPlayer");
+    expect(playerAgent.role).toBe("player");
   });
 
   it("player sends move command and position updates", () => {
@@ -303,6 +303,15 @@ describe("GameRoom integration", () => {
     expect(village.populationIds.length).toBe(cap);
   });
 
+  it("sends joined message with agentId on join", () => {
+    const client = mockClient("session-1");
+    joinClient(room, client, { name: "Joiner" });
+
+    const joinedMsgs = client.messages.filter((m: any) => m.type === "joined");
+    expect(joinedMsgs).toHaveLength(1);
+    expect(joinedMsgs[0].data.agentId).toMatch(/^player-/);
+  });
+
   it("two players attack pipeline works", () => {
     const client1 = mockClient("session-1");
     const client2 = mockClient("session-2");
@@ -310,18 +319,14 @@ describe("GameRoom integration", () => {
     joinClient(room, client2, { name: "Defender" });
     tick(room);
 
-    let attackerId: string | undefined;
-    let defenderId: string | undefined;
-    state.agents.forEach((agent: any) => {
-      if (agent.role === "Attacker") attackerId = agent.id;
-      if (agent.role === "Defender") defenderId = agent.id;
-    });
+    const attackerId = client1.messages.find((m: any) => m.type === "joined")?.data.agentId;
+    const defenderId = client2.messages.find((m: any) => m.type === "joined")?.data.agentId;
+    expect(attackerId).toBeDefined();
+    expect(defenderId).toBeDefined();
 
-    if (attackerId && defenderId) {
-      sendCommand(room, client1, { type: "attack", targetId: defenderId });
-      tick(room);
-      tick(room);
-    }
+    sendCommand(room, client1, { type: "attack", targetId: defenderId });
+    tick(room);
+    tick(room);
 
     expect(state.tick).toBeGreaterThan(0);
   });
