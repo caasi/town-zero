@@ -1,5 +1,6 @@
 // client/src/fog.ts
 import { tilesInManhattanRadius } from "@town-zero/shared";
+import type { TerrainType } from "@town-zero/shared";
 import type { FogLevel, FogEntry, VisionData } from "./types.js";
 
 export class FogManager {
@@ -23,11 +24,34 @@ export class FogManager {
   /**
    * Optimistically mark tiles around a predicted position as "visible".
    * Uses tilesInManhattanRadius (shared with server) for consistent shape.
+   * Snapshots tile data from live state so tiles transition to "explored"
+   * (not "unknown") when they leave the predicted radius.
    */
-  revealAround(cx: number, cy: number, radius: number): void {
+  revealAround(
+    cx: number,
+    cy: number,
+    radius: number,
+    tiles?: { get(key: string): { terrain: string } | undefined },
+  ): void {
     this.predictedVisible.clear();
     for (const pos of tilesInManhattanRadius({ x: cx, y: cy }, radius)) {
-      this.predictedVisible.add(`${pos.x},${pos.y}`);
+      const key = `${pos.x},${pos.y}`;
+      this.predictedVisible.add(key);
+
+      // Snapshot from live state for tiles we haven't seen via server vision yet.
+      // When these tiles leave predicted radius, they become "explored" instead
+      // of "unknown" because they now have an entry.
+      if (tiles && !this.entries.has(key)) {
+        const tile = tiles.get(key);
+        if (tile) {
+          this.entries.set(key, {
+            level: "explored",
+            terrain: tile.terrain as TerrainType,
+            lastEntities: [],
+            timestamp: 0,
+          });
+        }
+      }
     }
   }
 

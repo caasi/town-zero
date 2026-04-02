@@ -182,10 +182,10 @@ function gameLoop(now: number): void {
       if (playerDisplay) {
         const tileX = Math.round(playerDisplay.renderX / 32);
         const tileY = Math.round(playerDisplay.renderY / 32);
-        fog.revealAround(tileX, tileY, DEFAULT_VISION_RADIUS);
+        fog.revealAround(tileX, tileY, DEFAULT_VISION_RADIUS, network.state?.tiles);
         camera.update(playerDisplay.renderX / 32 + 0.5, playerDisplay.renderY / 32 + 0.5);
       } else {
-        fog.revealAround(player.x, player.y, DEFAULT_VISION_RADIUS);
+        fog.revealAround(player.x, player.y, DEFAULT_VISION_RADIUS, network.state?.tiles);
         camera.update(player.x, player.y);
       }
     }
