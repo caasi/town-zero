@@ -1,9 +1,5 @@
 import { Room, Client } from "@colyseus/core";
-import { Encoder } from "@colyseus/schema";
 import { TICK_RATE_MS } from "@town-zero/shared";
-
-// 40x40 grid (1600 tiles) exceeds the default 8KB encoder buffer
-Encoder.BUFFER_SIZE = 64 * 1024;
 import { WorldStateSchema } from "./schemas/WorldStateSchema.js";
 import { generateMap } from "../map/generator.js";
 import { processTick, type SimulationState } from "../simulation/tick.js";

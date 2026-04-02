@@ -1,8 +1,5 @@
 import "../../src/polyfill.js";
 
-import { Encoder } from "@colyseus/schema";
-Encoder.BUFFER_SIZE = 64 * 1024;
-
 import { describe, it, expect, beforeEach } from "vitest";
 import { GameRoom } from "../../src/rooms/GameRoom.js";
 import type { WorldStateSchema } from "../../src/rooms/schemas/WorldStateSchema.js";
