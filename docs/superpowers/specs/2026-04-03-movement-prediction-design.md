@@ -37,22 +37,27 @@ Server tick arrives (Colyseus state patch)
 
 #### 1. Client-side move validation (`input.ts`)
 
-On key press, before sending the command, check the target tile using `TERRAIN_MOVE_COST` from `@town-zero/shared`. The tile data is available from Colyseus state (`state.tiles`). If `TERRAIN_MOVE_COST[terrain] === Infinity`, reject locally without sending.
+On key press, before sending the command, validate the move locally:
 
-This prevents the most common prediction failure (walking into water/impassable terrain). The `shared/` package already exports `TERRAIN_MOVE_COST`, so no server code changes needed.
+1. Look up `state.tiles.get(\`${tx},${ty}\`)`. If the tile does not exist (out of bounds), reject.
+2. Read `tile.terrain` (a `string` from Colyseus schema). If the terrain is not a key in `TERRAIN_MOVE_COST`, reject (treat unknown terrain as impassable).
+3. If `TERRAIN_MOVE_COST[terrain] === Infinity`, reject.
+4. If the local player's agent state is not `"idle"` (e.g. `"gathering"`, `"fighting"`), reject -- the server tick loop only dequeues commands for idle agents, so predicting during other states would always mismatch.
+
+If any check fails, do nothing (no command sent, no animation). This prevents the most common prediction failures. The `shared/` package already exports `TERRAIN_MOVE_COST`, so no server code changes needed.
 
 #### 2. Display position layer (`renderer.ts`)
 
-Introduce a per-agent `displayPosition: { x: number, y: number }` that the renderer uses instead of reading directly from Colyseus schema. This decouples visual position from authoritative state.
+Introduce a per-agent `displayX`/`displayY` (tile-space floats) that the renderer uses instead of reading directly from Colyseus schema. This decouples visual position from authoritative state.
 
-- For the local player: updated immediately by prediction, then lerped toward server on patch
-- For other agents: lerped toward server position each frame
+- For the local player: `displayX`/`displayY` updated immediately by prediction, then lerped toward server on patch
+- For other agents: `displayX`/`displayY` lerped toward server position each frame
 
 #### 3. Optimistic movement (`input.ts` / `main.ts`)
 
 When a move command passes local validation:
 
-1. Immediately update the local player's `displayPosition` to the target tile
+1. Immediately update the local player's `displayX`/`displayY` to the target tile
 2. Send the command to server as before (`room.send("command", cmd)`)
 
 The display position is a local-only value; Colyseus state is never mutated client-side.
@@ -61,17 +66,17 @@ The display position is a local-only value; Colyseus state is never mutated clie
 
 Use Colyseus `callbacks.listen` or `callbacks.onChange` on each agent's `x`/`y` properties:
 
-- **Self (local player):** When server position arrives, if it matches `displayPosition`, do nothing (prediction was correct). If it differs, lerp `displayPosition` toward server position over ~150ms. This handles rejected moves (e.g. a race condition where another agent blocks the tile).
-- **Others:** Always lerp `displayPosition` toward the latest server position. Use `lerp(current, target, 0.2)` per frame (Colyseus recommended factor).
+- **Self (local player):** When server position arrives, if it matches `displayX`/`displayY`, do nothing (prediction was correct). If it differs, lerp `displayX`/`displayY` toward server position over ~150ms. This handles rejected moves (e.g. a race condition where another agent blocks the tile).
+- **Others:** Always lerp `displayX`/`displayY` toward the latest server position each frame.
 
 #### 5. Slide animation (`renderer.ts`)
 
 Replace the current integer-position rendering with smooth interpolation:
 
 - Each agent has `renderX`, `renderY` (floating point pixel coords)
-- Each frame: `renderX = lerp(renderX, displayPosition.x * TILE_SIZE, factor)`
-- Factor ~0.2 gives smooth ~150ms slide per tile at 60fps
+- Each frame: `renderX = lerp(renderX, displayX * TILE_SIZE, factor)` where `factor = 1 - (1 - 0.2) ^ (dt / 16.67)` for frame-rate-independent interpolation (`dt` = ms since last frame, 16.67 = 60fps baseline)
 - This applies to ALL agents (self + others), giving the whole world a smoother look
+- At 60fps, convergence takes ~150ms. At 30fps or 144fps, the visual result is the same.
 
 ### Data Model (client-only)
 
@@ -90,7 +95,9 @@ interface AgentDisplay {
 
 | Scenario | Behavior |
 |----------|----------|
-| Walk into water | Client rejects locally, no command sent, no animation |
+| Walk into water / unknown terrain | Client rejects locally, no command sent, no animation |
+| Walk out of bounds (tile not in state) | Client rejects locally, no command sent, no animation |
+| Move while gathering/fighting | Client rejects locally (agent state not idle) |
 | Server rejects move (unknown reason) | Display lerps back to server position (~150ms slide back) |
 | Rapid key presses (< 200ms apart) | Throttle unchanged (200ms), prediction queues naturally |
 | Player disconnects mid-prediction | Connection error overlay shows, same as current |
@@ -103,7 +110,7 @@ interface AgentDisplay {
 | `client/src/input.ts` | Add local move validation using tile state |
 | `client/src/main.ts` | Maintain `AgentDisplay` map, wire up Colyseus callbacks for reconciliation |
 | `client/src/renderer.ts` | Use `renderX/renderY` instead of integer tile positions, add lerp logic |
-| `client/src/camera.ts` | Follow `renderX/renderY` for smooth camera tracking |
+| `client/src/camera.ts` | Accept pixel-space floats instead of integer tile coords; `Camera.update(renderX, renderY)` computes viewport from pixel position directly |
 | (no server changes) | |
 
 ### Dependencies
