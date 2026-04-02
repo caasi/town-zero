@@ -19,7 +19,7 @@ export class NetworkClient {
   }
 
   async connect(name: string): Promise<void> {
-    const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+    const protocol = window.location.protocol === "https:" ? "https" : "http";
     const client = new Client(`${protocol}://${window.location.hostname}:2567`);
     this.room = await client.joinOrCreate("game", { name });
 
