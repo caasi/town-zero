@@ -34,7 +34,12 @@ export class FogManager {
   getLevel(x: number, y: number): FogLevel {
     const key = `${x},${y}`;
     if (this.predictedVisible.has(key)) return "visible";
-    return this.entries.get(key)?.level ?? "unknown";
+    const entry = this.entries.get(key);
+    if (!entry) return "unknown";
+    // Outside predicted radius: demote stale "visible" to "explored"
+    // so tiles the player walked away from show as grey
+    if (entry.level === "visible") return "explored";
+    return entry.level;
   }
 
   getEntry(x: number, y: number): FogEntry | undefined {
