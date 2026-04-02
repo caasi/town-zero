@@ -43,7 +43,19 @@ enum ZoneType {
 
 String enum for debuggability and Colyseus schema compatibility (syncs as `"string"` type). Used in both simulation and schema layers.
 
-Defined in `shared/src/constants.ts` alongside existing constants.
+Defined in `shared/src/constants.ts` alongside existing constants. Exported from `shared/src/index.ts`.
+
+### ZoneType and StructureType
+
+The existing `StructureType` (`"housing" | "production"`) is expanded to include `"core"`:
+
+```typescript
+type StructureType = "housing" | "production" | "core";
+```
+
+`ZoneType` and `StructureType` share the same non-empty values. `ZoneType` is the tile-level concept (what zone is this tile?), `StructureType` is the entity-level concept (what type is this structure?). In practice, `Structure.type` uses `StructureType` and `Tile.zoneType` uses `ZoneType`. The values are identical — a `CORE` zone tile always has a `"core"` Structure.
+
+Existing methods `getPopulationCap()` and `getProductionStructures()` filter by `"housing"` and `"production"` respectively — they naturally exclude `"core"` structures without code changes.
 
 ### Core Zone
 
@@ -62,6 +74,28 @@ Territory is defined as: all tiles whose `ownerFaction` matches the settlement's
 Territory consists of:
 - **Zone tiles** — tiles with a non-empty `zoneType` (core, housing, production)
 - **Open tiles** — tiles within territory but with `zoneType === EMPTY` (available for future construction)
+
+### Grid Data Model Changes
+
+The simulation-side `Grid` class (`server/src/simulation/grid.ts`) uses `TileData` to store per-tile state. Add `zoneType` to it:
+
+```typescript
+interface TileData {
+  terrain: TerrainType;
+  owner: string | null;
+  resourceYield: ResourceYield;
+  zoneType: string;              // new — ZoneType enum value, default ""
+}
+```
+
+Add accessor methods to `Grid`:
+
+```typescript
+getZoneType(x: number, y: number): string
+setZoneType(x: number, y: number, zoneType: string): void
+```
+
+These follow the existing pattern of `getOwner()`/`setOwner()`.
 
 ### Schema Changes
 
@@ -103,6 +137,7 @@ const VILLAGE_TEMPLATE = [
   [_, _, _, _, _],
 ];
 
+// Den is intentionally smaller than village (4×4 vs 5×5)
 const DEN_TEMPLATE = [
   [_, H, _, _],
   [_, C, P, _],
@@ -111,7 +146,9 @@ const DEN_TEMPLATE = [
 ];
 ```
 
-The generator stamps a template centered on the core's world position:
+The generator stamps a template aligned so that the `CORE` cell maps to the core's world position. Offset calculation: `worldX = coreX + (col - coreCol)`, `worldY = coreY + (row - coreRow)`, where `coreRow`/`coreCol` is the position of the `CORE` cell in the template.
+
+Steps:
 1. For each cell in the template, compute world coordinates relative to core position
 2. Set `ownerFaction` on the tile
 3. Set `zoneType` on the tile
@@ -125,8 +162,8 @@ Replace the current `rect()` territory + manual `addStructure()` approach with t
 ```
 generateMap flow (revised):
   1. Choose core positions for village and den (existing logic)
-  2. Stamp VILLAGE_TEMPLATE centered on village core position
-  3. Stamp DEN_TEMPLATE centered on den core position
+  2. Stamp VILLAGE_TEMPLATE aligned to village core position
+  3. Stamp DEN_TEMPLATE aligned to den core position
   4. For each stamped zone tile:
      a. Set tile.ownerFaction = settlement.faction
      b. Set tile.zoneType = template value
@@ -140,16 +177,19 @@ generateMap flow (revised):
 
 ### Sync Changes
 
-**`syncTile()`** — add `zoneType` field synchronization:
+**`syncTiles()`** — add `zoneType` in the init-time tile sync loop:
 
 ```typescript
-schema.zoneType = tile.zoneType;
+// Inside the existing syncTiles() loop that creates TileSchema objects:
+tileSchema.zoneType = grid.getZoneType(x, y) ?? "";
 ```
+
+Since `zoneType` is set once at map generation and does not change during gameplay (MVP), init-time sync is sufficient. No per-tick tile sync is needed. When dynamic building is added (future), `syncTiles()` must either be called per-tick or replaced with incremental updates.
 
 **`syncSettlement()`** — change `x, y` source:
 
 ```typescript
-const core = settlement.structures.find(s => s.type === ZoneType.CORE);
+const core = settlement.structures.find(s => s.type === "core");
 schema.x = core?.position.x ?? 0;
 schema.y = core?.position.y ?? 0;
 ```
@@ -161,7 +201,8 @@ Replace the single-tile `drawSettlement()` method with zone overlay rendering in
 **Rendering order per tile:**
 1. Draw terrain base (existing — `drawTerrain()`)
 2. Draw zone overlay (new — `drawZoneOverlay()`)
-3. Draw agents (existing — `drawAgent()`)
+3. Apply fog darkening overlay (existing — fog alpha reduction)
+4. Draw agents in a separate pass (existing — `drawAgent()`)
 
 **Zone overlay visual spec:**
 
@@ -182,7 +223,7 @@ Fog of war applies uniformly — `explored` tiles render at 50% opacity, `unknow
 Existing commands continue to work without modification:
 
 - **`deposit` / `take`**: Check `settlement.isInTerritory(agent.position)` — territory is still defined by `ownerFaction` match, unchanged
-- **`operate`**: Currently checks structure position match. Can optionally be simplified to check `tile.zoneType === PRODUCTION`, but not required for this change
+- **Production operation**: The existing `operate` FSM state checks structure position match. A future `operate` command could check `tile.zoneType === PRODUCTION` instead, but no such command exists yet — not in scope for this change
 
 No new commands are added.
 
