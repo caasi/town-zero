@@ -11,6 +11,7 @@ export class NetworkClient {
   private deathCallbacks: Array<(agentId: string) => void> = [];
   private joinedResolve: ((agentId: string) => void) | null = null;
   private joinedReject: ((reason: Error) => void) | null = null;
+  private joinedTimeout: ReturnType<typeof setTimeout> | null = null;
 
   get state(): any {
     return this.room?.state ?? null;
@@ -28,14 +29,19 @@ export class NetworkClient {
     const joinedPromise = new Promise<string>((resolve, reject) => {
       this.joinedResolve = resolve;
       this.joinedReject = reject;
-      setTimeout(() => reject(new Error("Timed out waiting for joined message")), 10_000);
+      this.joinedTimeout = setTimeout(() => reject(new Error("Timed out waiting for joined message")), 10_000);
     });
 
     this.room.onMessage("joined", (data: { agentId: string }) => {
       this._playerId = data.agentId;
+      if (this.joinedTimeout) {
+        clearTimeout(this.joinedTimeout);
+        this.joinedTimeout = null;
+      }
       if (this.joinedResolve) {
         this.joinedResolve(data.agentId);
         this.joinedResolve = null;
+        this.joinedReject = null;
       }
     });
 
@@ -63,6 +69,10 @@ export class NetworkClient {
   }
 
   disconnect(): void {
+    if (this.joinedTimeout) {
+      clearTimeout(this.joinedTimeout);
+      this.joinedTimeout = null;
+    }
     if (this.joinedReject) {
       this.joinedReject(new Error("Disconnected"));
       this.joinedResolve = null;
