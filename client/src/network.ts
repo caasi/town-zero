@@ -62,5 +62,7 @@ export class NetworkClient {
     this.room?.leave();
     this.room = null;
     this._playerId = null;
+    this.visionCallbacks = [];
+    this.deathCallbacks = [];
   }
 }
