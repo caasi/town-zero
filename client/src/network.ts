@@ -24,8 +24,9 @@ export class NetworkClient {
     this.client = new Client(`${protocol}://${window.location.hostname}:2567`);
     this.room = await this.client.joinOrCreate("game", { name });
 
-    const joinedPromise = new Promise<string>((resolve) => {
+    const joinedPromise = new Promise<string>((resolve, reject) => {
       this.joinedResolve = resolve;
+      setTimeout(() => reject(new Error("Timed out waiting for joined message")), 10_000);
     });
 
     this.room.onMessage("joined", (data: { agentId: string }) => {
