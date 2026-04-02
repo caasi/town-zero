@@ -1,5 +1,5 @@
 // client/src/renderer.ts
-import type { Viewport, FogLevel } from "./types.js";
+import type { FogLevel } from "./types.js";
 import type { FogManager } from "./fog.js";
 import type { Camera } from "./camera.js";
 
