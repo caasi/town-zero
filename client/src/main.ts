@@ -6,6 +6,7 @@ import { Camera } from "./camera.js";
 import { Renderer } from "./renderer.js";
 import { InputHandler, getKeyLabels, formatKeyHints } from "./input.js";
 import { DisplayState } from "./display.js";
+import { TILE_SIZE } from "./constants.js";
 import type { GameState, ModalRequest } from "./types.js";
 
 // DOM elements
@@ -163,13 +164,15 @@ function gameLoop(now: number): void {
     input?.update();
     updateHUD();
 
-    // Sync display positions from server state
+    // Single pass over agents: collect data for both displayState sync and fog
+    const syncEntries: Array<[string, { x: number; y: number }]> = [];
+    const agentList: Array<{ id: string; x: number; y: number; role: string; faction: string }> = [];
     if (network.state?.agents) {
-      const entries: Array<[string, { x: number; y: number }]> = [];
       network.state.agents.forEach((agent: any) => {
-        entries.push([agent.id, { x: agent.x, y: agent.y }]);
+        syncEntries.push([agent.id, { x: agent.x, y: agent.y }]);
+        agentList.push({ id: agent.id, x: agent.x, y: agent.y, role: agent.role, faction: agent.faction });
       });
-      displayState.syncFromServer(entries);
+      displayState.syncFromServer(syncEntries);
     }
 
     // Lerp all render positions
@@ -177,19 +180,13 @@ function gameLoop(now: number): void {
 
     const player = network.state?.agents?.get(network.playerId ?? "");
     if (player) {
-      // Build agent list for fog snapshots
-      const agentList: Array<{ id: string; x: number; y: number; role: string; faction: string }> = [];
-      network.state?.agents?.forEach((a: any) => {
-        agentList.push({ id: a.id, x: a.x, y: a.y, role: a.role, faction: a.faction });
-      });
-
       // Camera and fog follow predicted position
       const playerDisplay = displayState.get(network.playerId!);
       if (playerDisplay) {
-        const tileX = Math.round(playerDisplay.renderX / 32);
-        const tileY = Math.round(playerDisplay.renderY / 32);
+        const tileX = Math.round(playerDisplay.renderX / TILE_SIZE);
+        const tileY = Math.round(playerDisplay.renderY / TILE_SIZE);
         fog.revealAround(tileX, tileY, DEFAULT_VISION_RADIUS, network.state?.tiles, agentList, network.playerId);
-        camera.update(playerDisplay.renderX / 32 + 0.5, playerDisplay.renderY / 32 + 0.5);
+        camera.update(playerDisplay.renderX / TILE_SIZE + 0.5, playerDisplay.renderY / TILE_SIZE + 0.5);
       } else {
         fog.revealAround(player.x, player.y, DEFAULT_VISION_RADIUS, network.state?.tiles, agentList, network.playerId);
         camera.update(player.x, player.y);
