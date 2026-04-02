@@ -3,9 +3,10 @@ import type { ActionCommand, ResourceType } from "@town-zero/shared";
 const RESOURCE_TYPES: ReadonlySet<string> = new Set(["food", "material", "currency"]);
 
 function isPosition(v: unknown): v is { x: number; y: number } {
-  return typeof v === "object" && v !== null
-    && typeof (v as Record<string, unknown>).x === "number"
-    && typeof (v as Record<string, unknown>).y === "number";
+  if (typeof v !== "object" || v === null) return false;
+  const { x, y } = v as Record<string, unknown>;
+  return typeof x === "number" && Number.isFinite(x) && Number.isInteger(x)
+    && typeof y === "number" && Number.isFinite(y) && Number.isInteger(y);
 }
 
 function isValidResource(v: unknown): v is ResourceType {

@@ -65,4 +65,20 @@ describe("isValidActionCommand", () => {
   it("rejects take with invalid resource type", () => {
     expect(isValidActionCommand({ type: "take", settlementId: "v1", resource: "gold", amount: 1 })).toBe(false);
   });
+
+  it("rejects move with NaN coordinates", () => {
+    expect(isValidActionCommand({ type: "move", target: { x: NaN, y: 3 } })).toBe(false);
+  });
+
+  it("rejects move with Infinity coordinates", () => {
+    expect(isValidActionCommand({ type: "move", target: { x: 5, y: Infinity } })).toBe(false);
+  });
+
+  it("rejects move with float coordinates", () => {
+    expect(isValidActionCommand({ type: "move", target: { x: 1.5, y: 3 } })).toBe(false);
+  });
+
+  it("rejects gather with non-integer coordinates", () => {
+    expect(isValidActionCommand({ type: "gather", resourceTile: { x: 2.7, y: 1 } })).toBe(false);
+  });
 });
