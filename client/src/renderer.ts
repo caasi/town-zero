@@ -104,11 +104,11 @@ export class Renderer {
       for (let x = vp.startX; x < vp.endX; x++) {
         const fl = fog.getLevel(x, y);
         if (fl !== "explored") continue;
-        const entry = fog.getEntry(x, y);
-        if (!entry?.lastEntities.length) continue;
+        const snapshot = fog.getSnapshot(x, y);
+        if (!snapshot?.entities.length) continue;
         const px = (x - vp.startX) * TILE_SIZE + vp.offsetX;
         const py = (y - vp.startY) * TILE_SIZE + vp.offsetY;
-        for (const entity of entry.lastEntities) {
+        for (const entity of snapshot.entities) {
           this.drawFogEntity(ctx, px, py, entity, playerFaction);
         }
       }

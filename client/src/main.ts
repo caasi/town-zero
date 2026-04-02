@@ -177,25 +177,22 @@ function gameLoop(now: number): void {
 
     const player = network.state?.agents?.get(network.playerId ?? "");
     if (player) {
+      // Build agent list for fog snapshots
+      const agentList: Array<{ id: string; x: number; y: number; role: string; faction: string }> = [];
+      network.state?.agents?.forEach((a: any) => {
+        agentList.push({ id: a.id, x: a.x, y: a.y, role: a.role, faction: a.faction });
+      });
+
       // Camera and fog follow predicted position
       const playerDisplay = displayState.get(network.playerId!);
       if (playerDisplay) {
         const tileX = Math.round(playerDisplay.renderX / 32);
         const tileY = Math.round(playerDisplay.renderY / 32);
-        fog.revealAround(tileX, tileY, DEFAULT_VISION_RADIUS, network.state?.tiles);
+        fog.revealAround(tileX, tileY, DEFAULT_VISION_RADIUS, network.state?.tiles, agentList, network.playerId);
         camera.update(playerDisplay.renderX / 32 + 0.5, playerDisplay.renderY / 32 + 0.5);
       } else {
-        fog.revealAround(player.x, player.y, DEFAULT_VISION_RADIUS, network.state?.tiles);
+        fog.revealAround(player.x, player.y, DEFAULT_VISION_RADIUS, network.state?.tiles, agentList, network.playerId);
         camera.update(player.x, player.y);
-      }
-
-      // Snapshot agent positions on visible tiles for fog-of-war memory
-      if (network.state?.agents) {
-        const agentList: Array<{ id: string; x: number; y: number; role: string; faction: string }> = [];
-        network.state.agents.forEach((a: any) => {
-          agentList.push({ id: a.id, x: a.x, y: a.y, role: a.role, faction: a.faction });
-        });
-        fog.snapshotAgents(agentList, network.playerId);
       }
     }
 

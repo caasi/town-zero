@@ -3,20 +3,16 @@ import type { TerrainType, EntitySnapshot, ActionCommand } from "@town-zero/shar
 
 export type FogLevel = "visible" | "explored" | "unknown";
 
-export interface FogEntry {
-  level: FogLevel;
+/** A frozen snapshot of a tile at the time it was last observed. */
+export interface TileSnapshot {
   terrain: TerrainType;
-  lastEntities: EntitySnapshot[];
+  entities: EntitySnapshot[];
   timestamp: number;
 }
 
 export interface VisionData {
   tick: number;
-  tiles: Record<string, {
-    terrain: TerrainType;
-    entities: EntitySnapshot[];
-    timestamp: number;
-  }>;
+  tiles: Record<string, TileSnapshot>;
 }
 
 export interface Viewport {
