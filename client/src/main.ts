@@ -4,7 +4,7 @@ import { NetworkClient } from "./network.js";
 import { FogManager } from "./fog.js";
 import { Camera } from "./camera.js";
 import { Renderer } from "./renderer.js";
-import { InputHandler } from "./input.js";
+import { InputHandler, getKeyLabels, formatKeyHints } from "./input.js";
 import type { GameState, ModalRequest } from "./types.js";
 
 // DOM elements
@@ -214,6 +214,14 @@ document.getElementById("retry-btn")!.addEventListener("click", () => {
   input?.destroy();
   connect();
 });
+
+// Detect keyboard layout and update key hints
+const keyHintsEl = document.getElementById("key-hints");
+if (keyHintsEl) {
+  getKeyLabels().then((labels) => {
+    keyHintsEl.textContent = formatKeyHints(labels);
+  });
+}
 
 // Start
 requestAnimationFrame(gameLoop);

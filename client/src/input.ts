@@ -20,6 +20,34 @@ interface NearbyEntity {
   hp: number;
 }
 
+const ACTION_CODES = ["KeyW", "KeyA", "KeyS", "KeyD", "KeyQ", "KeyE", "KeyG", "KeyT"] as const;
+
+const QWERTY_LABELS: Record<string, string> = {
+  KeyW: "W", KeyA: "A", KeyS: "S", KeyD: "D",
+  KeyQ: "Q", KeyE: "E", KeyG: "G", KeyT: "T",
+};
+
+export async function getKeyLabels(): Promise<Record<string, string>> {
+  const labels = { ...QWERTY_LABELS };
+  try {
+    const keyboard = (navigator as any).keyboard;
+    if (!keyboard?.getLayoutMap) return labels;
+    const layoutMap: Map<string, string> = await keyboard.getLayoutMap();
+    for (const code of ACTION_CODES) {
+      const char = layoutMap.get(code);
+      if (char) labels[code] = char.toUpperCase();
+    }
+  } catch {
+    // API unavailable or permission denied — use QWERTY fallback
+  }
+  return labels;
+}
+
+export function formatKeyHints(labels: Record<string, string>): string {
+  const move = `${labels.KeyW}${labels.KeyA}${labels.KeyS}${labels.KeyD}`;
+  return `${move}:Move  ${labels.KeyE}:Interact  ${labels.KeyQ}:Attack  ${labels.KeyG}:Gather  ${labels.KeyT}:Deposit`;
+}
+
 const MOVE_THROTTLE_MS = 200;
 
 const MOVE_KEYS: Record<string, { dx: number; dy: number }> = {
