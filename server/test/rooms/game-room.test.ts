@@ -107,7 +107,7 @@ describe("GameRoom integration", () => {
     });
     expect(playerAgent).toBeDefined();
     expect(playerAgent.faction).toBe("village-1");
-    expect(playerAgent.role).toBe("TestPlayer");
+    expect(playerAgent.role).toBe("player");
   });
 
   it("player sends move command and position updates", () => {
@@ -319,12 +319,8 @@ describe("GameRoom integration", () => {
     joinClient(room, client2, { name: "Defender" });
     tick(room);
 
-    let attackerId: string | undefined;
-    let defenderId: string | undefined;
-    state.agents.forEach((agent: any) => {
-      if (agent.role === "Attacker") attackerId = agent.id;
-      if (agent.role === "Defender") defenderId = agent.id;
-    });
+    const attackerId = client1.messages.find((m: any) => m.type === "joined")?.data.agentId;
+    const defenderId = client2.messages.find((m: any) => m.type === "joined")?.data.agentId;
 
     if (attackerId && defenderId) {
       sendCommand(room, client1, { type: "attack", targetId: defenderId });

@@ -71,7 +71,7 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
       id,
       position: { ...spawnTile },
       faction: village.faction,
-      role: name,
+      role: "player",
       controller: "player",
     });
     agent.addToInventory("food", 5);
