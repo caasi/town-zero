@@ -3,8 +3,7 @@ import type { FogLevel } from "./types.js";
 import type { FogManager } from "./fog.js";
 import type { Camera } from "./camera.js";
 import type { DisplayState } from "./display.js";
-
-const TILE_SIZE = 32;
+import { TILE_SIZE } from "./constants.js";
 
 const EIGENGRAU = "#16161d"; // perceived color of darkness — used for unknown tiles
 
@@ -67,7 +66,7 @@ export class Renderer {
           continue;
         }
 
-        this.drawTile(ctx, px, py, state, x, y, fogLevel);
+        this.drawTile(ctx, px, py, fog, x, y, fogLevel);
       }
     }
 
@@ -127,17 +126,17 @@ export class Renderer {
 
   private drawTile(
     ctx: CanvasRenderingContext2D, px: number, py: number,
-    state: any, x: number, y: number, fogLevel: FogLevel,
+    fog: FogManager, x: number, y: number, fogLevel: FogLevel,
   ): void {
-    // Get terrain from state tiles or fog entry
+    // Read terrain from fog snapshots, not raw server state.
+    // This respects the information model: explored tiles show
+    // what the player last observed, not omniscient live data.
     let terrain = "plains";
     let resourceYield = "";
-    if (state?.tiles) {
-      const tile = state.tiles.get(`${x},${y}`);
-      if (tile) {
-        terrain = tile.terrain || "plains";
-        resourceYield = tile.resourceYield || "";
-      }
+    const snapshot = fog.getSnapshot(x, y);
+    if (snapshot) {
+      terrain = snapshot.terrain || "plains";
+      resourceYield = snapshot.resourceYield || "";
     }
 
     // Base color

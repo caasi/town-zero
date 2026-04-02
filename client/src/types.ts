@@ -8,6 +8,7 @@ export interface TileSnapshot {
   terrain: TerrainType;
   entities: EntitySnapshot[];
   timestamp: number;
+  resourceYield?: string;
 }
 
 export interface VisionData {
