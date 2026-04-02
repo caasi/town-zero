@@ -269,6 +269,39 @@ describe("GameRoom integration", () => {
     expect(state.agents.get(agentId!)!.hp).toBe(0);
   });
 
+  it("rejects player when village is at population cap", () => {
+    // Fill village to capacity
+    const village = Array.from(room.simState.settlements.values())
+      .find((s: any) => s.type === "village")!;
+    const cap = village.getPopulationCap();
+    const existingPop = village.populationIds.length;
+    const spotsLeft = cap - existingPop;
+
+    // Fill remaining spots
+    const fillers: any[] = [];
+    for (let i = 0; i < spotsLeft; i++) {
+      const c = mockClient(`filler-${i}`);
+      joinClient(room, c, { name: `Filler-${i}` });
+      fillers.push(c);
+    }
+    expect(village.populationIds.length).toBe(cap);
+
+    // Next join should be rejected
+    const rejected = mockClient("rejected");
+    const leaveSpy = { called: false, code: 0, reason: "" };
+    rejected.leave = (code: number, reason: string) => {
+      leaveSpy.called = true;
+      leaveSpy.code = code;
+      leaveSpy.reason = reason;
+    };
+    joinClient(room, rejected, { name: "TooMany" });
+
+    expect(leaveSpy.called).toBe(true);
+    expect(leaveSpy.code).toBe(4001);
+    expect(leaveSpy.reason).toBe("Village is full");
+    expect(village.populationIds.length).toBe(cap);
+  });
+
   it("two players attack pipeline works", () => {
     const client1 = mockClient("session-1");
     const client2 = mockClient("session-2");
