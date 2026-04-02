@@ -202,6 +202,8 @@ document.getElementById("rejoin-btn")!.addEventListener("click", () => {
 });
 
 document.getElementById("retry-btn")!.addEventListener("click", () => {
+  network.disconnect();
+  input?.destroy();
   connect();
 });
 
