@@ -1,8 +1,7 @@
 // client/src/display.ts
 import { TERRAIN_MOVE_COST } from "@town-zero/shared";
 import type { TerrainType } from "@town-zero/shared";
-
-const TILE_SIZE = 32;
+import { TILE_SIZE } from "./constants.js";
 const BASE_LERP_FACTOR = 0.5;
 const BASE_FRAME_MS = 16.67; // 60fps baseline
 
@@ -53,14 +52,17 @@ export class DisplayState {
 
     // Check tile from fog snapshots (not raw server state)
     const tile = tiles.get(`${targetX},${targetY}`);
-    if (!tile) return true; // Unknown tile — allow optimistically, server validates
 
-    // Reject if terrain is impassable
-    const terrain = tile.terrain as TerrainType;
-    if (!(terrain in TERRAIN_MOVE_COST)) return true; // Unknown terrain — allow
-    if (TERRAIN_MOVE_COST[terrain] === Infinity) return false;
+    // Reject only if terrain is known-impassable
+    if (tile) {
+      const terrain = tile.terrain as TerrainType;
+      if (terrain in TERRAIN_MOVE_COST && TERRAIN_MOVE_COST[terrain] === Infinity) {
+        return false;
+      }
+    }
 
-    // Apply prediction: snap displayX/Y to target tile
+    // Apply prediction: snap displayX/Y to target tile.
+    // Unknown tiles are allowed optimistically — server validates.
     const display = this.getOrCreate(this.localPlayerId, targetX, targetY);
     display.displayX = targetX;
     display.displayY = targetY;
