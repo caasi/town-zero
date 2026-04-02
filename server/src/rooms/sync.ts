@@ -71,7 +71,9 @@ export function syncToSchema(simState: SimulationState, roomState: WorldStateSch
     }
   }
 
-  // Sync settlements
+  // Sync settlements (MVP: no settlement destruction mechanic exists,
+  // so removal sync is intentionally omitted. If settlements become
+  // removable, add cleanup logic mirroring agent removal above.)
   for (const [id, settlement] of simState.settlements) {
     let schema = roomState.settlements.get(id);
     if (!schema) {
