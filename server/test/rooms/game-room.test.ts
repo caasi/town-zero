@@ -1,4 +1,5 @@
 import "../../src/polyfill.js";
+import "../../src/encoder-config.js";
 
 import { describe, it, expect, beforeEach } from "vitest";
 import { GameRoom } from "../../src/rooms/GameRoom.js";

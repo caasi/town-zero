@@ -1,4 +1,5 @@
 import "./polyfill.js";
+import "./encoder-config.js";
 import { createServer } from "http";
 import { Server } from "@colyseus/core";
 import { WebSocketTransport } from "@colyseus/ws-transport";
