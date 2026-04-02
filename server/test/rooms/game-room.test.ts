@@ -303,6 +303,15 @@ describe("GameRoom integration", () => {
     expect(village.populationIds.length).toBe(cap);
   });
 
+  it("sends joined message with agentId on join", () => {
+    const client = mockClient("session-1");
+    joinClient(room, client, { name: "Joiner" });
+
+    const joinedMsgs = client.messages.filter((m: any) => m.type === "joined");
+    expect(joinedMsgs).toHaveLength(1);
+    expect(joinedMsgs[0].data.agentId).toMatch(/^player-/);
+  });
+
   it("two players attack pipeline works", () => {
     const client1 = mockClient("session-1");
     const client2 = mockClient("session-2");

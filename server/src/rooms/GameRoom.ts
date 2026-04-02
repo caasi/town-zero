@@ -79,6 +79,7 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
     this.simState.agents.set(id, agent);
     village.populationIds.push(id);
     this.sessionToAgent.set(client.sessionId, id);
+    client.send("joined", { agentId: id });
 
     console.log(`${name} joined as ${id} (${client.sessionId})`);
   }
