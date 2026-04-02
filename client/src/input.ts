@@ -49,7 +49,7 @@ export function formatKeyHints(labels: Record<string, string>): string {
   return `${move}:Move  ${labels.KeyE}:Interact  ${labels.KeyQ}:Attack  ${labels.KeyG}:Gather  ${labels.KeyT}:Deposit`;
 }
 
-const MOVE_THROTTLE_MS = 150;
+const MOVE_THROTTLE_MS = 120;
 
 const MOVE_KEYS: Record<string, { dx: number; dy: number }> = {
   KeyW: { dx: 0, dy: -1 }, ArrowUp: { dx: 0, dy: -1 },
@@ -74,10 +74,15 @@ export class InputHandler {
   private tiles: { get(key: string): { terrain: string } | undefined } | null = null;
   private playerState: string = "idle";
 
+  // Held-key tracking for continuous movement
+  private heldKeys = new Set<string>();
+
   constructor(send: SendFn) {
     this.send = send;
     this.handleKey = this.handleKey.bind(this);
+    this.handleKeyUp = this.handleKeyUp.bind(this);
     window.addEventListener("keydown", this.handleKey);
+    window.addEventListener("keyup", this.handleKeyUp);
   }
 
   setPredictionContext(
@@ -108,32 +113,31 @@ export class InputHandler {
     this.enabled = enabled;
   }
 
-  private handleKey(e: KeyboardEvent): void {
+  /**
+   * Called every frame from the game loop. Processes held movement keys.
+   */
+  update(): void {
     if (!this.enabled || !this.playerAgent) return;
 
-    const code = e.code;
+    // Find the first held movement key
+    for (const code of this.heldKeys) {
+      const move = MOVE_KEYS[code];
+      if (!move) continue;
 
-    // WASD / arrow movement (physical key position, layout-independent)
-    // Allow e.repeat so holding a key keeps moving — throttle handles rate-limiting
-    const move = MOVE_KEYS[code];
-    if (move) {
       const now = Date.now();
       if (now - this.lastMoveTime < MOVE_THROTTLE_MS) return;
       this.lastMoveTime = now;
 
-      // Use predicted position as origin for next move (not stale server position).
-      // This ensures rapid consecutive moves chain correctly (e.g. holding a key).
       const origin = this.displayState?.getLocalPlayerPosition()
         ?? { x: this.playerAgent.x, y: this.playerAgent.y };
       const targetX = origin.x + move.dx;
       const targetY = origin.y + move.dy;
 
-      // Client-side prediction: validate and apply locally before sending
       if (this.displayState && this.tiles) {
         const predicted = this.displayState.predictMove(
           targetX, targetY, this.playerState, this.tiles,
         );
-        if (!predicted) return; // Invalid move — don't send
+        if (!predicted) return;
       }
 
       this.send({
@@ -142,8 +146,20 @@ export class InputHandler {
       });
       return;
     }
+  }
 
-    // Block repeat for non-movement action keys
+  private handleKey(e: KeyboardEvent): void {
+    if (!this.enabled || !this.playerAgent) return;
+
+    const code = e.code;
+
+    // Track movement key presses — actual movement happens in update()
+    if (code in MOVE_KEYS) {
+      this.heldKeys.add(code);
+      return;
+    }
+
+    // Block repeat for action keys
     if (e.repeat) return;
 
     const { x, y, faction } = this.playerAgent;
@@ -200,11 +216,17 @@ export class InputHandler {
     }
   }
 
+  private handleKeyUp(e: KeyboardEvent): void {
+    this.heldKeys.delete(e.code);
+  }
+
   private isAdjacent(x1: number, y1: number, x2: number, y2: number): boolean {
     return Math.abs(x1 - x2) + Math.abs(y1 - y2) === 1;
   }
 
   destroy(): void {
     window.removeEventListener("keydown", this.handleKey);
+    window.removeEventListener("keyup", this.handleKeyUp);
+    this.heldKeys.clear();
   }
 }

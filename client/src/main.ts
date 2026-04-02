@@ -160,6 +160,7 @@ function gameLoop(now: number): void {
 
   if (gameState === "playing") {
     updateInputContext();
+    input?.update();
     updateHUD();
 
     // Sync display positions from server state

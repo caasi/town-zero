@@ -3,7 +3,7 @@ import { TERRAIN_MOVE_COST } from "@town-zero/shared";
 import type { TerrainType } from "@town-zero/shared";
 
 const TILE_SIZE = 32;
-const BASE_LERP_FACTOR = 0.35;
+const BASE_LERP_FACTOR = 0.5;
 const BASE_FRAME_MS = 16.67; // 60fps baseline
 
 export interface AgentDisplay {
@@ -15,6 +15,7 @@ export interface AgentDisplay {
 
 export class DisplayState {
   private displays = new Map<string, AgentDisplay>();
+  private lastServerPos = new Map<string, { x: number; y: number }>();
   private localPlayerId: string | null = null;
 
   setLocalPlayer(id: string | null): void {
@@ -79,22 +80,30 @@ export class DisplayState {
     for (const [id, agent] of agents) {
       seen.add(id);
       const display = this.getOrCreate(id, agent.x, agent.y);
+      const lastPos = this.lastServerPos.get(id);
 
       if (id === this.localPlayerId) {
-        // For local player, server is authoritative — override display target
-        // The lerp in updateRender will smooth any correction
-        display.displayX = agent.x;
-        display.displayY = agent.y;
+        // Only update display target when server position actually changes.
+        // This preserves client-side predictions between server updates.
+        if (!lastPos || lastPos.x !== agent.x || lastPos.y !== agent.y) {
+          display.displayX = agent.x;
+          display.displayY = agent.y;
+        }
       } else {
         // For other agents, always track server position
         display.displayX = agent.x;
         display.displayY = agent.y;
       }
+
+      this.lastServerPos.set(id, { x: agent.x, y: agent.y });
     }
 
     // Remove displays for agents that no longer exist
     for (const id of this.displays.keys()) {
-      if (!seen.has(id)) this.displays.delete(id);
+      if (!seen.has(id)) {
+        this.displays.delete(id);
+        this.lastServerPos.delete(id);
+      }
     }
   }
 
@@ -123,6 +132,7 @@ export class DisplayState {
 
   clear(): void {
     this.displays.clear();
+    this.lastServerPos.clear();
     this.localPlayerId = null;
   }
 
