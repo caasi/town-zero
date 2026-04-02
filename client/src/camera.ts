@@ -1,7 +1,6 @@
 // client/src/camera.ts
 import type { Viewport } from "./types.js";
-
-const TILE_SIZE = 32;
+import { TILE_SIZE } from "./constants.js";
 
 export class Camera {
   private canvasWidth = 0;
