@@ -1,6 +1,7 @@
 // client/src/input.ts
 import type { ActionCommand } from "@town-zero/shared";
 import type { ModalRequest } from "./types.js";
+import type { DisplayState } from "./display.js";
 
 export type SendFn = (cmd: ActionCommand) => void;
 
@@ -68,16 +69,35 @@ export class InputHandler {
   private nearbyEntities: NearbyEntity[] = [];
   private currentSettlementId: string | null = null;
 
+  // Movement prediction
+  private displayState: DisplayState | null = null;
+  private tiles: { get(key: string): { terrain: string } | undefined } | null = null;
+  private playerState: string = "idle";
+
   constructor(send: SendFn) {
     this.send = send;
     this.handleKey = this.handleKey.bind(this);
     window.addEventListener("keydown", this.handleKey);
   }
 
-  setPlayerInfo(agent: AgentInfo | null, nearby: NearbyEntity[], settlementId: string | null): void {
+  setPredictionContext(
+    displayState: DisplayState,
+    tiles: { get(key: string): { terrain: string } | undefined },
+  ): void {
+    this.displayState = displayState;
+    this.tiles = tiles;
+  }
+
+  setPlayerInfo(
+    agent: AgentInfo | null,
+    nearby: NearbyEntity[],
+    settlementId: string | null,
+    agentState?: string,
+  ): void {
     this.playerAgent = agent;
     this.nearbyEntities = nearby;
     this.currentSettlementId = settlementId;
+    this.playerState = agentState ?? "idle";
   }
 
   setModalHandler(handler: (req: ModalRequest) => void): void {
@@ -100,9 +120,25 @@ export class InputHandler {
       const now = Date.now();
       if (now - this.lastMoveTime < MOVE_THROTTLE_MS) return;
       this.lastMoveTime = now;
+
+      // Use predicted position as origin for next move (not stale server position).
+      // This ensures rapid consecutive moves chain correctly (e.g. holding a key).
+      const origin = this.displayState?.getLocalPlayerPosition()
+        ?? { x: this.playerAgent.x, y: this.playerAgent.y };
+      const targetX = origin.x + move.dx;
+      const targetY = origin.y + move.dy;
+
+      // Client-side prediction: validate and apply locally before sending
+      if (this.displayState && this.tiles) {
+        const predicted = this.displayState.predictMove(
+          targetX, targetY, this.playerState, this.tiles,
+        );
+        if (!predicted) return; // Invalid move — don't send
+      }
+
       this.send({
         type: "move",
-        target: { x: this.playerAgent.x + move.dx, y: this.playerAgent.y + move.dy },
+        target: { x: targetX, y: targetY },
       });
       return;
     }

@@ -5,6 +5,7 @@ import { FogManager } from "./fog.js";
 import { Camera } from "./camera.js";
 import { Renderer } from "./renderer.js";
 import { InputHandler, getKeyLabels, formatKeyHints } from "./input.js";
+import { DisplayState } from "./display.js";
 import type { GameState, ModalRequest } from "./types.js";
 
 // DOM elements
@@ -23,6 +24,7 @@ const network = new NetworkClient();
 const fog = new FogManager();
 const camera = new Camera();
 const renderer = new Renderer(canvas);
+const displayState = new DisplayState();
 
 let gameState: GameState = "connecting";
 let input: InputHandler | null = null;
@@ -149,17 +151,40 @@ function setOverlay(state: GameState): void {
 }
 
 // Game loop
-function gameLoop(): void {
+let lastFrameTime = performance.now();
+
+function gameLoop(now: number): void {
+  const dt = now - lastFrameTime;
+  lastFrameTime = now;
+
   if (gameState === "playing") {
     updateInputContext();
     updateHUD();
 
-    const player = network.state?.agents?.get(network.playerId ?? "");
-    if (player) {
-      camera.update(player.x, player.y);
+    // Sync display positions from server state
+    if (network.state?.agents) {
+      const entries: Array<[string, { x: number; y: number }]> = [];
+      network.state.agents.forEach((agent: any) => {
+        entries.push([agent.id, { x: agent.x, y: agent.y }]);
+      });
+      displayState.syncFromServer(entries);
     }
 
-    renderer.draw(network.state, fog, camera, network.playerId);
+    // Lerp all render positions
+    displayState.updateRender(dt);
+
+    const player = network.state?.agents?.get(network.playerId ?? "");
+    if (player) {
+      // Camera follows lerped render position
+      const playerDisplay = displayState.get(network.playerId!);
+      if (playerDisplay) {
+        camera.update(playerDisplay.renderX / 32 + 0.5, playerDisplay.renderY / 32 + 0.5);
+      } else {
+        camera.update(player.x, player.y);
+      }
+    }
+
+    renderer.draw(network.state, fog, camera, network.playerId, displayState);
   }
   requestAnimationFrame(gameLoop);
 }
@@ -172,6 +197,7 @@ async function connect(): Promise<void> {
   gameState = "connecting";
   setOverlay("connecting");
   fog.clear();
+  displayState.clear();
 
   try {
     await network.connect("Player");
@@ -183,6 +209,7 @@ async function connect(): Promise<void> {
 
     input = new InputHandler((cmd) => network.send(cmd));
     input.setModalHandler(handleModal);
+    displayState.setLocalPlayer(network.playerId);
 
     network.onVision((vision) => fog.update(vision));
     network.onDeath(() => {
@@ -206,12 +233,14 @@ async function connect(): Promise<void> {
 document.getElementById("rejoin-btn")!.addEventListener("click", () => {
   network.disconnect();
   input?.destroy();
+  displayState.clear();
   connect();
 });
 
 document.getElementById("retry-btn")!.addEventListener("click", () => {
   network.disconnect();
   input?.destroy();
+  displayState.clear();
   connect();
 });
 

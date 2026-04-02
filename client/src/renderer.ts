@@ -2,6 +2,7 @@
 import type { FogLevel } from "./types.js";
 import type { FogManager } from "./fog.js";
 import type { Camera } from "./camera.js";
+import type { DisplayState } from "./display.js";
 
 const TILE_SIZE = 32;
 
@@ -33,6 +34,7 @@ export class Renderer {
     fog: FogManager,
     camera: Camera,
     playerId: string | null,
+    displayState?: DisplayState,
   ): void {
     const { width, height } = this.canvas;
     const ctx = this.ctx;
@@ -75,13 +77,25 @@ export class Renderer {
     // Draw agents on visible tiles (from live server state)
     if (state?.agents) {
       state.agents.forEach((agent: any) => {
-        if (agent.x >= vp.startX && agent.x < vp.endX && agent.y >= vp.startY && agent.y < vp.endY) {
-          const fl = fog.getLevel(agent.x, agent.y);
-          if (fl !== "visible") return; // Only draw live agents on visible tiles
-          const px = (agent.x - vp.startX) * TILE_SIZE + vp.offsetX;
-          const py = (agent.y - vp.startY) * TILE_SIZE + vp.offsetY;
-          this.drawAgent(ctx, px, py, agent, playerId, playerFaction, "visible");
-        }
+        // Use lerped render position if available, else fall back to server position
+        const display = displayState?.get(agent.id);
+        const pxWorld = display ? display.renderX : agent.x * TILE_SIZE;
+        const pyWorld = display ? display.renderY : agent.y * TILE_SIZE;
+
+        // Convert from world pixel coords to screen coords
+        const px = pxWorld - vp.startX * TILE_SIZE + vp.offsetX;
+        const py = pyWorld - vp.startY * TILE_SIZE + vp.offsetY;
+
+        // Visibility check uses the agent's tile (integer) position for fog
+        const tileX = Math.round(pxWorld / TILE_SIZE);
+        const tileY = Math.round(pyWorld / TILE_SIZE);
+        const fl = fog.getLevel(tileX, tileY);
+        if (fl !== "visible") return;
+
+        // Cull agents outside viewport (with 1-tile margin for sliding agents)
+        if (tileX < vp.startX - 1 || tileX > vp.endX || tileY < vp.startY - 1 || tileY > vp.endY) return;
+
+        this.drawAgent(ctx, px, py, agent, playerId, playerFaction, "visible");
       });
     }
 
