@@ -129,7 +129,7 @@ document.getElementById("sell-material-btn")!.addEventListener("click", () => {
 
 document.getElementById("close-trade-btn")!.addEventListener("click", closeTradeModal);
 window.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") closeTradeModal();
+  if (e.code === "Escape") closeTradeModal();
 });
 
 // Modal handler for input

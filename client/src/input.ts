@@ -23,10 +23,10 @@ interface NearbyEntity {
 const MOVE_THROTTLE_MS = 200;
 
 const MOVE_KEYS: Record<string, { dx: number; dy: number }> = {
-  w: { dx: 0, dy: -1 }, arrowup: { dx: 0, dy: -1 },
-  a: { dx: -1, dy: 0 }, arrowleft: { dx: -1, dy: 0 },
-  s: { dx: 0, dy: 1 },  arrowdown: { dx: 0, dy: 1 },
-  d: { dx: 1, dy: 0 },  arrowright: { dx: 1, dy: 0 },
+  KeyW: { dx: 0, dy: -1 }, ArrowUp: { dx: 0, dy: -1 },
+  KeyA: { dx: -1, dy: 0 }, ArrowLeft: { dx: -1, dy: 0 },
+  KeyS: { dx: 0, dy: 1 },  ArrowDown: { dx: 0, dy: 1 },
+  KeyD: { dx: 1, dy: 0 },  ArrowRight: { dx: 1, dy: 0 },
 };
 
 export class InputHandler {
@@ -64,10 +64,10 @@ export class InputHandler {
     if (!this.enabled || !this.playerAgent) return;
     if (e.repeat) return;
 
-    const key = e.key.toLowerCase();
+    const code = e.code;
 
-    // WASD / arrow movement
-    const move = MOVE_KEYS[key];
+    // WASD / arrow movement (physical key position, layout-independent)
+    const move = MOVE_KEYS[code];
     if (move) {
       const now = Date.now();
       if (now - this.lastMoveTime < MOVE_THROTTLE_MS) return;
@@ -81,8 +81,8 @@ export class InputHandler {
 
     const { x, y, faction } = this.playerAgent;
 
-    switch (key) {
-      case "q": {
+    switch (code) {
+      case "KeyQ": {
         // Attack nearest adjacent enemy
         const enemy = this.nearbyEntities.find(
           (e) => e.faction !== faction && e.hp > 0 && this.isAdjacent(x, y, e.x, e.y),
@@ -90,15 +90,15 @@ export class InputHandler {
         if (enemy) this.send({ type: "attack", targetId: enemy.id });
         break;
       }
-      case "g":
+      case "KeyG":
         this.send({ type: "gather", resourceTile: { x, y } });
         break;
-      case "t":
+      case "KeyT":
         if (this.currentSettlementId) {
           this.send({ type: "deposit", settlementId: this.currentSettlementId });
         }
         break;
-      case "e":
+      case "KeyE":
         this.handleInteract();
         break;
     }
