@@ -27,6 +27,7 @@ const renderer = new Renderer(canvas);
 let gameState: GameState = "connecting";
 let input: InputHandler | null = null;
 let currentTradeTarget: string | null = null;
+let isConnecting = false;
 
 // Resize canvas to fill window
 function resizeCanvas(): void {
@@ -163,6 +164,9 @@ function gameLoop(): void {
 
 // Connect
 async function connect(): Promise<void> {
+  if (isConnecting) return;
+  isConnecting = true;
+
   gameState = "connecting";
   setOverlay("connecting");
   fog.clear();
@@ -191,6 +195,8 @@ async function connect(): Promise<void> {
     gameState = "error";
     errorText.textContent = `Connection failed: ${err.message ?? err}`;
     setOverlay("error");
+  } finally {
+    isConnecting = false;
   }
 }
 
