@@ -54,7 +54,8 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
       return;
     }
 
-    const name = options?.name ?? `Player-${this.nextPlayerId}`;
+    const raw = typeof options?.name === "string" ? options.name.trim().slice(0, 32) : "";
+    const name = raw.length > 0 ? raw : `Player-${this.nextPlayerId}`;
     const id = `player-${this.nextPlayerId++}`;
 
     // Find unoccupied tile in village territory
