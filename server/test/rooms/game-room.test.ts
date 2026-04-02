@@ -321,12 +321,12 @@ describe("GameRoom integration", () => {
 
     const attackerId = client1.messages.find((m: any) => m.type === "joined")?.data.agentId;
     const defenderId = client2.messages.find((m: any) => m.type === "joined")?.data.agentId;
+    expect(attackerId).toBeDefined();
+    expect(defenderId).toBeDefined();
 
-    if (attackerId && defenderId) {
-      sendCommand(room, client1, { type: "attack", targetId: defenderId });
-      tick(room);
-      tick(room);
-    }
+    sendCommand(room, client1, { type: "attack", targetId: defenderId });
+    tick(room);
+    tick(room);
 
     expect(state.tick).toBeGreaterThan(0);
   });
