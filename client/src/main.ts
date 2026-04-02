@@ -1,5 +1,5 @@
 // client/src/main.ts
-import { MERCHANT_TRADE_RATE } from "@town-zero/shared";
+import { MERCHANT_TRADE_RATE, DEFAULT_VISION_RADIUS } from "@town-zero/shared";
 import { NetworkClient } from "./network.js";
 import { FogManager } from "./fog.js";
 import { Camera } from "./camera.js";
@@ -177,11 +177,15 @@ function gameLoop(now: number): void {
 
     const player = network.state?.agents?.get(network.playerId ?? "");
     if (player) {
-      // Camera follows lerped render position
+      // Camera and fog follow predicted position
       const playerDisplay = displayState.get(network.playerId!);
       if (playerDisplay) {
+        const tileX = Math.round(playerDisplay.renderX / 32);
+        const tileY = Math.round(playerDisplay.renderY / 32);
+        fog.revealAround(tileX, tileY, DEFAULT_VISION_RADIUS);
         camera.update(playerDisplay.renderX / 32 + 0.5, playerDisplay.renderY / 32 + 0.5);
       } else {
+        fog.revealAround(player.x, player.y, DEFAULT_VISION_RADIUS);
         camera.update(player.x, player.y);
       }
     }
