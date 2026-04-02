@@ -96,11 +96,13 @@ function updateInputContext(): void {
 function openTradeModal(merchantId: string): void {
   currentTradeTarget = merchantId;
   tradeModal.classList.remove("hidden");
+  input?.setEnabled(false);
 }
 
 function closeTradeModal(): void {
   currentTradeTarget = null;
   tradeModal.classList.add("hidden");
+  input?.setEnabled(true);
 }
 
 document.getElementById("sell-food-btn")!.addEventListener("click", () => {
