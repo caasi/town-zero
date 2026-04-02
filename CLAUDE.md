@@ -59,6 +59,7 @@ pnpm run test
 
 - **Spec:** `docs/superpowers/specs/2026-04-01-town-zero-mvp-design.md`
 - **Plan:** `docs/superpowers/plans/2026-04-01-town-zero-mvp.md` (19 tasks, TDD, full code)
+- **References:** `docs/references.md` — prior art and industry resources for design decisions. Review and update when introducing new patterns or making significant architectural changes.
 
 ## Development Notes
 
