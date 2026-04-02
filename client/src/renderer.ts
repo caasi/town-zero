@@ -56,6 +56,7 @@ export class Renderer {
         const px = (x - vp.startX) * TILE_SIZE + vp.offsetX;
         const py = (y - vp.startY) * TILE_SIZE + vp.offsetY;
         const fogLevel = fog.getLevel(x, y);
+        if (fogLevel === "unknown") continue; // background #111 is the "black"
 
         this.drawTile(ctx, px, py, state, x, y, fogLevel);
       }
