@@ -4,6 +4,7 @@ import type { ActionCommand } from "@town-zero/shared";
 import type { VisionData } from "./types.js";
 
 export class NetworkClient {
+  private client: Client | null = null;
   private room: Room | null = null;
   private _playerId: string | null = null;
   private visionCallbacks: Array<(data: VisionData) => void> = [];
@@ -20,8 +21,8 @@ export class NetworkClient {
 
   async connect(name: string): Promise<void> {
     const protocol = window.location.protocol === "https:" ? "https" : "http";
-    const client = new Client(`${protocol}://${window.location.hostname}:2567`);
-    this.room = await client.joinOrCreate("game", { name });
+    this.client = new Client(`${protocol}://${window.location.hostname}:2567`);
+    this.room = await this.client.joinOrCreate("game", { name });
 
     const joinedPromise = new Promise<string>((resolve) => {
       this.joinedResolve = resolve;
@@ -61,6 +62,7 @@ export class NetworkClient {
   disconnect(): void {
     this.room?.leave();
     this.room = null;
+    this.client = null;
     this._playerId = null;
     this.visionCallbacks = [];
     this.deathCallbacks = [];
