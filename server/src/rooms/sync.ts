@@ -18,6 +18,7 @@ function syncAgent(agent: Agent, agentSchema: AgentSchema): void {
   agentSchema.maxHp = agent.maxHp;
   agentSchema.state = agent.state;
   agentSchema.controller = agent.controller;
+  agentSchema.facing = agent.facing;
   agentSchema.currentTargetId = agent.currentTargetId ?? "";
   agentSchema.inventory.set("food", agent.inventory.food);
   agentSchema.inventory.set("material", agent.inventory.material);
