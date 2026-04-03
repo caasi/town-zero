@@ -64,6 +64,11 @@ function sendCommand(room: any, client: any, cmd: unknown) {
   if (handler) handler(client, cmd);
 }
 
+function sendMessage(room: any, client: any, type: string, data?: unknown) {
+  const handler = room._messageHandlers.get(type);
+  if (handler) handler(client, data);
+}
+
 function tick(room: any) {
   room._tickFn();
 }
@@ -310,6 +315,111 @@ describe("GameRoom integration", () => {
     const joinedMsgs = client.messages.filter((m: any) => m.type === "joined");
     expect(joinedMsgs).toHaveLength(1);
     expect(joinedMsgs[0].data.agentId).toMatch(/^player-/);
+  });
+
+  describe("dialogue integration", () => {
+    function setupDialogue(room: any) {
+      const client = mockClient("session-dlg");
+      joinClient(room, client, { name: "Talker" });
+      tick(room);
+
+      // Move player adjacent to Farmer Reed (at 9,19)
+      const agentId = client.messages.find((m: any) => m.type === "joined")?.data.agentId;
+      const simAgent = room.simState.agents.get(agentId!);
+      simAgent.position = { x: 9, y: 18 }; // north of Reed
+      simAgent.state = "idle";
+
+      return { client, agentId };
+    }
+
+    it("talk command creates session and sends dialogue:state", () => {
+      const { client, agentId } = setupDialogue(room);
+
+      sendCommand(room, client, { type: "talk", targetId: "farmer-reed" });
+
+      const dlgMsgs = client.messages.filter((m: any) => m.type === "dialogue:state");
+      expect(dlgMsgs).toHaveLength(1);
+      expect(dlgMsgs[0].data.npcId).toBe("farmer-reed");
+      expect(dlgMsgs[0].data.nodeType).toBe("text");
+
+      // Player should be in talking state
+      const simAgent = room.simState.agents.get(agentId!);
+      expect(simAgent.state).toBe("talking");
+    });
+
+    it("dialogue:advance sends updated state", () => {
+      const { client } = setupDialogue(room);
+      sendCommand(room, client, { type: "talk", targetId: "farmer-reed" });
+
+      sendMessage(room, client, "dialogue:advance");
+
+      const dlgMsgs = client.messages.filter((m: any) => m.type === "dialogue:state");
+      expect(dlgMsgs).toHaveLength(2); // initial + advance
+      expect(dlgMsgs[1].data.nodeType).toBe("choice");
+    });
+
+    it("dialogue:choose sends updated state", () => {
+      const { client } = setupDialogue(room);
+      sendCommand(room, client, { type: "talk", targetId: "farmer-reed" });
+      sendMessage(room, client, "dialogue:advance"); // → choice
+
+      const choiceMsgs = client.messages.filter((m: any) => m.type === "dialogue:state");
+      const lastChoice = choiceMsgs[choiceMsgs.length - 1];
+      const refuseOpt = lastChoice.data.options.find((o: any) =>
+        o.label.toLowerCase().includes("not right now"),
+      );
+      expect(refuseOpt).toBeDefined();
+
+      sendMessage(room, client, "dialogue:choose", { optionId: refuseOpt.id });
+
+      const afterChoose = client.messages.filter((m: any) => m.type === "dialogue:state");
+      // Should have advanced to refuse text
+      expect(afterChoose.length).toBeGreaterThan(choiceMsgs.length);
+    });
+
+    it("dialogue:close sends dialogue:end", () => {
+      const { client, agentId } = setupDialogue(room);
+      sendCommand(room, client, { type: "talk", targetId: "farmer-reed" });
+
+      sendMessage(room, client, "dialogue:close");
+
+      const endMsgs = client.messages.filter((m: any) => m.type === "dialogue:end");
+      expect(endMsgs).toHaveLength(1);
+
+      // Agent should be back to idle
+      const simAgent = room.simState.agents.get(agentId!);
+      expect(simAgent.state).toBe("idle");
+    });
+
+    it("player in talking state rejects movement commands", () => {
+      const { client, agentId } = setupDialogue(room);
+      sendCommand(room, client, { type: "talk", targetId: "farmer-reed" });
+
+      const simAgent = room.simState.agents.get(agentId!);
+      const origX = simAgent.position.x;
+      const origY = simAgent.position.y;
+
+      // Try to move while talking
+      sendCommand(room, client, { type: "move", target: { x: origX + 1, y: origY } });
+      tick(room);
+
+      // Should not have moved — agent.state is "talking" so idle check fails
+      expect(simAgent.position.x).toBe(origX);
+    });
+
+    it("timeout sends dialogue:end", () => {
+      const { client } = setupDialogue(room);
+      sendCommand(room, client, { type: "talk", targetId: "farmer-reed" });
+
+      // Fast-forward ticks past timeout
+      for (let i = 0; i < 31; i++) {
+        tick(room);
+      }
+
+      const endMsgs = client.messages.filter((m: any) => m.type === "dialogue:end");
+      expect(endMsgs).toHaveLength(1);
+      expect(endMsgs[0].data.reason).toBe("timeout");
+    });
   });
 
   it("two players attack pipeline works", () => {

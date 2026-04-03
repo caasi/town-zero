@@ -7,6 +7,7 @@ import { syncToSchema, syncTiles } from "./sync.js";
 import { isValidActionCommand } from "./validation.js";
 import { extractVisionForPlayer } from "./vision.js";
 import { Agent } from "../simulation/agent.js";
+import { startDialogue, advanceDialogue, chooseDialogue, endDialogue, tickDialogues } from "../dialogue/session-manager.js";
 
 export class GameRoom extends Room<{ state: WorldStateSchema }> {
   private simState!: SimulationState;
@@ -31,7 +32,55 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
 
       if (!isValidActionCommand(cmd)) return;
 
+      // Handle talk command immediately (not through tick pipeline)
+      if (cmd.type === "talk") {
+        const result = startDialogue(agentId, cmd.targetId, this.simState);
+        if (result.ok) {
+          client.send("dialogue:state", result.payload);
+        } else {
+          client.send("dialogue:error", { error: result.error });
+        }
+        return;
+      }
+
       agent.setPlan([cmd]);
+    });
+
+    this.onMessage("dialogue:advance", (client: Client) => {
+      const agentId = this.sessionToAgent.get(client.sessionId);
+      if (!agentId) return;
+
+      const result = advanceDialogue(agentId, this.simState);
+      if (result.ok) {
+        client.send("dialogue:state", result.payload);
+      } else {
+        client.send("dialogue:error", { error: result.error });
+      }
+    });
+
+    this.onMessage("dialogue:choose", (client: Client, data: unknown) => {
+      const agentId = this.sessionToAgent.get(client.sessionId);
+      if (!agentId) return;
+
+      if (!data || typeof data !== "object" || !("optionId" in data) || typeof (data as any).optionId !== "string") return;
+
+      const result = chooseDialogue(agentId, (data as any).optionId, this.simState);
+      if (result.ok) {
+        client.send("dialogue:state", result.payload);
+      } else {
+        client.send("dialogue:error", { error: result.error });
+      }
+    });
+
+    this.onMessage("dialogue:close", (client: Client) => {
+      const agentId = this.sessionToAgent.get(client.sessionId);
+      if (!agentId) return;
+
+      const agent = this.simState.agents.get(agentId);
+      if (!agent?.talkingToNpcId) return;
+
+      endDialogue(agent.talkingToNpcId, this.simState);
+      client.send("dialogue:end", { reason: "closed" });
     });
 
     // Fixed-step simulation: deltaTime is intentionally ignored
@@ -99,9 +148,25 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
 
   private tick() {
     processTick(this.simState);
+
+    const expired = tickDialogues(this.simState);
+    for (const { playerId, reason } of expired) {
+      this.sendToAgent(playerId, "dialogue:end", { reason });
+    }
+
     syncToSchema(this.simState, this.state);
     this.sendVisionUpdates();
     this.checkPlayerDeaths();
+  }
+
+  private sendToAgent(agentId: string, type: string, data: unknown) {
+    for (const [sessionId, aid] of this.sessionToAgent) {
+      if (aid === agentId) {
+        const client = this.clients.getById(sessionId);
+        if (client) client.send(type, data);
+        return;
+      }
+    }
   }
 
   private sendVisionUpdates() {
