@@ -70,19 +70,6 @@ export class Renderer {
       }
     }
 
-    // Draw settlements
-    if (state?.settlements) {
-      state.settlements.forEach((s: any) => {
-        if (s.x >= vp.startX && s.x < vp.endX && s.y >= vp.startY && s.y < vp.endY) {
-          const fl = fog.getLevel(s.x, s.y);
-          if (fl === "unknown") return;
-          const px = (s.x - vp.startX) * TILE_SIZE + vp.offsetX;
-          const py = (s.y - vp.startY) * TILE_SIZE + vp.offsetY;
-          this.drawSettlement(ctx, px, py, s, fl);
-        }
-      });
-    }
-
     // Draw agents on visible tiles (from live server state)
     if (state?.agents) {
       state.agents.forEach((agent: any) => {
@@ -149,6 +136,18 @@ export class Renderer {
       this.drawTerrainPattern(ctx, px, py, terrain);
     }
 
+    // Zone overlay (after terrain pattern, before resource dot)
+    if (fogLevel !== "unknown") {
+      const zoneType = snapshot?.zoneType || "";
+      const ownerFaction = snapshot?.ownerFaction || "";
+
+      if (zoneType) {
+        this.drawZoneOverlay(ctx, px, py, zoneType, ownerFaction);
+      } else if (ownerFaction) {
+        this.drawTerritoryBorder(ctx, px, py, ownerFaction);
+      }
+    }
+
     // Resource yield dot
     if (fogLevel !== "unknown" && resourceYield) {
       ctx.fillStyle = resourceYield === "food" ? "#6a6" : "#a86";
@@ -210,18 +209,59 @@ export class Renderer {
     }
   }
 
-  private drawSettlement(
+  private drawZoneOverlay(
     ctx: CanvasRenderingContext2D, px: number, py: number,
-    settlement: any, fogLevel: FogLevel,
+    zoneType: string, ownerFaction: string,
   ): void {
-    const color = settlement.type === "village" ? "#d4a037" : "#8a4a8a";
-    ctx.globalAlpha = fogLevel === "explored" ? 0.5 : 1;
+    const isVillage = ownerFaction.startsWith("village");
+    const factionColor = isVillage ? "#d4a037" : "#8a4a8a";
+
+    let fillColor: string;
+    let marker: string;
+    let opacity: number;
+
+    switch (zoneType) {
+      case "core":
+        fillColor = factionColor;
+        marker = "\u2605"; // ★
+        opacity = 0.6;
+        break;
+      case "housing":
+        fillColor = "#c4843a";
+        marker = "H";
+        opacity = 0.5;
+        break;
+      case "production":
+        fillColor = "#5a9e4b";
+        marker = "P";
+        opacity = 0.5;
+        break;
+      default:
+        return;
+    }
+
+    ctx.globalAlpha = opacity;
+    ctx.fillStyle = fillColor;
+    ctx.fillRect(px + 2, py + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 14px monospace";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(marker, px + TILE_SIZE / 2, py + TILE_SIZE / 2);
+  }
+
+  private drawTerritoryBorder(
+    ctx: CanvasRenderingContext2D, px: number, py: number,
+    ownerFaction: string,
+  ): void {
+    const isVillage = ownerFaction.startsWith("village");
+    const color = isVillage ? "#d4a037" : "#8a4a8a";
     ctx.strokeStyle = color;
-    ctx.lineWidth = 2;
-    ctx.strokeRect(px + 3, py + 3, TILE_SIZE - 6, TILE_SIZE - 6);
-    ctx.fillStyle = color;
-    ctx.globalAlpha *= 0.3;
-    ctx.fillRect(px + 3, py + 3, TILE_SIZE - 6, TILE_SIZE - 6);
+    ctx.globalAlpha = 0.15;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(px + 1, py + 1, TILE_SIZE - 2, TILE_SIZE - 2);
     ctx.globalAlpha = 1;
   }
 
