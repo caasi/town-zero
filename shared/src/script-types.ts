@@ -84,6 +84,7 @@ export interface DialogueTreeData {
   root: string;
   nodes: Record<string, DialogueNodeData>;
   triggers: TriggerRule[];
+  entryPoints?: Array<{ nodeId: string; condition: Expr }>;
 }
 
 // --- Scenario ---

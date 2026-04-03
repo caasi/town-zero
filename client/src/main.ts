@@ -141,7 +141,7 @@ function handleModal(req: ModalRequest): void {
   if (req.type === "trade") {
     openTradeModal(req.merchantId);
   } else if (req.type === "dialogue") {
-    network.send({ type: "talk", targetId: req.targetId, optionId: "greet" });
+    network.send({ type: "talk", targetId: req.targetId });
   }
 }
 

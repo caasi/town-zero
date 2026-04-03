@@ -31,7 +31,11 @@ describe("isValidActionCommand", () => {
   });
 
   it("accepts valid talk command", () => {
-    expect(isValidActionCommand({ type: "talk", targetId: "a1", optionId: "greet" })).toBe(true);
+    expect(isValidActionCommand({ type: "talk", targetId: "a1" })).toBe(true);
+  });
+
+  it("rejects talk without targetId", () => {
+    expect(isValidActionCommand({ type: "talk" })).toBe(false);
   });
 
   it("accepts valid idle command", () => {

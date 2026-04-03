@@ -214,7 +214,7 @@ export class InputHandler {
         && this.isAdjacent(x, y, e.x, e.y),
     );
     if (npc) {
-      this.send({ type: "talk", targetId: npc.id, optionId: "greet" });
+      this.send({ type: "talk", targetId: npc.id });
       return;
     }
 

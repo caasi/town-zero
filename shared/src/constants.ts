@@ -36,6 +36,9 @@ export const ATTACK_COOLDOWN_TICKS = 3;
 export const MERCHANT_SPAWN_INTERVAL = 120;  // ticks between merchant spawns
 export const MERCHANT_TRADE_RATE = 2;        // food/material per currency
 
+// --- Dialogue ---
+export const DIALOGUE_TIMEOUT_TICKS = 30; // seconds at 1 tick/s
+
 // --- LLM ---
 export const LLM_CALL_INTERVAL_MS = 20_000; // 20 seconds default
 export const LLM_MIN_INTERVAL_MS = 10_000;  // 10 seconds for important NPCs
