@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { fact, local, player, npc, settlement } from "@town-zero/shared/script-dsl";
+import { fact, local, player, npc, settlement, not } from "@town-zero/shared/script-dsl";
 
 describe("ExprBuilder", () => {
   it("fact() creates a fact_ref node", () => {
@@ -101,5 +101,18 @@ describe("ExprBuilder", () => {
       left: { type: "fact_ref", key: "a" },
       right: { type: "fact_ref", key: "b" },
     });
+  });
+
+  it("not() produces logic not node", () => {
+    expect(not(fact("x").eq(true)).toExpr()).toEqual({
+      type: "logic",
+      op: "not",
+      args: [{ type: "compare", op: "eq", left: { type: "fact_ref", key: "x" }, right: { type: "literal", value: true } }],
+    });
+  });
+
+  it("not() composes with and/or", () => {
+    const expr = not(fact("a")).and(fact("b").eq(1));
+    expect(expr.toExpr().type).toBe("logic");
   });
 });

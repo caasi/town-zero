@@ -2,7 +2,7 @@ import type { Expr, Value } from "../script-types.js";
 
 export type ExprOrValue = ExprBuilder | Value;
 
-function toExpr(v: ExprOrValue): Expr {
+export function toExpr(v: ExprOrValue): Expr {
   if (v instanceof ExprBuilder) return v.toExpr();
   return { type: "literal", value: v };
 }
@@ -58,6 +58,10 @@ export class ExprBuilder {
 }
 
 // --- Factory functions ---
+
+export function not(expr: ExprBuilder): ExprBuilder {
+  return new ExprBuilder({ type: "logic", op: "not", args: [expr.toExpr()] });
+}
 
 export function fact(key: string): ExprBuilder {
   return new ExprBuilder({ type: "fact_ref", key });

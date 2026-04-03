@@ -1,7 +1,7 @@
 import type { TextTemplate, Expr } from "../script-types.js";
 import { ExprBuilder } from "./expressions.js";
 
-export function t(strings: TemplateStringsArray, ...values: Array<ExprBuilder | string | number>): TextTemplate {
+export function t(strings: TemplateStringsArray, ...values: Array<ExprBuilder | string | number | boolean>): TextTemplate {
   const result: TextTemplate = [];
   for (let i = 0; i < strings.length; i++) {
     if (strings[i] !== "") {

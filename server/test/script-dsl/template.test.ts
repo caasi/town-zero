@@ -38,4 +38,20 @@ describe("tagged template t", () => {
       { type: "fact_ref", key: "b" },
     ]);
   });
+
+  it("interpolates boolean values as literal Expr nodes", () => {
+    const tpl = t`Flag: ${true}`;
+    expect(tpl).toEqual([
+      "Flag: ",
+      { type: "literal", value: true },
+    ]);
+  });
+
+  it("interpolates number values as literal Expr nodes", () => {
+    const tpl = t`Cost: ${42}`;
+    expect(tpl).toEqual([
+      "Cost: ",
+      { type: "literal", value: 42 },
+    ]);
+  });
 });
