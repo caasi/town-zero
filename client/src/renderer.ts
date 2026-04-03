@@ -149,6 +149,21 @@ export class Renderer {
       }
     }
 
+    // Bush object
+    const objectType = snapshot?.objectType || "";
+    if (fogLevel !== "unknown" && objectType === "bush") {
+      ctx.fillStyle = "#2a8a2a";
+      ctx.beginPath();
+      ctx.arc(px + TILE_SIZE / 2 - 6, py + TILE_SIZE / 2, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(px + TILE_SIZE / 2 + 4, py + TILE_SIZE / 2 - 4, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(px + TILE_SIZE / 2 + 3, py + TILE_SIZE / 2 + 5, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
     // Resource yield dot
     if (fogLevel !== "unknown" && resourceYield) {
       ctx.fillStyle = resourceYield === "food" ? "#6a6" : "#a86";
