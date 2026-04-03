@@ -35,6 +35,8 @@ export interface Position {
   y: number;
 }
 
+export type Facing = "north" | "south" | "east" | "west";
+
 /**
  * Returns all positions within Manhattan distance `radius` of `center`.
  * Used by both server vision and client fog prediction.

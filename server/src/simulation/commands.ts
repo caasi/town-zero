@@ -82,9 +82,16 @@ export function executeCommand(cmd: ActionCommand, ctx: CommandContext): void {
   const { agent, agents, settlements } = ctx;
 
   switch (cmd.type) {
-    case "move":
+    case "move": {
+      const dx = cmd.target.x - agent.position.x;
+      const dy = cmd.target.y - agent.position.y;
+      if (dx > 0) agent.facing = "east";
+      else if (dx < 0) agent.facing = "west";
+      else if (dy > 0) agent.facing = "south";
+      else if (dy < 0) agent.facing = "north";
       agent.position = { ...cmd.target };
       break;
+    }
     case "deposit": {
       const settlement = settlements.get(cmd.settlementId)!;
       for (const res of ["food", "material", "currency"] as ResourceType[]) {

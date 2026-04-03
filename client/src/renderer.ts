@@ -1,5 +1,5 @@
 // client/src/renderer.ts
-import { ZoneType } from "@town-zero/shared";
+import { ZoneType, type Facing } from "@town-zero/shared";
 import type { FogLevel } from "./types.js";
 import type { FogManager } from "./fog.js";
 import type { Camera } from "./camera.js";
@@ -328,6 +328,11 @@ export class Renderer {
       }
     }
 
+    // Facing indicator (skip for dead agents)
+    if (!isDead) {
+      this.drawFacingIndicator(ctx, px, py, cx, cy, agent.facing as Facing | undefined);
+    }
+
     // Dead X mark
     if (isDead) {
       ctx.strokeStyle = "#f00";
@@ -341,6 +346,26 @@ export class Renderer {
     }
 
     ctx.globalAlpha = 1;
+  }
+
+  private drawFacingIndicator(
+    ctx: CanvasRenderingContext2D, px: number, py: number,
+    cx: number, cy: number, facing: Facing | undefined,
+  ): void {
+    if (!facing) return;
+    let dotX: number;
+    let dotY: number;
+    switch (facing) {
+      case "north": dotX = cx; dotY = py + 3; break;
+      case "south": dotX = cx; dotY = py + TILE_SIZE - 3; break;
+      case "east":  dotX = px + TILE_SIZE - 3; dotY = cy; break;
+      case "west":  dotX = px + 3; dotY = cy; break;
+      default: return;
+    }
+    ctx.fillStyle = "#fff";
+    ctx.beginPath();
+    ctx.arc(dotX, dotY, 2.5, 0, Math.PI * 2);
+    ctx.fill();
   }
 
   private drawFogEntity(

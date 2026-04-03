@@ -10,6 +10,7 @@ export const AgentSchema = schema({
   maxHp: "number",
   state: "string",
   controller: "string",
+  facing: "string",
   currentTargetId: "string",
   inventory: { map: "number" },
 }, "AgentSchema");

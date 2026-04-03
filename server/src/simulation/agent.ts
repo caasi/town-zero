@@ -8,6 +8,7 @@ import type {
   EntitySnapshot,
   TileMemory,
   TerrainType,
+  Facing,
   Fact,
   DialogueProgressEntry,
 } from "@town-zero/shared";
@@ -20,6 +21,7 @@ interface AgentInit {
   role: string;
   controller: ControllerType;
   hp?: number;
+  facing?: Facing;
 }
 
 export class Agent {
@@ -27,6 +29,7 @@ export class Agent {
   position: Position;
   faction: string;
   role: string;
+  facing: Facing;
   hp: number;
   maxHp: number;
   inventory: ResourceStore;
@@ -47,6 +50,7 @@ export class Agent {
     this.position = { ...init.position };
     this.faction = init.faction;
     this.role = init.role;
+    this.facing = init.facing ?? "south";
     this.hp = init.hp ?? DEFAULT_MAX_HP;
     this.maxHp = DEFAULT_MAX_HP;
     this.inventory = emptyResourceStore();
