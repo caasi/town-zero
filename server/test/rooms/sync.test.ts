@@ -1,5 +1,6 @@
 import "../../src/polyfill.js";
 import { describe, it, expect } from "vitest";
+import { ZoneType } from "@town-zero/shared";
 import { syncToSchema, syncTiles } from "../../src/rooms/sync.js";
 import { WorldStateSchema } from "../../src/rooms/schemas/WorldStateSchema.js";
 import { Grid } from "../../src/simulation/grid.js";
@@ -195,8 +196,8 @@ describe("syncTiles", () => {
 
   it("syncs zoneType from grid", () => {
     const grid = new Grid(3, 3);
-    grid.setZoneType(1, 1, "core");
-    grid.setZoneType(0, 1, "housing");
+    grid.setZoneType(1, 1, ZoneType.CORE);
+    grid.setZoneType(0, 1, ZoneType.HOUSING);
 
     const state = new WorldStateSchema();
     syncTiles(grid, state);
@@ -208,8 +209,8 @@ describe("syncTiles", () => {
 
   it("syncs structureId and operatorId from settlements", () => {
     const grid = new Grid(5, 5);
-    grid.setZoneType(2, 2, "core");
-    grid.setZoneType(3, 2, "housing");
+    grid.setZoneType(2, 2, ZoneType.CORE);
+    grid.setZoneType(3, 2, ZoneType.HOUSING);
     grid.setOwner(2, 2, "village-1");
     grid.setOwner(3, 2, "village-1");
 
