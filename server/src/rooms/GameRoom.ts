@@ -36,13 +36,18 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
       if (cmd.type === "talk") {
         const result = startDialogue(agentId, cmd.targetId, this.simState);
         if (result.ok) {
-          client.send("dialogue:state", result.payload);
+          if (result.ended) {
+            client.send("dialogue:end", { reason: "completed" });
+          } else {
+            client.send("dialogue:state", result.payload);
+          }
         } else {
           client.send("dialogue:error", { error: result.error });
         }
         return;
       }
 
+      if (agent.state === "talking") return;
       agent.setPlan([cmd]);
     });
 
@@ -52,7 +57,11 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
 
       const result = advanceDialogue(agentId, this.simState);
       if (result.ok) {
-        client.send("dialogue:state", result.payload);
+        if (result.ended) {
+          client.send("dialogue:end", { reason: "completed" });
+        } else {
+          client.send("dialogue:state", result.payload);
+        }
       } else {
         client.send("dialogue:error", { error: result.error });
       }
@@ -66,7 +75,11 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
 
       const result = chooseDialogue(agentId, (data as any).optionId, this.simState);
       if (result.ok) {
-        client.send("dialogue:state", result.payload);
+        if (result.ended) {
+          client.send("dialogue:end", { reason: "completed" });
+        } else {
+          client.send("dialogue:state", result.payload);
+        }
       } else {
         client.send("dialogue:error", { error: result.error });
       }
