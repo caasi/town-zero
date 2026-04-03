@@ -1,22 +1,23 @@
 {
   "id": "villager-basic",
   "root": "greeting",
+  "triggers": [],
   "nodes": {
-    "greeting": { "type": "text", "speaker": "npc", "content": "Hello, what can I do for you?", "next": "main-choices" },
+    "greeting": { "type": "text", "speaker": "npc", "content": ["Hello, what can I do for you?"], "next": "main-choices" },
     "main-choices": { "type": "choice", "options": [
-      { "label": "How is the village doing?", "next": "village-status" },
-      { "label": "Can you scout the north?", "next": "scout-request" },
-      { "label": "Can you gather food?", "next": "gather-request" },
-      { "label": "Never mind.", "next": "farewell" }
+      { "id": "main_opt_0", "label": ["How is the village doing?"], "next": "village-status" },
+      { "id": "main_opt_1", "label": ["Can you scout the north?"], "next": "scout-request" },
+      { "id": "main_opt_2", "label": ["Can you gather food?"], "next": "gather-request" },
+      { "id": "main_opt_3", "label": ["Never mind."], "next": "farewell" }
     ]},
-    "village-status": { "type": "text", "speaker": "npc", "content": "We're managing, but food supplies are getting low.", "next": "main-choices" },
-    "scout-request": { "type": "request", "label": "Scout the northern area", "gateType": "llm", "nextYes": "scout-yes", "nextNo": "scout-no" },
-    "scout-yes": { "type": "text", "speaker": "npc", "content": "Alright, I'll head north and report back.", "next": "farewell" },
-    "scout-no": { "type": "text", "speaker": "npc", "content": "I can't right now, I have other duties.", "next": "main-choices" },
-    "gather-request": { "type": "request", "label": "Go gather food for the village", "gateType": "llm", "nextYes": "gather-yes", "nextNo": "gather-no" },
-    "gather-yes": { "type": "text", "speaker": "npc", "content": "Sure, I'll head to the fields.", "next": "farewell" },
-    "gather-no": { "type": "text", "speaker": "npc", "content": "I need to rest first, maybe later.", "next": "main-choices" },
-    "farewell": { "type": "text", "speaker": "npc", "content": "Take care out there.", "next": "end" },
+    "village-status": { "type": "text", "speaker": "npc", "content": ["We're managing, but food supplies are getting low."], "next": "main-choices" },
+    "scout-request": { "type": "request", "label": ["Scout the northern area"], "gateType": "llm", "nextYes": "scout-yes", "nextNo": "scout-no" },
+    "scout-yes": { "type": "text", "speaker": "npc", "content": ["Alright, I'll head north and report back."], "next": "farewell" },
+    "scout-no": { "type": "text", "speaker": "npc", "content": ["I can't right now, I have other duties."], "next": "main-choices" },
+    "gather-request": { "type": "request", "label": ["Go gather food for the village"], "gateType": "llm", "nextYes": "gather-yes", "nextNo": "gather-no" },
+    "gather-yes": { "type": "text", "speaker": "npc", "content": ["Sure, I'll head to the fields."], "next": "farewell" },
+    "gather-no": { "type": "text", "speaker": "npc", "content": ["I need to rest first, maybe later."], "next": "main-choices" },
+    "farewell": { "type": "text", "speaker": "npc", "content": ["Take care out there."], "next": "end" },
     "end": { "type": "end" }
   }
 }

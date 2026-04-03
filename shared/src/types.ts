@@ -95,26 +95,3 @@ export interface TileMemory {
   timestamp: number;   // tick when last observed
 }
 
-// --- Dialogue ---
-
-export type DialogueNodeId = string;
-
-export type DialogueNode =
-  | { type: "text"; speaker: string; content: string; next: DialogueNodeId }
-  | { type: "choice"; options: DialogueChoice[] }
-  | { type: "request"; label: string; gateType: "llm"; nextYes: DialogueNodeId; nextNo: DialogueNodeId }
-  | { type: "action"; effect: string; next: DialogueNodeId }
-  | { type: "end" };
-
-export interface DialogueChoice {
-  label: string;
-  next: DialogueNodeId;
-  condition?: string; // expression evaluated against locals
-}
-
-export interface DialogueTree {
-  id: string;
-  root: DialogueNodeId;
-  nodes: Record<DialogueNodeId, DialogueNode>;
-  defaultLocals?: Record<string, unknown>; // initial per-instance local variables
-}

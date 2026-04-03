@@ -1,27 +1,21 @@
-import type { DialogueTree, DialogueNode, DialogueNodeId } from "@town-zero/shared";
+import type { DialogueTreeData, DialogueNodeData } from "@town-zero/shared";
 
 export class DialogueEngine {
-  private tree: DialogueTree;
-  private currentNodeId: DialogueNodeId;
-  private locals: Map<string, unknown> = new Map();
+  private tree: DialogueTreeData;
+  private currentNodeId: string;
 
-  constructor(tree: DialogueTree) {
+  constructor(tree: DialogueTreeData) {
     this.tree = tree;
     this.currentNodeId = tree.root;
-    if (tree.defaultLocals) {
-      for (const [k, v] of Object.entries(tree.defaultLocals)) {
-        this.locals.set(k, v);
-      }
-    }
   }
 
-  getCurrentNode(): DialogueNode {
+  getCurrentNode(): DialogueNodeData {
     const node = this.tree.nodes[this.currentNodeId];
     if (!node) throw new Error(`Dialogue node "${this.currentNodeId}" not found in tree "${this.tree.id}"`);
     return node;
   }
 
-  getCurrentNodeId(): DialogueNodeId {
+  getCurrentNodeId(): string {
     return this.currentNodeId;
   }
 
@@ -51,13 +45,5 @@ export class DialogueEngine {
     const node = this.getCurrentNode();
     if (node.type !== "request") return;
     this.currentNodeId = accepted ? node.nextYes : node.nextNo;
-  }
-
-  getLocal(key: string): unknown {
-    return this.locals.get(key);
-  }
-
-  setLocal(key: string, value: unknown): void {
-    this.locals.set(key, value);
   }
 }

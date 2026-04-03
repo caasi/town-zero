@@ -1,22 +1,23 @@
 import { describe, it, expect } from "vitest";
 import { DialogueEngine } from "../../src/dialogue/dialogue-engine.js";
-import type { DialogueTree } from "@town-zero/shared";
+import type { DialogueTreeData } from "@town-zero/shared";
 
-const testTree: DialogueTree = {
+const testTree: DialogueTreeData = {
   id: "test-tree",
   root: "start",
+  triggers: [],
   nodes: {
-    start: { type: "text", speaker: "npc", content: "Hello traveler!", next: "choices" },
+    start: { type: "text", speaker: "npc", content: ["Hello traveler!"], next: "choices" },
     choices: {
       type: "choice",
       options: [
-        { label: "Ask for help", next: "request" },
-        { label: "Goodbye", next: "end" },
+        { id: "opt_0", label: ["Ask for help"], next: "request" },
+        { id: "opt_1", label: ["Goodbye"], next: "end" },
       ],
     },
-    request: { type: "request", label: "Scout the north", gateType: "llm", nextYes: "yes", nextNo: "no" },
-    yes: { type: "text", speaker: "npc", content: "Sure, I'll go scout.", next: "end" },
-    no: { type: "text", speaker: "npc", content: "Sorry, I'm too busy.", next: "end" },
+    request: { type: "request", label: ["Scout the north"], gateType: "llm", nextYes: "yes", nextNo: "no" },
+    yes: { type: "text", speaker: "npc", content: ["Sure, I'll go scout."], next: "end" },
+    no: { type: "text", speaker: "npc", content: ["Sorry, I'm too busy."], next: "end" },
     end: { type: "end" },
   },
 };
@@ -27,7 +28,7 @@ describe("DialogueEngine", () => {
     const node = engine.getCurrentNode();
     expect(node.type).toBe("text");
     if (node.type === "text") {
-      expect(node.content).toBe("Hello traveler!");
+      expect(node.content).toEqual(["Hello traveler!"]);
     }
   });
 
@@ -51,7 +52,7 @@ describe("DialogueEngine", () => {
     engine.resolveRequest(true);
     const node = engine.getCurrentNode();
     if (node.type === "text") {
-      expect(node.content).toContain("scout");
+      expect(node.content).toEqual(["Sure, I'll go scout."]);
     }
   });
 
@@ -62,7 +63,7 @@ describe("DialogueEngine", () => {
     engine.resolveRequest(false);
     const node = engine.getCurrentNode();
     if (node.type === "text") {
-      expect(node.content).toContain("busy");
+      expect(node.content).toEqual(["Sorry, I'm too busy."]);
     }
   });
 
@@ -74,11 +75,12 @@ describe("DialogueEngine", () => {
   });
 
   it("throws on missing node id", () => {
-    const brokenTree: DialogueTree = {
+    const brokenTree: DialogueTreeData = {
       id: "broken",
       root: "start",
+      triggers: [],
       nodes: {
-        start: { type: "text", speaker: "npc", content: "Hello", next: "nonexistent" },
+        start: { type: "text", speaker: "npc", content: ["Hello"], next: "nonexistent" },
       },
     };
     const engine = new DialogueEngine(brokenTree);
