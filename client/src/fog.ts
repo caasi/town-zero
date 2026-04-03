@@ -22,7 +22,7 @@ export class FogManager {
     this.lastTick = vision.tick;
     for (const [key, tile] of Object.entries(vision.tiles)) {
       // Merge with existing snapshot to preserve client-only fields
-      // (resourceYield, zoneType, ownerFaction, structureId, operatorId)
+      // (resourceYield, zoneType, ownerFaction, structureId, operatorId, objectType)
       // that the server vision payload doesn't include.
       const existing = this.snapshots.get(key);
       this.snapshots.set(key, {
@@ -34,6 +34,7 @@ export class FogManager {
         ownerFaction: existing?.ownerFaction,
         structureId: existing?.structureId,
         operatorId: existing?.operatorId,
+        objectType: existing?.objectType,
       });
     }
   }
@@ -46,7 +47,7 @@ export class FogManager {
     cx: number,
     cy: number,
     radius: number,
-    tiles: { get(key: string): { terrain: string; resourceYield?: string; zoneType?: ZoneType; ownerFaction?: string; structureId?: string; operatorId?: string | null } | undefined } | undefined,
+    tiles: { get(key: string): { terrain: string; resourceYield?: string; zoneType?: ZoneType; ownerFaction?: string; structureId?: string; operatorId?: string | null; objectType?: string } | undefined } | undefined,
     agents: Iterable<{ id: string; x: number; y: number; role: string; faction: string }>,
     localPlayerId: string | null,
   ): void {
@@ -89,6 +90,7 @@ export class FogManager {
           ownerFaction: tile.ownerFaction,
           structureId: tile.structureId,
           operatorId: tile.operatorId,
+          objectType: tile.objectType,
         });
       }
     }

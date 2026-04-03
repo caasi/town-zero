@@ -12,6 +12,10 @@ export function emptyResourceStore(): ResourceStore {
   return { food: 0, material: 0, currency: 0 };
 }
 
+// --- Tile Objects ---
+
+export type ObjectType = "" | "bush";
+
 // --- Terrain ---
 
 export type TerrainType = "plains" | "forest" | "mountain" | "water" | "road";

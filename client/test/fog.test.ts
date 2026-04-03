@@ -174,6 +174,28 @@ describe("FogManager", () => {
   });
 
   describe("update preserves client-only fields", () => {
+    it("preserves objectType after server vision tick", () => {
+      const fog = new FogManager();
+
+      // Player sees a tile with objectType via revealAround
+      const tiles = new Map([
+        ["4,4", { terrain: "plains", objectType: "bush" }],
+      ]);
+      fog.revealAround(4, 4, 0, tiles, [], null);
+
+      // Server vision tick arrives — only sends terrain/entities/timestamp
+      fog.update({
+        tick: 3,
+        tiles: {
+          "4,4": { terrain: "plains" as TerrainType, entities: [], timestamp: 3 },
+        },
+      });
+
+      // objectType must survive the merge
+      const snapshot = fog.getSnapshot(4, 4);
+      expect(snapshot?.objectType).toBe("bush");
+    });
+
     it("preserves zoneType, ownerFaction, structureId, operatorId after server vision tick", () => {
       const fog = new FogManager();
 

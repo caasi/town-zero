@@ -13,6 +13,7 @@ export interface TileSnapshot {
   ownerFaction?: string;
   structureId?: string;
   operatorId?: string | null;
+  objectType?: string;
 }
 
 export interface VisionData {

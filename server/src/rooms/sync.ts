@@ -111,6 +111,7 @@ export function syncTiles(
       tile.resourceYield = grid.getResourceYield(x, y) ?? "";
       tile.ownerFaction = grid.getOwner(x, y) ?? "";
       tile.zoneType = grid.getZoneType(x, y);
+      tile.objectType = grid.getObjectType(x, y);
       const structure = structureByPos.get(key);
       tile.structureId = structure?.id ?? "";
       tile.operatorId = structure?.operatorId ?? "";
