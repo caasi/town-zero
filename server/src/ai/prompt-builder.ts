@@ -40,6 +40,19 @@ export function buildPrompt(
     lines.push(...remembered.slice(0, 5));
   }
 
+  const beliefs = agent.getAllBeliefs();
+  if (beliefs.size > 0) {
+    lines.push("What you know (beliefs):");
+    for (const [key, fact] of beliefs) {
+      const ticksAgo = Math.max(0, currentTick - fact.tick);
+      const sourceNote =
+        fact.source === agent.id
+          ? "your own observation"
+          : `from ${fact.source}`;
+      lines.push(`- ${key}: ${String(fact.value)} (${ticksAgo} ticks ago, ${sourceNote})`);
+    }
+  }
+
   lines.push("");
   lines.push("Available actions: move, gather, deposit, take, attack, trade, idle");
   lines.push('Respond with a JSON array of ActionCommand objects. Example: [{"type":"move","target":{"x":6,"y":5}},{"type":"gather","resourceTile":{"x":6,"y":5}}]');

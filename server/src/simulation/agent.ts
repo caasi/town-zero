@@ -8,6 +8,8 @@ import type {
   EntitySnapshot,
   TileMemory,
   TerrainType,
+  Fact,
+  DialogueProgressEntry,
 } from "@town-zero/shared";
 import { emptyResourceStore, DEFAULT_MAX_HP } from "@town-zero/shared";
 
@@ -32,6 +34,8 @@ export class Agent {
   plan: ActionCommand[];
   controller: ControllerType;
   private mapMemory: Map<string, TileMemory>;
+  private beliefs: Map<string, Fact> = new Map();
+  private dialogueProgress: Map<string, DialogueProgressEntry> = new Map();
 
   // FSM execution state
   currentCommandTicks: number = 0;
@@ -115,5 +119,38 @@ export class Agent {
         this.mapMemory.set(key, { ...otherMem, entities: [...otherMem.entities] });
       }
     }
+  }
+
+  // --- Beliefs ---
+
+  setBelief(key: string, fact: Fact): void {
+    this.beliefs.set(key, fact);
+  }
+
+  getBelief(key: string): Fact | undefined {
+    return this.beliefs.get(key);
+  }
+
+  getAllBeliefs(): ReadonlyMap<string, Fact> {
+    return this.beliefs;
+  }
+
+  mergeBeliefs(other: ReadonlyMap<string, Fact>): void {
+    for (const [key, fact] of other) {
+      const existing = this.beliefs.get(key);
+      if (!existing || fact.tick > existing.tick) {
+        this.beliefs.set(key, { ...fact });
+      }
+    }
+  }
+
+  // --- Dialogue Progress ---
+
+  getDialogueProgress(treeId: string): DialogueProgressEntry | undefined {
+    return this.dialogueProgress.get(treeId);
+  }
+
+  setDialogueProgress(treeId: string, entry: DialogueProgressEntry): void {
+    this.dialogueProgress.set(treeId, entry);
   }
 }
