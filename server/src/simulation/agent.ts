@@ -131,11 +131,11 @@ export class Agent {
     return this.beliefs.get(key);
   }
 
-  getAllBeliefs(): Map<string, Fact> {
+  getAllBeliefs(): ReadonlyMap<string, Fact> {
     return this.beliefs;
   }
 
-  mergeBeliefs(other: Map<string, Fact>): void {
+  mergeBeliefs(other: ReadonlyMap<string, Fact>): void {
     for (const [key, fact] of other) {
       const existing = this.beliefs.get(key);
       if (!existing || fact.tick > existing.tick) {
