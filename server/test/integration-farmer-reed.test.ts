@@ -146,21 +146,13 @@ describe("integration: Farmer Reed full flow", () => {
     expect(r.ok).toBe(true);
     if (!r.ok) return;
 
-    // The "Here you go." option should not be visible (condition-gated by getVisibleOptions)
-    // In session-manager, buildPayload uses getAllOptionsWithStatus which includes all options.
-    // But the session's getState uses getVisibleOptions which filters them out.
-    // So the client should only see "Not yet."
+    // getAllOptionsWithStatus includes all options; condition-gated ones appear as disabled
     const options = r.payload.options!;
     const handOver = options.find((o) => o.label.includes("Here"));
-    // If condition filtering works, "Here you go" shouldn't appear as visible
-    // (depending on implementation: visible filtering vs enabled flag)
-    // The session's getState → getVisibleOptions filters, so hand-over won't appear
-    if (handOver) {
-      // If it appears, it should be disabled (buildPayload uses enabled: true for all visible)
-      // Actually let's just check it's not there since getVisibleOptions filters it
-      expect(handOver).toBeUndefined();
-    }
+    expect(handOver).toBeDefined();
+    expect(handOver!.enabled).toBe(false);
     const notYet = options.find((o) => o.label.includes("Not yet"));
     expect(notYet).toBeDefined();
+    expect(notYet!.enabled).toBe(true);
   });
 });

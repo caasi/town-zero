@@ -145,6 +145,18 @@ export class DialogueSession {
     return this.getState();
   }
 
+  /** Get all options with enabled status (includes condition-gated options as disabled). */
+  getOptionsWithStatus(): Array<{ id: string; label: string; enabled: boolean }> | undefined {
+    const ctx = this.buildEvalContext();
+    const options = this.engine.getAllOptionsWithStatus(ctx);
+    if (options.length === 0) return undefined;
+    return options.map((opt) => ({
+      id: opt.id,
+      label: typeof opt.label === "string" ? opt.label : interpolate(opt.label, ctx),
+      enabled: opt.enabled,
+    }));
+  }
+
   /** Clean up and persist progress on NPC. */
   end(): void {
     const localsObj: Record<string, Value> = {};
