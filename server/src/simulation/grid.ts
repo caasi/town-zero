@@ -1,12 +1,12 @@
 import { tilesInManhattanRadius, ZoneType } from "@town-zero/shared";
-import type { Position, TerrainType, ResourceType } from "@town-zero/shared";
+import type { Position, TerrainType, ResourceType, ObjectType } from "@town-zero/shared";
 
 interface TileData {
   terrain: TerrainType;
   owner: string | null;
   resourceYield: ResourceType | null;
   zoneType: ZoneType;
-  objectType: string;
+  objectType: ObjectType;
 }
 
 export class Grid {
@@ -74,12 +74,12 @@ export class Grid {
     this.tiles[this.index(x, y)].zoneType = zoneType;
   }
 
-  getObjectType(x: number, y: number): string {
+  getObjectType(x: number, y: number): ObjectType {
     if (!this.inBounds(x, y)) return "";
     return this.tiles[this.index(x, y)].objectType;
   }
 
-  setObjectType(x: number, y: number, type: string): void {
+  setObjectType(x: number, y: number, type: ObjectType): void {
     if (!this.inBounds(x, y)) return;
     this.tiles[this.index(x, y)].objectType = type;
   }
