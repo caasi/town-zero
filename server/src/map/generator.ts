@@ -64,6 +64,19 @@ export function generateMap(): SimulationState {
     grid.setResourceYield(x, 18, "material");
   }
 
+  // Bush tiles east of village
+  const bushPositions = [
+    { x: villageCx + 4, y: villageCy - 1 },
+    { x: villageCx + 4, y: villageCy },
+    { x: villageCx + 5, y: villageCy },
+    { x: villageCx + 5, y: villageCy + 1 },
+    { x: villageCx + 4, y: villageCy + 1 },
+  ];
+  for (const pos of bushPositions) {
+    grid.setObjectType(pos.x, pos.y, "bush");
+    grid.setResourceYield(pos.x, pos.y, "food");
+  }
+
   // Village
   const villageStamp = stampTemplate(grid, VILLAGE_TEMPLATE, villageCx, villageCy, "village-1");
   const village = new Settlement({
