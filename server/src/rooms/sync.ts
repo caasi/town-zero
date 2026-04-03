@@ -94,6 +94,7 @@ export function syncTiles(grid: Grid, roomState: WorldStateSchema): void {
       tile.terrain = grid.getTerrain(x, y) ?? "plains";
       tile.resourceYield = grid.getResourceYield(x, y) ?? "";
       tile.ownerFaction = grid.getOwner(x, y) ?? "";
+      tile.zoneType = grid.getZoneType(x, y);
       roomState.tiles.set(key, tile);
     }
   }

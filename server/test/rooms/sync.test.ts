@@ -171,4 +171,17 @@ describe("syncTiles", () => {
     expect(state.tiles.get("0,1")!.resourceYield).toBe("");
     expect(state.tiles.get("0,1")!.ownerFaction).toBe("");
   });
+
+  it("syncs zoneType from grid", () => {
+    const grid = new Grid(3, 3);
+    grid.setZoneType(1, 1, "core");
+    grid.setZoneType(0, 1, "housing");
+
+    const state = new WorldStateSchema();
+    syncTiles(grid, state);
+
+    expect(state.tiles.get("1,1")!.zoneType).toBe("core");
+    expect(state.tiles.get("0,1")!.zoneType).toBe("housing");
+    expect(state.tiles.get("0,0")!.zoneType).toBe("");
+  });
 });

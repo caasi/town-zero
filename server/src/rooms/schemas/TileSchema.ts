@@ -6,6 +6,7 @@ export const TileSchema = schema({
   terrain: "string",
   resourceYield: "string",
   ownerFaction: "string",
+  zoneType: "string",
 }, "TileSchema");
 
 export type TileSchema = SchemaType<typeof TileSchema>;
