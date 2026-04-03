@@ -77,12 +77,18 @@ export class InputHandler {
   // Held-key tracking for continuous movement
   private heldKeys = new Set<string>();
 
+  private handleBlur = (): void => {
+    this.heldKeys.clear();
+  };
+
   constructor(send: SendFn) {
     this.send = send;
     this.handleKey = this.handleKey.bind(this);
     this.handleKeyUp = this.handleKeyUp.bind(this);
     window.addEventListener("keydown", this.handleKey);
     window.addEventListener("keyup", this.handleKeyUp);
+    window.addEventListener("blur", this.handleBlur);
+    document.addEventListener("visibilitychange", this.handleBlur);
   }
 
   setPredictionContext(
@@ -229,6 +235,8 @@ export class InputHandler {
   destroy(): void {
     window.removeEventListener("keydown", this.handleKey);
     window.removeEventListener("keyup", this.handleKeyUp);
+    window.removeEventListener("blur", this.handleBlur);
+    document.removeEventListener("visibilitychange", this.handleBlur);
     this.heldKeys.clear();
   }
 }
