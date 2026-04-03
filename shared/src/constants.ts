@@ -20,6 +20,14 @@ export const PRODUCTION_INPUT_COST = 2;      // raw materials consumed per produ
 export const PRODUCTION_OUTPUT = 3;          // food/material produced per cycle
 export const PRODUCTION_CYCLE_TICKS = 10;    // ticks per production cycle
 
+// --- Zone ---
+export enum ZoneType {
+  EMPTY = "",
+  CORE = "core",
+  HOUSING = "housing",
+  PRODUCTION = "production",
+}
+
 // --- Combat ---
 export const BASE_ATTACK_DAMAGE = 20;
 export const ATTACK_COOLDOWN_TICKS = 3;
