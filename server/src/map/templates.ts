@@ -1,12 +1,12 @@
 import { ZoneType } from "@town-zero/shared";
 import type { Position, StructureType } from "@town-zero/shared";
+import type { Grid } from "../simulation/grid.js";
 
 const ZONE_TO_STRUCTURE = {
   [ZoneType.CORE]: "core",
   [ZoneType.HOUSING]: "housing",
   [ZoneType.PRODUCTION]: "production",
 } satisfies Record<Exclude<ZoneType, ZoneType.EMPTY>, StructureType>;
-import type { Grid } from "../simulation/grid.js";
 
 // --- Templates ---
 
@@ -72,14 +72,12 @@ export function stampTemplate(
 
       if (zone === ZoneType.EMPTY) continue;
       const structureType = ZONE_TO_STRUCTURE[zone];
-      if (structureType) {
-        structures.push({
-          id: `${faction}-${zone}-${worldX}-${worldY}`,
-          type: structureType,
-          position: { x: worldX, y: worldY },
-          operatorId: null,
-        });
-      }
+      structures.push({
+        id: `${faction}-${zone}-${worldX}-${worldY}`,
+        type: structureType,
+        position: { x: worldX, y: worldY },
+        operatorId: null,
+      });
     }
   }
 
