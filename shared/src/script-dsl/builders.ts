@@ -4,14 +4,7 @@ import type {
   ChoiceOptionData, TriggerRule,
 } from "../script-types.js";
 import type { ResourceType } from "../types.js";
-import { ExprBuilder, type ExprOrValue } from "./expressions.js";
-
-// --- Helpers ---
-
-function toExpr(v: ExprOrValue): Expr {
-  if (v instanceof ExprBuilder) return v.toExpr();
-  return { type: "literal", value: v };
-}
+import { ExprBuilder, toExpr, type ExprOrValue } from "./expressions.js";
 
 // --- Simple effect builders ---
 
@@ -118,6 +111,9 @@ function createDialogueBuilder(
         if (!getData) throw new Error(`Unknown option builder at index ${i}`);
         const data = getData();
         data.id = `${id}_opt_${i}`;
+        if (data.next === "") {
+          throw new Error(`Option "${data.id}" in choice node "${id}" is missing goto() target`);
+        }
         return data;
       });
       registerNode(id, { type: "choice", options: optionData });
@@ -156,7 +152,16 @@ function createDialogueBuilder(
   };
 
   function build(): DialogueTreeData {
-    const root = nodeOrder.length > 0 ? nodeOrder[0] : "";
+    if (nodeOrder.length === 0) {
+      throw new Error(`Dialogue "${dialogueId}" must contain at least one node`);
+    }
+    for (const nodeId of nodeOrder) {
+      const node = nodes[nodeId];
+      if (node.type === "text" && node.next === "") {
+        throw new Error(`Text node "${nodeId}" in dialogue "${dialogueId}" is missing a next node`);
+      }
+    }
+    const root = nodeOrder[0];
     return { id: dialogueId, root, nodes, triggers };
   }
 
@@ -185,6 +190,9 @@ export function scenario(id: string, fn: (s: ScenarioBuilderApi) => void): Scena
 
   const api: ScenarioBuilderApi = {
     npc(npcId, opts) {
+      if (npcDialogueMap.has(npcId)) {
+        throw new Error(`Duplicate npcId "${npcId}" in scenario "${id}"`);
+      }
       npcDialogueMap.set(npcId, []);
       npcs.push({
         id: npcId,
@@ -197,11 +205,14 @@ export function scenario(id: string, fn: (s: ScenarioBuilderApi) => void): Scena
     },
 
     dialogue(npcId, dialogueId, builderFn) {
+      const ids = npcDialogueMap.get(npcId);
+      if (!ids) {
+        throw new Error(`Cannot add dialogue "${dialogueId}" to unregistered NPC "${npcId}" in scenario "${id}". Register the NPC with s.npc() first.`);
+      }
       const { api: dApi, build } = createDialogueBuilder(dialogueId, id);
       builderFn(dApi);
       dialogues.push(build());
-      const ids = npcDialogueMap.get(npcId);
-      if (ids) ids.push(dialogueId);
+      ids.push(dialogueId);
     },
 
     trigger(whenExpr, thenEffects, opts) {

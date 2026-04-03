@@ -196,6 +196,53 @@ describe("builders", () => {
       }
     });
 
+    it("throws on empty dialogue (no nodes)", () => {
+      expect(() => scenario("empty-dialogue", (s) => {
+        s.npc("a", { role: "scout", faction: "f", position: { x: 0, y: 0 }, initialBeliefs: [] });
+        s.dialogue("a", "d", (_d) => {
+          // no nodes registered
+        });
+      })).toThrow(/must contain at least one node/);
+    });
+
+    it("throws when text node has dangling next (auto-chain not resolved)", () => {
+      expect(() => scenario("dangling", (s) => {
+        s.npc("a", { role: "scout", faction: "f", position: { x: 0, y: 0 }, initialBeliefs: [] });
+        s.dialogue("a", "d", (d) => {
+          d.text("only", t`Hello`);
+          // no end node, auto-chain leaves next: ""
+        });
+      })).toThrow(/missing a next node/);
+    });
+
+    it("throws when option has no goto()", () => {
+      expect(() => scenario("no-goto", (s) => {
+        s.npc("a", { role: "scout", faction: "f", position: { x: 0, y: 0 }, initialBeliefs: [] });
+        s.dialogue("a", "d", (d) => {
+          d.choice("ch", [
+            d.option("Option A"),
+          ]);
+          d.end("end");
+        });
+      })).toThrow(/missing goto/);
+    });
+
+    it("throws on dialogue for unregistered NPC", () => {
+      expect(() => scenario("unregistered", (s) => {
+        s.dialogue("ghost_npc", "d", (d) => {
+          d.text("hi", t`Hello`);
+          d.end("done");
+        });
+      })).toThrow(/unregistered NPC/);
+    });
+
+    it("throws on duplicate NPC ID", () => {
+      expect(() => scenario("dup-npc", (s) => {
+        s.npc("a", { role: "scout", faction: "f", position: { x: 0, y: 0 }, initialBeliefs: [] });
+        s.npc("a", { role: "merchant", faction: "f", position: { x: 1, y: 0 }, initialBeliefs: [] });
+      })).toThrow(/Duplicate npcId/);
+    });
+
     it("option labels can be TextTemplate", () => {
       const data = scenario("tpl-label", (s) => {
         s.npc("a", { role: "scout", faction: "f", position: { x: 0, y: 0 }, initialBeliefs: [] });
