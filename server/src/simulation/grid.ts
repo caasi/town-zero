@@ -5,6 +5,7 @@ interface TileData {
   terrain: TerrainType;
   owner: string | null;
   resourceYield: ResourceType | null;
+  zoneType: string;
 }
 
 export class Grid {
@@ -19,6 +20,7 @@ export class Grid {
       terrain: "plains" as TerrainType,
       owner: null,
       resourceYield: null,
+      zoneType: "",
     }));
   }
 
@@ -58,6 +60,16 @@ export class Grid {
   setResourceYield(x: number, y: number, resource: ResourceType | null): void {
     if (!this.inBounds(x, y)) return;
     this.tiles[this.index(x, y)].resourceYield = resource;
+  }
+
+  getZoneType(x: number, y: number): string {
+    if (!this.inBounds(x, y)) return "";
+    return this.tiles[this.index(x, y)].zoneType;
+  }
+
+  setZoneType(x: number, y: number, zoneType: string): void {
+    if (!this.inBounds(x, y)) return;
+    this.tiles[this.index(x, y)].zoneType = zoneType;
   }
 
   getNeighbors(x: number, y: number): Position[] {
