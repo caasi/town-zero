@@ -155,6 +155,9 @@ export function processTick(state: SimulationState): void {
   mergeAdjacentMemories(agentList, grid);
 
   // Phase 8: Trigger evaluation (deferred-batch)
+  // TODO: allBeliefs merges all agents' beliefs into a global view (newest-tick-wins).
+  // This violates the "no global omniscience" principle. Triggers should ideally
+  // evaluate against per-target or per-faction beliefs, not a world-wide merge.
   if (state.triggerRegistry) {
     const allBeliefs = new Map<string, Fact>();
     for (const [, agent] of agents) {
@@ -198,13 +201,19 @@ export function processTick(state: SimulationState): void {
                   settlement: null,
                 },
                 currentTick: tick,
-              }) as Value;
+              });
+              if (value === undefined) {
+                console.warn(`[tick:phase8] Trigger "${rule.id}" set_fact value for key "${effect.key}" evaluated to undefined, skipping`);
+                continue;
+              }
               targetAgent.setBelief(effect.key, {
                 key: effect.key,
                 value,
                 tick,
                 source: "trigger:" + rule.id,
               });
+            } else {
+              console.warn(`[tick:phase8] Trigger "${rule.id}" has unhandled effect type "${effect.type}" — only set_fact is supported in trigger execution`);
             }
           }
         }
