@@ -207,6 +207,19 @@ describe("syncTiles", () => {
     expect(state.tiles.get("0,0")!.zoneType).toBe("");
   });
 
+  it("syncs objectType from grid", () => {
+    const grid = new Grid(3, 3);
+    grid.setObjectType(1, 0, "bush");
+    grid.setObjectType(2, 1, "bush");
+
+    const state = new WorldStateSchema();
+    syncTiles(grid, state);
+
+    expect(state.tiles.get("1,0")!.objectType).toBe("bush");
+    expect(state.tiles.get("2,1")!.objectType).toBe("bush");
+    expect(state.tiles.get("0,0")!.objectType).toBe("");
+  });
+
   it("syncs structureId and operatorId from settlements", () => {
     const grid = new Grid(5, 5);
     grid.setZoneType(2, 2, ZoneType.CORE);

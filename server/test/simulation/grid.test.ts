@@ -103,4 +103,27 @@ describe("Grid", () => {
     grid.setZoneType(-1, 0, ZoneType.CORE);
     expect(grid.getZoneType(-1, 0)).toBe("");
   });
+
+  it("defaults objectType to empty string", () => {
+    const grid = new Grid(10, 10);
+    expect(grid.getObjectType(5, 5)).toBe("");
+  });
+
+  it("gets and sets objectType", () => {
+    const grid = new Grid(10, 10);
+    grid.setObjectType(3, 4, "bush");
+    expect(grid.getObjectType(3, 4)).toBe("bush");
+  });
+
+  it("returns empty string for out-of-bounds objectType", () => {
+    const grid = new Grid(10, 10);
+    expect(grid.getObjectType(-1, 0)).toBe("");
+    expect(grid.getObjectType(10, 0)).toBe("");
+  });
+
+  it("ignores setObjectType for out-of-bounds", () => {
+    const grid = new Grid(10, 10);
+    grid.setObjectType(-1, 0, "bush");
+    expect(grid.getObjectType(-1, 0)).toBe("");
+  });
 });
