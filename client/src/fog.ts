@@ -19,10 +19,14 @@ export class FogManager {
   /** Authoritative update from server vision data. */
   update(vision: VisionData): void {
     for (const [key, tile] of Object.entries(vision.tiles)) {
+      // Merge with existing snapshot to preserve client-only fields
+      // (e.g. resourceYield) that the server vision payload doesn't include.
+      const existing = this.snapshots.get(key);
       this.snapshots.set(key, {
         terrain: tile.terrain,
         entities: tile.entities,
         timestamp: tile.timestamp,
+        resourceYield: existing?.resourceYield,
       });
     }
   }
@@ -49,7 +53,12 @@ export class FogManager {
       const arr = agentsByTile.get(key) ?? [];
       arr.push({
         id: agent.id,
-        type: agent.role === "merchant" ? "merchant" : "agent",
+        type:
+          agent.role === "merchant"
+            ? "merchant"
+            : agent.faction.startsWith("den")
+              ? "monster"
+              : "agent",
         faction: agent.faction,
         position: { x: agent.x, y: agent.y },
       });
