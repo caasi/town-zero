@@ -59,15 +59,13 @@ export class DialogueEngine {
     });
   }
 
-  /** Advance past a text node to the next node. */
+  /** Advance past a text or action node. For action nodes, effects are NOT executed — use advanceWithEffects() instead. */
   advance(): void {
     const node = this.getCurrentNode();
-    if (node.type === "text") {
+    if (node.type === "text" || node.type === "action") {
       this.moveTo(node.next);
-    } else if (node.type === "action") {
-      // Action nodes advance without executing effects here —
-      // effects are executed via advanceWithEffects()
-      this.moveTo(node.next);
+    } else {
+      throw new Error(`advance() called on "${node.type}" node "${this.currentNodeId}" — expected text or action`);
     }
   }
 
@@ -85,28 +83,37 @@ export class DialogueEngine {
   /** Select a choice option by its id. */
   selectOptionById(optionId: string): void {
     const node = this.getCurrentNode();
-    if (node.type !== "choice") return;
-    const option = node.options.find((o) => o.id === optionId);
-    if (option) {
-      this.selectedOptions[this.currentNodeId] = optionId;
-      this.moveTo(option.next);
+    if (node.type !== "choice") {
+      throw new Error(`selectOptionById() called on "${node.type}" node "${this.currentNodeId}" — expected choice`);
     }
+    const option = node.options.find((o) => o.id === optionId);
+    if (!option) {
+      const available = node.options.map((o) => o.id).join(", ");
+      throw new Error(`Option "${optionId}" not found in choice node "${this.currentNodeId}". Available: ${available}`);
+    }
+    this.selectedOptions[this.currentNodeId] = optionId;
+    this.moveTo(option.next);
   }
 
-  /** Select a choice option by index (backwards compat). */
+  /** Select a choice option by its position index. Prefer selectOptionById() for explicit selection. */
   selectOption(index: number): void {
     const node = this.getCurrentNode();
-    if (node.type !== "choice") return;
-    const option = node.options[index];
-    if (option) {
-      this.selectedOptions[this.currentNodeId] = option.id;
-      this.moveTo(option.next);
+    if (node.type !== "choice") {
+      throw new Error(`selectOption() called on "${node.type}" node "${this.currentNodeId}" — expected choice`);
     }
+    const option = node.options[index];
+    if (!option) {
+      throw new Error(`Option index ${index} out of range in choice node "${this.currentNodeId}" (${node.options.length} options)`);
+    }
+    this.selectedOptions[this.currentNodeId] = option.id;
+    this.moveTo(option.next);
   }
 
   resolveRequest(accepted: boolean): void {
     const node = this.getCurrentNode();
-    if (node.type !== "request") return;
+    if (node.type !== "request") {
+      throw new Error(`resolveRequest() called on "${node.type}" node "${this.currentNodeId}" — expected request`);
+    }
     this.moveTo(accepted ? node.nextYes : node.nextNo);
   }
 
