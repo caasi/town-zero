@@ -1,4 +1,5 @@
 // client/src/renderer.ts
+import { ZoneType } from "@town-zero/shared";
 import type { FogLevel } from "./types.js";
 import type { FogManager } from "./fog.js";
 import type { Camera } from "./camera.js";
@@ -221,17 +222,17 @@ export class Renderer {
     let opacity: number;
 
     switch (zoneType) {
-      case "core":
+      case ZoneType.CORE:
         fillColor = factionColor;
         marker = "\u2605"; // ★
         opacity = 0.6;
         break;
-      case "housing":
+      case ZoneType.HOUSING:
         fillColor = "#c4843a";
         marker = "H";
         opacity = 0.5;
         break;
-      case "production":
+      case ZoneType.PRODUCTION:
         fillColor = "#5a9e4b";
         marker = "P";
         opacity = 0.5;
