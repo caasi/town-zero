@@ -139,7 +139,7 @@ export class Renderer {
 
     // Zone overlay (after terrain pattern, before resource dot)
     if (fogLevel !== "unknown") {
-      const zoneType = snapshot?.zoneType || "";
+      const zoneType = snapshot?.zoneType ?? ZoneType.EMPTY;
       const ownerFaction = snapshot?.ownerFaction || "";
 
       if (zoneType) {
@@ -212,7 +212,7 @@ export class Renderer {
 
   private drawZoneOverlay(
     ctx: CanvasRenderingContext2D, px: number, py: number,
-    zoneType: string, ownerFaction: string,
+    zoneType: ZoneType, ownerFaction: string,
   ): void {
     const isVillage = ownerFaction.startsWith("village");
     const factionColor = isVillage ? "#d4a037" : "#8a4a8a";
