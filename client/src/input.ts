@@ -153,8 +153,10 @@ export class InputHandler {
 
     const code = e.code;
 
-    // Track movement key presses — actual movement happens in update()
+    // Track movement key presses — actual movement happens in update().
+    // preventDefault stops Arrow keys from scrolling the page.
     if (code in MOVE_KEYS) {
+      e.preventDefault();
       this.heldKeys.add(code);
       return;
     }
