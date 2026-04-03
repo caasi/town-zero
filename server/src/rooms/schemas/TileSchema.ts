@@ -7,6 +7,8 @@ export const TileSchema = schema({
   resourceYield: "string",
   ownerFaction: "string",
   zoneType: "string",
+  structureId: "string",
+  operatorId: "string",
 }, "TileSchema");
 
 export type TileSchema = SchemaType<typeof TileSchema>;

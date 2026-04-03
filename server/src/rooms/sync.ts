@@ -85,7 +85,22 @@ export function syncToSchema(simState: SimulationState, roomState: WorldStateSch
   }
 }
 
-export function syncTiles(grid: Grid, roomState: WorldStateSchema): void {
+export function syncTiles(
+  grid: Grid,
+  roomState: WorldStateSchema,
+  settlements?: Map<string, Settlement>,
+): void {
+  // Build position → structure lookup from settlements
+  const structureByPos = new Map<string, { id: string; operatorId: string | null }>();
+  if (settlements) {
+    for (const [, settlement] of settlements) {
+      for (const structure of settlement.structures) {
+        const key = `${structure.position.x},${structure.position.y}`;
+        structureByPos.set(key, { id: structure.id, operatorId: structure.operatorId });
+      }
+    }
+  }
+
   for (let y = 0; y < grid.height; y++) {
     for (let x = 0; x < grid.width; x++) {
       const key = `${x},${y}`;
@@ -96,6 +111,9 @@ export function syncTiles(grid: Grid, roomState: WorldStateSchema): void {
       tile.resourceYield = grid.getResourceYield(x, y) ?? "";
       tile.ownerFaction = grid.getOwner(x, y) ?? "";
       tile.zoneType = grid.getZoneType(x, y);
+      const structure = structureByPos.get(key);
+      tile.structureId = structure?.id ?? "";
+      tile.operatorId = structure?.operatorId ?? "";
       roomState.tiles.set(key, tile);
     }
   }

@@ -19,7 +19,7 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
     this.setState(new WorldStateSchema());
     this.state.width = this.simState.grid.width;
     this.state.height = this.simState.grid.height;
-    syncTiles(this.simState.grid, this.state);
+    syncTiles(this.simState.grid, this.state, this.simState.settlements);
     syncToSchema(this.simState, this.state);
 
     this.onMessage("command", (client: Client, cmd: unknown) => {

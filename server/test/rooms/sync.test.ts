@@ -205,4 +205,32 @@ describe("syncTiles", () => {
     expect(state.tiles.get("0,1")!.zoneType).toBe("housing");
     expect(state.tiles.get("0,0")!.zoneType).toBe("");
   });
+
+  it("syncs structureId and operatorId from settlements", () => {
+    const grid = new Grid(5, 5);
+    grid.setZoneType(2, 2, "core");
+    grid.setZoneType(3, 2, "housing");
+    grid.setOwner(2, 2, "village-1");
+    grid.setOwner(3, 2, "village-1");
+
+    const village = new Settlement({
+      id: "v1",
+      faction: "village-1",
+      type: "village",
+      territory: [{ x: 2, y: 2 }, { x: 3, y: 2 }],
+    });
+    village.addStructure({ id: "v1-core-2-2", type: "core", position: { x: 2, y: 2 }, operatorId: null });
+    village.addStructure({ id: "v1-housing-3-2", type: "housing", position: { x: 3, y: 2 }, operatorId: "npc1" });
+
+    const settlements = new Map([["v1", village]]);
+    const state = new WorldStateSchema();
+    syncTiles(grid, state, settlements);
+
+    expect(state.tiles.get("2,2")!.structureId).toBe("v1-core-2-2");
+    expect(state.tiles.get("2,2")!.operatorId).toBe("");  // null → ""
+    expect(state.tiles.get("3,2")!.structureId).toBe("v1-housing-3-2");
+    expect(state.tiles.get("3,2")!.operatorId).toBe("npc1");
+    expect(state.tiles.get("0,0")!.structureId).toBe("");
+    expect(state.tiles.get("0,0")!.operatorId).toBe("");
+  });
 });
