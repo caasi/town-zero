@@ -22,7 +22,7 @@ export class FogManager {
     this.lastTick = vision.tick;
     for (const [key, tile] of Object.entries(vision.tiles)) {
       // Merge with existing snapshot to preserve client-only fields
-      // (resourceYield, zoneType, ownerFaction, structureId, operatorId)
+      // (resourceYield, zoneType, ownerFaction, structureId, operatorId, objectType)
       // that the server vision payload doesn't include.
       const existing = this.snapshots.get(key);
       this.snapshots.set(key, {
