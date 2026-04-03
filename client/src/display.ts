@@ -53,7 +53,10 @@ export class DisplayState {
     // Check tile from fog snapshots (not raw server state)
     const tile = tiles.get(`${targetX},${targetY}`);
 
-    // Reject only if terrain is known-impassable
+    // Reject only if terrain is known-impassable (water).
+    // Mountains have finite move cost and are passable. Out-of-bounds and
+    // unknown tiles are allowed optimistically — the server is authoritative
+    // and will reject invalid moves, snapping the client back via sync.
     if (tile) {
       const terrain = tile.terrain as TerrainType;
       if (terrain in TERRAIN_MOVE_COST && TERRAIN_MOVE_COST[terrain] === Infinity) {
@@ -61,9 +64,16 @@ export class DisplayState {
       }
     }
 
-    // Apply prediction: snap displayX/Y to target tile.
+    // Apply prediction by updating the display target to the destination.
+    // If the local player does not yet have a display entry, initialize it
+    // from the best known current origin so the first predicted move lerps
+    // smoothly instead of snapping to the target.
     // Unknown tiles are allowed optimistically — server validates.
-    const display = this.getOrCreate(this.localPlayerId, targetX, targetY);
+    const existing = this.displays.get(this.localPlayerId);
+    const lastPos = this.lastServerPos.get(this.localPlayerId);
+    const initialX = existing?.displayX ?? lastPos?.x ?? targetX;
+    const initialY = existing?.displayY ?? lastPos?.y ?? targetY;
+    const display = this.getOrCreate(this.localPlayerId, initialX, initialY);
     display.displayX = targetX;
     display.displayY = targetY;
     return true;
