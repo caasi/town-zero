@@ -1,6 +1,6 @@
 // client/src/network.ts
 import { Client, Room } from "@colyseus/sdk";
-import type { ActionCommand } from "@town-zero/shared";
+import type { ActionCommand, DialogueStatePayload } from "@town-zero/shared";
 import type { VisionData } from "./types.js";
 
 export class NetworkClient {
@@ -9,6 +9,9 @@ export class NetworkClient {
   private _playerId: string | null = null;
   private visionCallbacks: Array<(data: VisionData) => void> = [];
   private deathCallbacks: Array<(agentId: string) => void> = [];
+  private dialogueStateCallbacks: Array<(data: DialogueStatePayload) => void> = [];
+  private dialogueEndCallbacks: Array<(data: { reason: string }) => void> = [];
+  private dialogueErrorCallbacks: Array<(data: { error: string }) => void> = [];
   private joinedResolve: ((agentId: string) => void) | null = null;
   private joinedReject: ((reason: Error) => void) | null = null;
   private joinedTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -60,6 +63,18 @@ export class NetworkClient {
       for (const cb of this.deathCallbacks) cb(data.agentId);
     });
 
+    this.room.onMessage("dialogue:state", (data: DialogueStatePayload) => {
+      for (const cb of this.dialogueStateCallbacks) cb(data);
+    });
+
+    this.room.onMessage("dialogue:end", (data: { reason: string }) => {
+      for (const cb of this.dialogueEndCallbacks) cb(data);
+    });
+
+    this.room.onMessage("dialogue:error", (data: { error: string }) => {
+      for (const cb of this.dialogueErrorCallbacks) cb(data);
+    });
+
     await joinedPromise;
   }
 
@@ -73,6 +88,30 @@ export class NetworkClient {
 
   onDeath(cb: (agentId: string) => void): void {
     this.deathCallbacks.push(cb);
+  }
+
+  onDialogueState(cb: (data: DialogueStatePayload) => void): void {
+    this.dialogueStateCallbacks.push(cb);
+  }
+
+  onDialogueEnd(cb: (data: { reason: string }) => void): void {
+    this.dialogueEndCallbacks.push(cb);
+  }
+
+  onDialogueError(cb: (data: { error: string }) => void): void {
+    this.dialogueErrorCallbacks.push(cb);
+  }
+
+  sendDialogueAdvance(): void {
+    this.room?.send("dialogue:advance");
+  }
+
+  sendDialogueChoose(optionId: string): void {
+    this.room?.send("dialogue:choose", { optionId });
+  }
+
+  sendDialogueClose(): void {
+    this.room?.send("dialogue:close");
   }
 
   disconnect(): void {
@@ -91,5 +130,8 @@ export class NetworkClient {
     this._playerId = null;
     this.visionCallbacks = [];
     this.deathCallbacks = [];
+    this.dialogueStateCallbacks = [];
+    this.dialogueEndCallbacks = [];
+    this.dialogueErrorCallbacks = [];
   }
 }

@@ -77,6 +77,15 @@ export class InputHandler {
   // Held-key tracking for continuous movement
   private heldKeys = new Set<string>();
 
+  // Dialogue mode
+  private _dialogueMode = false;
+  onDialogueAdvance: (() => void) | null = null;
+  onDialogueChoose: ((optionId: string) => void) | null = null;
+  onDialogueClose: (() => void) | null = null;
+  onDialogueMoveSelection: ((delta: -1 | 1) => void) | null = null;
+  onDialogueGetSelectedId: (() => string | null) | null = null;
+  onDialogueIsText: (() => boolean) | null = null;
+
   private handleBlur = (): void => {
     this.heldKeys.clear();
   };
@@ -119,11 +128,24 @@ export class InputHandler {
     this.enabled = enabled;
   }
 
+  get dialogueMode(): boolean {
+    return this._dialogueMode;
+  }
+
+  enterDialogueMode(): void {
+    this._dialogueMode = true;
+    this.heldKeys.clear();
+  }
+
+  exitDialogueMode(): void {
+    this._dialogueMode = false;
+  }
+
   /**
    * Called every frame from the game loop. Processes held movement keys.
    */
   update(): void {
-    if (!this.enabled || !this.playerAgent) return;
+    if (!this.enabled || !this.playerAgent || this._dialogueMode) return;
 
     // Find the first held movement key
     for (const code of this.heldKeys) {
@@ -155,7 +177,38 @@ export class InputHandler {
   }
 
   private handleKey(e: KeyboardEvent): void {
-    if (!this.enabled || !this.playerAgent) return;
+    if (!this.enabled) return;
+
+    // Dialogue mode input
+    if (this._dialogueMode) {
+      e.preventDefault();
+      if (e.repeat) return;
+
+      switch (e.code) {
+        case "KeyW": case "ArrowUp":
+          this.onDialogueMoveSelection?.(-1);
+          break;
+        case "KeyS": case "ArrowDown":
+          this.onDialogueMoveSelection?.(1);
+          break;
+        case "KeyE": case "Enter": {
+          const isText = this.onDialogueIsText?.() ?? false;
+          if (isText) {
+            this.onDialogueAdvance?.();
+          } else {
+            const optionId = this.onDialogueGetSelectedId?.();
+            if (optionId) this.onDialogueChoose?.(optionId);
+          }
+          break;
+        }
+        case "Escape":
+          this.onDialogueClose?.();
+          break;
+      }
+      return;
+    }
+
+    if (!this.playerAgent) return;
 
     const code = e.code;
 
