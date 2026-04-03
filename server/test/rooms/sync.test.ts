@@ -101,6 +101,7 @@ describe("syncToSchema", () => {
       type: "village",
       territory: [{ x: 10, y: 20 }, { x: 11, y: 20 }],
     });
+    village.addStructure({ id: "c1", type: "core", position: { x: 10, y: 20 }, operatorId: null });
     village.addStructure({ id: "h1", type: "housing", position: { x: 10, y: 20 }, operatorId: null });
     village.addStructure({ id: "p1", type: "production", position: { x: 11, y: 20 }, operatorId: "a1" });
     village.populationIds.push("a1", "a2", "a3");
@@ -115,14 +116,34 @@ describe("syncToSchema", () => {
     expect(schema!.id).toBe("v1");
     expect(schema!.faction).toBe("village-1");
     expect(schema!.type).toBe("village");
-    expect(schema!.x).toBe(10);
+    expect(schema!.x).toBe(10);  // core position
     expect(schema!.y).toBe(20);
     expect(schema!.population).toBe(3);
     expect(schema!.maxPopulation).toBe(4); // 1 housing × HOUSING_POPULATION_CAP(4)
     expect(schema!.inventory.get("food")).toBe(30);
-    expect(schema!.structures.length).toBe(2);
-    expect(schema!.structures.at(0)!.id).toBe("h1");
-    expect(schema!.structures.at(1)!.operatorId).toBe("a1");
+    expect(schema!.structures.length).toBe(3); // core + housing + production
+    expect(schema!.structures.at(0)!.id).toBe("c1");
+    expect(schema!.structures.at(1)!.id).toBe("h1");
+    expect(schema!.structures.at(2)!.operatorId).toBe("a1");
+  });
+
+  it("syncs settlement x,y from core structure position", () => {
+    const village = new Settlement({
+      id: "v1",
+      faction: "village-1",
+      type: "village",
+      territory: [{ x: 8, y: 18 }, { x: 9, y: 19 }, { x: 10, y: 20 }],
+    });
+    village.addStructure({ id: "vc1", type: "core", position: { x: 10, y: 20 }, operatorId: null });
+    village.addStructure({ id: "vh1", type: "housing", position: { x: 9, y: 19 }, operatorId: null });
+
+    const sim = makeSimState({ settlements: new Map([["v1", village]]) });
+    const state = new WorldStateSchema();
+    syncToSchema(sim, state);
+
+    const schema = state.settlements.get("v1")!;
+    expect(schema.x).toBe(10);
+    expect(schema.y).toBe(20);
   });
 
   it("syncs agent state transitions", () => {

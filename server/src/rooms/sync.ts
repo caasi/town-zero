@@ -28,8 +28,9 @@ function syncSettlement(settlement: Settlement, schema: SettlementSchema): void 
   schema.id = settlement.id;
   schema.faction = settlement.faction;
   schema.type = settlement.type;
-  schema.x = settlement.territory[0]?.x ?? 0;
-  schema.y = settlement.territory[0]?.y ?? 0;
+  const core = settlement.structures.find((s) => s.type === "core");
+  schema.x = core?.position.x ?? settlement.territory[0]?.x ?? 0;
+  schema.y = core?.position.y ?? settlement.territory[0]?.y ?? 0;
   schema.population = settlement.populationIds.length;
   schema.maxPopulation = settlement.getPopulationCap();
   schema.inventory.set("food", settlement.inventory.food);
