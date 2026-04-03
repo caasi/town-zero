@@ -63,16 +63,19 @@ describe("FogManager", () => {
   });
 
   describe("revealAround", () => {
-    it("snapshots tiles from live state with non-zero timestamp", () => {
+    it("snapshots tiles from live state using last known tick", () => {
       const fog = new FogManager();
-      const tiles = makeLiveTiles({ "2,2": { terrain: "forest" } });
 
+      // Simulate a server vision update to set lastTick
+      fog.update({ tick: 42, tiles: {} });
+
+      const tiles = makeLiveTiles({ "2,2": { terrain: "forest" } });
       fog.revealAround(2, 2, 0, tiles, noAgents(), null);
 
       const snapshot = fog.getSnapshot(2, 2);
       expect(snapshot).toBeDefined();
       expect(snapshot!.terrain).toBe("forest");
-      expect(snapshot!.timestamp).toBeGreaterThan(0);
+      expect(snapshot!.timestamp).toBe(42);
     });
 
     it("captures resourceYield in snapshot", () => {

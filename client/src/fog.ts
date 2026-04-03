@@ -15,9 +15,11 @@ import type { FogLevel, TileSnapshot, VisionData } from "./types.js";
 export class FogManager {
   private snapshots = new Map<string, TileSnapshot>();
   private predictedVisible = new Set<string>();
+  private lastTick = 0;
 
   /** Authoritative update from server vision data. */
   update(vision: VisionData): void {
+    this.lastTick = vision.tick;
     for (const [key, tile] of Object.entries(vision.tiles)) {
       // Merge with existing snapshot to preserve client-only fields
       // (e.g. resourceYield) that the server vision payload doesn't include.
@@ -69,15 +71,14 @@ export class FogManager {
       const key = `${pos.x},${pos.y}`;
       this.predictedVisible.add(key);
 
-      // Snapshot tile from live state with current time as timestamp.
-      // Predicted snapshots use wall-clock time (not tick) to distinguish
-      // them from server-authoritative snapshots which use tick numbers.
+      // Snapshot tile from live state using the last known server tick.
+      // This keeps timestamp in consistent tick units across all snapshots.
       const tile = tiles?.get(key);
       if (tile) {
         this.snapshots.set(key, {
           terrain: tile.terrain as TerrainType,
           entities: agentsByTile.get(key) ?? [],
-          timestamp: Date.now(),
+          timestamp: this.lastTick,
           resourceYield: tile.resourceYield,
         });
       }
