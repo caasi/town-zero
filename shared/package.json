@@ -11,8 +11,8 @@
       "types": "./dist/index.d.ts"
     },
     "./script-dsl": {
-      "import": "./src/script-dsl/index.ts",
-      "types": "./src/script-dsl/index.ts"
+      "import": "./dist/script-dsl/index.js",
+      "types": "./dist/script-dsl/index.d.ts"
     }
   },
   "scripts": {
