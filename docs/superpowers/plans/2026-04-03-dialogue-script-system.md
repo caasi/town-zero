@@ -2893,6 +2893,80 @@ git commit -m "refactor: migrate villager-basic from JSON to eDSL scenario"
 
 ---
 
+### Task 15: Server-side dialogue session management
+
+**Files:**
+- Create: `server/src/dialogue/dialogue-session.ts`
+- Create: `server/test/dialogue/dialogue-session.test.ts`
+- Modify: `server/src/rooms/GameRoom.ts`
+
+This task wires the dialogue system into GameRoom so clients can initiate and advance dialogues. No client UI is implemented — only server-side message handling.
+
+- [ ] **Step 1: Write failing tests for DialogueSession**
+
+Create `server/test/dialogue/dialogue-session.test.ts`:
+
+Test that `DialogueSession`:
+- Builds `DialogueStateMessage` from current engine node (text interpolated, options filtered)
+- Advances on `dialogue:advance` (text nodes)
+- Selects on `dialogue:select` (choice nodes)
+- Returns `type: "end"` when dialogue ends
+- Executes effects on action nodes during advance
+- Persists `DialogueProgressEntry` on NPC when session ends
+
+```typescript
+interface DialogueStateMessage {
+  treeId: string;
+  nodeId: string;
+  type: "text" | "choice" | "request_pending" | "end";
+  speaker: string;
+  text: string;
+  options?: Array<{ id: string; label: string }>;
+}
+```
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+Expected: FAIL.
+
+- [ ] **Step 3: Implement DialogueSession**
+
+Create `server/src/dialogue/dialogue-session.ts`:
+
+- `DialogueSession` wraps a `DialogueEngine` + `EvalContext` + `MutableContext`
+- `getState(): DialogueStateMessage` — interpolates current node, filters options
+- `advance(): DialogueStateMessage` — text node → next
+- `select(optionId: string): DialogueStateMessage` — choice node → execute → next
+- `cancel(): void` — cleanup
+- `isEnded(): boolean`
+
+- [ ] **Step 4: Run tests**
+
+Expected: All pass.
+
+- [ ] **Step 5: Wire into GameRoom**
+
+Modify `server/src/rooms/GameRoom.ts`:
+- Add `dialogueSessions: Map<string, DialogueSession>` field
+- Add `onMessage("dialogue:advance")`, `onMessage("dialogue:select")`, `onMessage("dialogue:cancel")` handlers
+- Update `talk` command handling to create a session and send initial `dialogue:state`
+- On `onLeave`, clean up any active session
+- Validate: NPC is adjacent, alive, not already in dialogue with another player
+
+- [ ] **Step 6: Run full test suite**
+
+Run: `cd /Users/caasi/GitHub/caasi/town-zero && pnpm run test`
+Expected: All pass.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add server/src/dialogue/dialogue-session.ts server/test/dialogue/dialogue-session.test.ts server/src/rooms/GameRoom.ts
+git commit -m "feat(server): add dialogue session management and GameRoom wiring"
+```
+
+---
+
 ## Summary
 
 | Task | Component | New Tests | Est. Steps |
@@ -2912,4 +2986,5 @@ git commit -m "refactor: migrate villager-basic from JSON to eDSL scenario"
 | 12 | Serialization round-trip | 4 tests | 3 |
 | 13 | Integration test | 3 tests | 4 |
 | 14 | Migrate villager-basic | — | 5 |
-| **Total** | | **~71 tests** | **~85 steps** |
+| 15 | Dialogue session + GameRoom | 5 tests | 7 |
+| **Total** | | **~76 tests** | **~92 steps** |

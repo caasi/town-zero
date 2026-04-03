@@ -95,3 +95,4 @@ pnpm run test
 - [x] Handle player commands via `onMessage`
 - [x] Restore Canvas 2D client with renderer, input, fog of war, HUD
 - [ ] Wire LLM scheduler into GameRoom tick
+- [ ] Add facing direction to Agent (needed for dialogue target selection and future combat/animation)

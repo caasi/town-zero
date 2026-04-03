@@ -505,7 +505,63 @@ Per tick (1s):
 
 Phase 7 extends the existing `mergeAdjacentMemories` to also call `mergeBeliefs`. Phase 8 is a new phase added after merge: collect all fact keys changed during this tick, evaluate trigger conditions, fire matching triggers.
 
-### 9. Serialization Constraint
+### 9. Client Interaction Protocol (Server-Side Only)
+
+Client-side dialogue UI is a separate spec. This section defines what the **server** must provide so the client can be built independently.
+
+#### Dialogue Initiation
+
+The existing `ActionCommand` has `{ type: "talk"; targetId: string; optionId: string }`. The system has no facing direction — agents only have `position: { x, y }`. Dialogue target selection is the client's responsibility (e.g., pick the nearest adjacent NPC). The server validates that the target NPC is adjacent and alive.
+
+When the server receives a `talk` command:
+1. Validate: target NPC exists, is alive, is adjacent to player, and is not already in a dialogue with another player
+2. Set both agents' FSM state to `"talking"`
+3. Create a `DialogueEngine` for this NPC-player pair
+4. Build `EvalContext` with NPC's beliefs as POV
+5. Evaluate the root node → produce a `DialogueStateMessage`
+6. Send `DialogueStateMessage` to the client via Colyseus `send()`
+
+#### Server → Client Message: `dialogue:state`
+
+```typescript
+interface DialogueStateMessage {
+  treeId: string;
+  nodeId: string;
+  type: "text" | "choice" | "request_pending" | "end";
+  speaker: string;
+  text: string;               // fully interpolated, plain string — client never sees AST
+  options?: Array<{           // only for "choice" type, already filtered by conditions
+    id: string;
+    label: string;            // fully interpolated
+  }>;
+}
+```
+
+The server performs all interpolation, condition filtering, and effect execution. The client receives only pre-rendered text and visible options. No `Expr`, `TextTemplate`, or `Fact` data is sent to the client.
+
+#### Client → Server Messages
+
+- `dialogue:advance` `{}` — player presses "continue" on a text node
+- `dialogue:select` `{ optionId: string }` — player picks a choice option
+- `dialogue:cancel` `{}` — player closes dialogue early
+
+#### Session Management
+
+- Server maintains a `Map<string, DialogueEngine>` keyed by player session ID
+- One NPC can only be in dialogue with one player at a time. Other players see the NPC's state as `"talking"`
+- On `dialogue:cancel` or client disconnect: clean up engine, set both agents back to `"idle"`
+- On `request` node (LLM gate): server sends `type: "request_pending"`, calls LLM, then sends the result node automatically. Client shows a waiting indicator
+
+#### DialogueProgressEntry Updates
+
+When a dialogue session ends (reaches `"end"` node or is cancelled), the server persists the `DialogueProgressEntry` on the NPC agent:
+- Append visited node IDs
+- Record selected options
+- Persist dialogue locals
+
+This allows the next conversation with the same NPC to resume from different branches.
+
+### 10. Serialization Constraint
 
 All AST nodes, `Fact`, `BeliefStore`, `DialogueProgressEntry`, `TriggerRule`, and `ScenarioData` must be JSON-serializable. Tests verify round-trip:
 
@@ -516,7 +572,7 @@ expect(JSON.parse(JSON.stringify(data))).toEqual(data);
 
 This constraint applies to both static scenario data and runtime-created structures (dynamic triggers, belief stores, dialogue progress). The save/load system itself is not implemented, but the data structures are proven serializable.
 
-### 10. Migration from Current Dialogue Types
+### 11. Migration from Current Dialogue Types
 
 The existing types in `shared/src/types.ts` evolve:
 
