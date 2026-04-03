@@ -48,4 +48,21 @@ describe("buildPrompt", () => {
     expect(prompt).not.toMatch(/-\d+ ticks ago/);
     expect(prompt).toContain("0 ticks ago");
   });
+
+  it("includes beliefs section when agent has beliefs", () => {
+    const agent = new Agent({ id: "a1", position: { x: 5, y: 5 }, faction: "village-1", role: "farmer", controller: "llm" });
+    agent.setBelief("bridge_status", { key: "bridge_status", value: "destroyed", tick: 58, source: "scout-1" });
+    agent.setBelief("rep", { key: "rep", value: 7, tick: 88, source: "a1" });
+    const prompt = buildPrompt(agent, { food: 10, material: 5, currency: 2 }, 100);
+
+    expect(prompt).toContain("What you know (beliefs):");
+    expect(prompt).toContain("bridge_status: destroyed (42 ticks ago, from scout-1)");
+    expect(prompt).toContain("rep: 7 (12 ticks ago, your own observation)");
+  });
+
+  it("omits beliefs section when agent has no beliefs", () => {
+    const agent = new Agent({ id: "a1", position: { x: 5, y: 5 }, faction: "village-1", role: "farmer", controller: "llm" });
+    const prompt = buildPrompt(agent, { food: 10, material: 5, currency: 2 }, 0);
+    expect(prompt).not.toContain("What you know (beliefs):");
+  });
 });
