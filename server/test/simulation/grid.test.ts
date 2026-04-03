@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { Grid } from "../../src/simulation/grid.js";
-import { GRID_WIDTH, GRID_HEIGHT } from "@town-zero/shared";
+import { GRID_WIDTH, GRID_HEIGHT, ZoneType } from "@town-zero/shared";
 
 describe("Grid", () => {
   it("creates grid with correct dimensions", () => {
@@ -79,5 +79,28 @@ describe("Grid", () => {
     const grid = new Grid(10, 10);
     const tiles = grid.getTilesInRadius({ x: 0, y: 0 }, 1);
     expect(tiles).toHaveLength(3); // (0,0), (1,0), (0,1)
+  });
+
+  it("defaults zoneType to empty string", () => {
+    const grid = new Grid(10, 10);
+    expect(grid.getZoneType(5, 5)).toBe("");
+  });
+
+  it("gets and sets zoneType", () => {
+    const grid = new Grid(10, 10);
+    grid.setZoneType(3, 4, ZoneType.HOUSING);
+    expect(grid.getZoneType(3, 4)).toBe(ZoneType.HOUSING);
+  });
+
+  it("returns empty string for out-of-bounds zoneType", () => {
+    const grid = new Grid(10, 10);
+    expect(grid.getZoneType(-1, 0)).toBe("");
+    expect(grid.getZoneType(10, 0)).toBe("");
+  });
+
+  it("ignores setZoneType for out-of-bounds", () => {
+    const grid = new Grid(10, 10);
+    grid.setZoneType(-1, 0, ZoneType.CORE);
+    expect(grid.getZoneType(-1, 0)).toBe("");
   });
 });

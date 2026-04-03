@@ -1,5 +1,6 @@
 import "../../src/polyfill.js";
 import { describe, it, expect } from "vitest";
+import { ZoneType } from "@town-zero/shared";
 import { syncToSchema, syncTiles } from "../../src/rooms/sync.js";
 import { WorldStateSchema } from "../../src/rooms/schemas/WorldStateSchema.js";
 import { Grid } from "../../src/simulation/grid.js";
@@ -101,6 +102,7 @@ describe("syncToSchema", () => {
       type: "village",
       territory: [{ x: 10, y: 20 }, { x: 11, y: 20 }],
     });
+    village.addStructure({ id: "c1", type: "core", position: { x: 10, y: 20 }, operatorId: null });
     village.addStructure({ id: "h1", type: "housing", position: { x: 10, y: 20 }, operatorId: null });
     village.addStructure({ id: "p1", type: "production", position: { x: 11, y: 20 }, operatorId: "a1" });
     village.populationIds.push("a1", "a2", "a3");
@@ -115,14 +117,34 @@ describe("syncToSchema", () => {
     expect(schema!.id).toBe("v1");
     expect(schema!.faction).toBe("village-1");
     expect(schema!.type).toBe("village");
-    expect(schema!.x).toBe(10);
+    expect(schema!.x).toBe(10);  // core position
     expect(schema!.y).toBe(20);
     expect(schema!.population).toBe(3);
     expect(schema!.maxPopulation).toBe(4); // 1 housing × HOUSING_POPULATION_CAP(4)
     expect(schema!.inventory.get("food")).toBe(30);
-    expect(schema!.structures.length).toBe(2);
-    expect(schema!.structures.at(0)!.id).toBe("h1");
-    expect(schema!.structures.at(1)!.operatorId).toBe("a1");
+    expect(schema!.structures.length).toBe(3); // core + housing + production
+    expect(schema!.structures.at(0)!.id).toBe("c1");
+    expect(schema!.structures.at(1)!.id).toBe("h1");
+    expect(schema!.structures.at(2)!.operatorId).toBe("a1");
+  });
+
+  it("syncs settlement x,y from core structure position", () => {
+    const village = new Settlement({
+      id: "v1",
+      faction: "village-1",
+      type: "village",
+      territory: [{ x: 8, y: 18 }, { x: 9, y: 19 }, { x: 10, y: 20 }],
+    });
+    village.addStructure({ id: "vc1", type: "core", position: { x: 10, y: 20 }, operatorId: null });
+    village.addStructure({ id: "vh1", type: "housing", position: { x: 9, y: 19 }, operatorId: null });
+
+    const sim = makeSimState({ settlements: new Map([["v1", village]]) });
+    const state = new WorldStateSchema();
+    syncToSchema(sim, state);
+
+    const schema = state.settlements.get("v1")!;
+    expect(schema.x).toBe(10);
+    expect(schema.y).toBe(20);
   });
 
   it("syncs agent state transitions", () => {
@@ -170,5 +192,46 @@ describe("syncTiles", () => {
     expect(state.tiles.get("0,1")!.terrain).toBe("plains");
     expect(state.tiles.get("0,1")!.resourceYield).toBe("");
     expect(state.tiles.get("0,1")!.ownerFaction).toBe("");
+  });
+
+  it("syncs zoneType from grid", () => {
+    const grid = new Grid(3, 3);
+    grid.setZoneType(1, 1, ZoneType.CORE);
+    grid.setZoneType(0, 1, ZoneType.HOUSING);
+
+    const state = new WorldStateSchema();
+    syncTiles(grid, state);
+
+    expect(state.tiles.get("1,1")!.zoneType).toBe("core");
+    expect(state.tiles.get("0,1")!.zoneType).toBe("housing");
+    expect(state.tiles.get("0,0")!.zoneType).toBe("");
+  });
+
+  it("syncs structureId and operatorId from settlements", () => {
+    const grid = new Grid(5, 5);
+    grid.setZoneType(2, 2, ZoneType.CORE);
+    grid.setZoneType(3, 2, ZoneType.HOUSING);
+    grid.setOwner(2, 2, "village-1");
+    grid.setOwner(3, 2, "village-1");
+
+    const village = new Settlement({
+      id: "v1",
+      faction: "village-1",
+      type: "village",
+      territory: [{ x: 2, y: 2 }, { x: 3, y: 2 }],
+    });
+    village.addStructure({ id: "v1-core-2-2", type: "core", position: { x: 2, y: 2 }, operatorId: null });
+    village.addStructure({ id: "v1-housing-3-2", type: "housing", position: { x: 3, y: 2 }, operatorId: "npc1" });
+
+    const settlements = new Map([["v1", village]]);
+    const state = new WorldStateSchema();
+    syncTiles(grid, state, settlements);
+
+    expect(state.tiles.get("2,2")!.structureId).toBe("v1-core-2-2");
+    expect(state.tiles.get("2,2")!.operatorId).toBe("");  // null → ""
+    expect(state.tiles.get("3,2")!.structureId).toBe("v1-housing-3-2");
+    expect(state.tiles.get("3,2")!.operatorId).toBe("npc1");
+    expect(state.tiles.get("0,0")!.structureId).toBe("");
+    expect(state.tiles.get("0,0")!.operatorId).toBe("");
   });
 });

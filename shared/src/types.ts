@@ -74,7 +74,7 @@ export type ActionCommand =
 // --- Settlement ---
 
 export type SettlementType = "village" | "den";
-export type StructureType = "housing" | "production";
+export type StructureType = "housing" | "production" | "core";
 
 // --- Agent ---
 

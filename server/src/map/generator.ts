@@ -4,6 +4,7 @@ import { Agent } from "../simulation/agent.js";
 import { Settlement } from "../simulation/settlement.js";
 import type { SimulationState } from "../simulation/tick.js";
 import type { Position } from "@town-zero/shared";
+import { stampTemplate, VILLAGE_TEMPLATE, DEN_TEMPLATE } from "./templates.js";
 
 function rect(cx: number, cy: number, r: number): Position[] {
   const result: Position[] = [];
@@ -64,20 +65,16 @@ export function generateMap(): SimulationState {
   }
 
   // Village
-  const villageTerritory = rect(villageCx, villageCy, 2);
-  for (const pos of villageTerritory) {
-    grid.setOwner(pos.x, pos.y, "village-1");
-  }
-
+  const villageStamp = stampTemplate(grid, VILLAGE_TEMPLATE, villageCx, villageCy, "village-1");
   const village = new Settlement({
     id: "village-1",
     faction: "village-1",
     type: "village",
-    territory: villageTerritory,
+    territory: villageStamp.territory,
   });
-  village.addStructure({ id: "vh1", type: "housing", position: { x: villageCx, y: villageCy }, operatorId: null });
-  village.addStructure({ id: "vh2", type: "housing", position: { x: villageCx + 1, y: villageCy }, operatorId: null });
-  village.addStructure({ id: "vp1", type: "production", position: { x: villageCx, y: villageCy + 1 }, operatorId: null });
+  for (const structure of villageStamp.structures) {
+    village.addStructure(structure);
+  }
   village.addResource("food", 30);
   village.addResource("material", 10);
   settlements.set("village-1", village);
@@ -98,19 +95,16 @@ export function generateMap(): SimulationState {
   }
 
   // Monster den
-  const denTerritory = rect(denCx, denCy, 2);
-  for (const pos of denTerritory) {
-    grid.setOwner(pos.x, pos.y, "den-1");
-  }
-
+  const denStamp = stampTemplate(grid, DEN_TEMPLATE, denCx, denCy, "den-1");
   const den = new Settlement({
     id: "den-1",
     faction: "den-1",
     type: "den",
-    territory: denTerritory,
+    territory: denStamp.territory,
   });
-  den.addStructure({ id: "dh1", type: "housing", position: { x: denCx, y: denCy }, operatorId: null });
-  den.addStructure({ id: "dp1", type: "production", position: { x: denCx + 1, y: denCy }, operatorId: null });
+  for (const structure of denStamp.structures) {
+    den.addStructure(structure);
+  }
   den.addResource("food", 20);
   den.addResource("material", 5);
   settlements.set("den-1", den);
