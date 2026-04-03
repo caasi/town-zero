@@ -95,9 +95,10 @@ export class Renderer {
         const px = pxWorld - vp.startX * TILE_SIZE + vp.offsetX;
         const py = pyWorld - vp.startY * TILE_SIZE + vp.offsetY;
 
-        // Visibility check uses the agent's tile (integer) position for fog
-        const tileX = Math.round(pxWorld / TILE_SIZE);
-        const tileY = Math.round(pyWorld / TILE_SIZE);
+        // Use stable integer tile position for fog/culling to avoid
+        // mid-lerp flicker when rounding flips at the half-tile point.
+        const tileX = display ? display.displayX : agent.x;
+        const tileY = display ? display.displayY : agent.y;
         const fl = fog.getLevel(tileX, tileY);
         if (fl !== "visible") return;
 
