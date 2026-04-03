@@ -35,15 +35,33 @@ type Facing = "north" | "south" | "east" | "west";
 
 ### Dialogue Precondition
 
-Pressing E (interact) requires:
+Pressing E (interact):
 1. Target is adjacent (Manhattan distance = 1)
-2. Player's `facing` points toward the target (e.g., player north of target → facing must be `"south"`)
+2. **Auto-face:** server automatically updates player facing toward the target before validation — if adjacent, the required facing is unambiguous, so forcing manual alignment adds frustration without strategic depth
+3. Target has a dialogue tree
+4. Target is not busy (`currentTalkingTo === null`)
 
 ## 2. Dialogue Session Protocol
 
 ### Approach: Message-per-step (Server Authoritative)
 
 Every dialogue node transition is a server round-trip. Client is a pure renderer — it receives UI payloads and sends user choices. Server evaluates all conditions, executes all effects, and controls progression.
+
+### ActionCommand Changes
+
+The existing `talk` command has `{ type: "talk", targetId: string, optionId: string }`. The `optionId` field is removed — dialogue choices move to the dedicated `dialogue:choose` message. Updated type:
+
+```typescript
+| { type: "talk"; targetId: string }
+```
+
+`server/src/rooms/validation.ts` and `client/src/input.ts` must be updated to match.
+
+### GameRoom Integration
+
+`talk` remains an `ActionCommand` processed by the existing `onMessage("command", ...)` pipeline. When the simulation executes a `talk` command, it creates a dialogue session and sends `dialogue:state` back to the client.
+
+The three dialogue protocol messages (`dialogue:advance`, `dialogue:choose`, `dialogue:close`) are **separate `onMessage` handlers** on `GameRoom`, not `ActionCommand`s. They bypass the plan queue and act immediately, since they are UI interactions within an already-active session, not simulation commands.
 
 ### Messages
 
@@ -66,6 +84,8 @@ Every dialogue node transition is a server round-trip. Client is a pure renderer
 
 **DialogueStatePayload:**
 
+This replaces the existing `DialogueStateMessage` from `dialogue-session.ts`. The existing type is renamed/superseded.
+
 ```typescript
 type DialogueStatePayload = {
   npcId: string;
@@ -76,11 +96,14 @@ type DialogueStatePayload = {
   options?: Array<{
     id: string;
     label: string;
-    enabled: boolean;          // disabled options shown but greyed out
+    enabled: boolean;          // condition fails → shown but greyed out (not hidden)
   }>;
   timeoutAt: number;           // server tick when session auto-closes
+  // treeId and nodeId omitted from client payload (server-internal only)
 };
 ```
+
+**Option visibility vs enabled:** The existing `getVisibleOptions()` in `DialogueEngine` filters options by condition, hiding them entirely. This changes to: all options are always sent to the client, but with `enabled: false` when their condition fails. This lets the player see what's possible (e.g., "Here you go." greyed out when they don't have enough food), providing implicit feedback about requirements.
 
 **Action nodes are transparent to client.** Server executes effects and skips to the next visible node (text/choice/end). Client never receives `nodeType: "action"`.
 
@@ -92,7 +115,7 @@ type DialogueStatePayload = {
 
 ### Timeout
 
-- `DIALOGUE_TIMEOUT_TICKS = 30` in shared constants (30 seconds at 1 tick/s)
+- `DIALOGUE_TIMEOUT_TICKS = 30` in `shared/src/constants.ts` (30 seconds at 1 tick/s)
 - Server records `lastInteractionTick` on each `dialogue:advance` / `dialogue:choose`
 - Tick loop checks all active sessions; expired sessions trigger `dialogue:end { reason: "timeout" }`
 - Client displays countdown timer in dialogue footer; turns red + blinks when < 10 seconds remain
@@ -102,22 +125,21 @@ type DialogueStatePayload = {
 
 - Player enters `state: "talking"` — movement and all other actions (gather, attack, deposit, take) are blocked
 - Only dialogue messages (`dialogue:advance`, `dialogue:choose`, `dialogue:close`) are accepted
+- **Client-side timing:** client enters `dialogueMode` immediately on sending `talk` command (optimistic). If server responds with `dialogue:error`, client exits `dialogueMode`. Server's `state: "talking"` is the authoritative gate for command rejection; client `dialogueMode` is a UX-only flag to switch input handling
 
 ## 3. Server-Side Session Management
 
-### DialogueSession
+### Active Session State
+
+The existing `DialogueSession` class in `server/src/dialogue/dialogue-session.ts` already wraps `DialogueEngine` and holds agent references + advance/select methods. Rather than defining a parallel interface, extend the existing class with timeout tracking fields:
 
 ```typescript
-interface DialogueSession {
-  npcId: string;
-  playerId: string;
-  treeId: string;
-  currentNodeId: string;
-  locals: Map<string, unknown>;   // set_local scratch space, discarded on end
-  lastInteractionTick: number;
-  startTick: number;
-}
+// Added to existing DialogueSession class:
+lastInteractionTick: number;
+startTick: number;
 ```
+
+The existing `DialogueSession` already has `npc`, `player` (Agent refs), `engine` (DialogueEngine with tree state + currentNodeId), and `locals` (Map). No new class needed.
 
 ### Where State Lives
 
@@ -194,9 +216,20 @@ check-food (choice)
 
 ### Entry Node Selection
 
-When starting a dialogue session, server evaluates entry candidates in order and picks the first whose condition matches:
-1. `check-return` — condition: `food_quest_active == true`
-2. `greeting` — default (no condition)
+The existing `DialogueTreeData` has a single `root: string` field. Rather than adding a complex conditional entry system, use a simpler approach: **`DialogueTreeData` gains an `entryPoints` field:**
+
+```typescript
+// Added to DialogueTreeData in shared/src/script-types.ts
+entryPoints?: Array<{ nodeId: string; condition: Expr }>;
+```
+
+When starting a session, the server evaluates `entryPoints` in order. First match wins. If none match (or no `entryPoints` defined), falls back to `root`.
+
+For Farmer Reed:
+1. `{ nodeId: "check-return", condition: fact("food_quest_active").eq(true) }` — quest in progress
+2. Falls back to `root: "greeting"` — default
+
+The eDSL builder gets a corresponding `d.entry(nodeId, condition)` method.
 
 ### Repeatable
 
@@ -273,6 +306,13 @@ Tile schema adds `objectType: "string"` (default `""`). Values: `""`, `"bush"`. 
 
 Full tile object/prop system (durability, loot tables, interaction types) is deferred — tracked in CLAUDE.md TODO.
 
+**Files that need `objectType` added:**
+- `server/src/simulation/grid.ts` — `Grid.TileData` interface
+- `server/src/rooms/schemas/TileSchema.ts` — Colyseus schema field
+- `server/src/rooms/sync.ts` (or wherever `syncTiles` lives) — copy `objectType` to schema
+- `client/src/types.ts` — `TileSnapshot` type
+- `client/src/fog.ts` — `revealAround()` must capture `objectType` into snapshot (fog snapshots require explicit field plumbing, not automatic)
+
 ### Scenario Setup
 
 Place 3-5 tiles with `objectType: "bush"`, `terrain: "plains"`, `resourceYield: "food"` east of the village settlement.
@@ -283,7 +323,7 @@ No changes to gather logic. Existing `gather` action already picks up resources 
 
 ### Client Rendering
 
-`renderer.ts` `drawTile()`: if `snapshot.objectType === "bush"`, draw a small bush icon (green circles cluster) on top of terrain, before fog overlay. `TileSnapshot` automatically captures `objectType` so explored tiles show remembered bushes.
+`renderer.ts` `drawTile()`: if `snapshot.objectType === "bush"`, draw a small bush icon (green circles cluster) on top of terrain, before fog overlay.
 
 ## Non-Goals
 
