@@ -11,6 +11,8 @@ export interface TileSnapshot {
   resourceYield?: string;
   zoneType?: string;
   ownerFaction?: string;
+  structureId?: string;
+  operatorId?: string | null;
 }
 
 export interface VisionData {

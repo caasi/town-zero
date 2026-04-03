@@ -141,6 +141,25 @@ describe("FogManager", () => {
       expect(snapshot?.ownerFaction).toBe("village-1");
     });
 
+    it("snapshots structureId and operatorId from live state", () => {
+      const fog = new FogManager();
+      const tiles = new Map([
+        ["3,3", {
+          terrain: "plains",
+          resourceYield: "",
+          zoneType: "housing",
+          ownerFaction: "village-1",
+          structureId: "village-1-housing-3-3",
+          operatorId: "npc1",
+        }],
+      ]);
+      fog.revealAround(3, 3, 0, tiles, [], null);
+
+      const snapshot = fog.getSnapshot(3, 3);
+      expect(snapshot?.structureId).toBe("village-1-housing-3-3");
+      expect(snapshot?.operatorId).toBe("npc1");
+    });
+
     it("does not snapshot tiles not in live state", () => {
       const fog = new FogManager();
       const tiles = makeLiveTiles({}); // no tiles
@@ -150,6 +169,43 @@ describe("FogManager", () => {
       // Tiles are predicted-visible but have no snapshot data
       expect(fog.getLevel(0, 0)).toBe("visible");
       expect(fog.getSnapshot(0, 0)).toBeUndefined();
+    });
+  });
+
+  describe("update preserves client-only fields", () => {
+    it("preserves zoneType, ownerFaction, structureId, operatorId after server vision tick", () => {
+      const fog = new FogManager();
+
+      // Player sees a tile with zone/structure data via revealAround
+      const tiles = new Map([
+        ["2,2", {
+          terrain: "plains",
+          resourceYield: "food",
+          zoneType: "housing",
+          ownerFaction: "village-1",
+          structureId: "village-1-housing-2-2",
+          operatorId: "npc1",
+        }],
+      ]);
+      fog.revealAround(2, 2, 0, tiles, [], null);
+
+      // Server vision tick arrives — only sends terrain/entities/timestamp
+      fog.update({
+        tick: 5,
+        tiles: {
+          "2,2": { terrain: "plains" as TerrainType, entities: [], timestamp: 5 },
+        },
+      });
+
+      // All client-only fields must survive the merge
+      const snapshot = fog.getSnapshot(2, 2);
+      expect(snapshot?.terrain).toBe("plains");
+      expect(snapshot?.timestamp).toBe(5);
+      expect(snapshot?.resourceYield).toBe("food");
+      expect(snapshot?.zoneType).toBe("housing");
+      expect(snapshot?.ownerFaction).toBe("village-1");
+      expect(snapshot?.structureId).toBe("village-1-housing-2-2");
+      expect(snapshot?.operatorId).toBe("npc1");
     });
   });
 
