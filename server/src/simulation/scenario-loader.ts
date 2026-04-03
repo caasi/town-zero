@@ -19,6 +19,7 @@ export function loadScenario(
   for (const npcDef of data.npcs) {
     const agent = new Agent({
       id: npcDef.id,
+      name: npcDef.name,
       position: npcDef.position,
       faction: npcDef.faction,
       role: npcDef.role,

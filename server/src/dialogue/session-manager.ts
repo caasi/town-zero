@@ -1,11 +1,11 @@
 import type { DialogueStatePayload } from "@town-zero/shared";
 import { DIALOGUE_TIMEOUT_TICKS } from "@town-zero/shared";
-import { checkCondition, type EvalContext, interpolate } from "./evaluator.js";
+import { checkCondition, type EvalContext } from "./evaluator.js";
 import { DialogueSession } from "./dialogue-session.js";
 import type { SimulationState } from "../simulation/tick.js";
 
 type DialogueResult =
-  | { ok: true; payload: DialogueStatePayload }
+  | { ok: true; payload: DialogueStatePayload; ended: boolean }
   | { ok: false; error: "busy" | "too_far" | "no_dialogue" | "not_in_dialogue" | "invalid_option" };
 
 function buildPayload(session: DialogueSession, state: SimulationState): DialogueStatePayload {
@@ -13,11 +13,11 @@ function buildPayload(session: DialogueSession, state: SimulationState): Dialogu
   const npc = state.agents.get(session.npcId)!;
   return {
     npcId: session.npcId,
-    npcName: npc.role,
+    npcName: npc.name,
     nodeType: msg.type === "choice" ? "choice" : "text",
     speaker: msg.speaker || undefined,
     content: msg.text || undefined,
-    options: msg.options?.map((opt) => ({ id: opt.id, label: opt.label, enabled: true })),
+    options: msg.type === "choice" ? session.getOptionsWithStatus() : undefined,
     timeoutAt: session.lastInteractionTick + DIALOGUE_TIMEOUT_TICKS,
   };
 }
@@ -121,10 +121,10 @@ export function startDialogue(
 
   if (session.isEnded()) {
     endDialogue(targetId, state);
-    return { ok: true, payload: buildPayload(session, state) };
+    return { ok: true, payload: buildPayload(session, state), ended: true };
   }
 
-  return { ok: true, payload: buildPayload(session, state) };
+  return { ok: true, payload: buildPayload(session, state), ended: false };
 }
 
 export function advanceDialogue(
@@ -138,13 +138,14 @@ export function advanceDialogue(
   if (!session || session.playerId !== playerId) return { ok: false, error: "not_in_dialogue" };
 
   session.updateTick(state.tick);
-  const msg = session.advance();
+  session.advance();
 
-  if (session.isEnded()) {
+  const ended = session.isEnded();
+  if (ended) {
     endDialogue(player.talkingToNpcId, state);
   }
 
-  return { ok: true, payload: buildPayload(session, state) };
+  return { ok: true, payload: buildPayload(session, state), ended };
 }
 
 export function chooseDialogue(
@@ -166,11 +167,12 @@ export function chooseDialogue(
     return { ok: false, error: "invalid_option" };
   }
 
-  if (session.isEnded()) {
+  const ended = session.isEnded();
+  if (ended) {
     endDialogue(player.talkingToNpcId, state);
   }
 
-  return { ok: true, payload: buildPayload(session, state) };
+  return { ok: true, payload: buildPayload(session, state), ended };
 }
 
 export function endDialogue(npcId: string, state: SimulationState): void {

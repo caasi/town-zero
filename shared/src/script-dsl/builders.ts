@@ -182,6 +182,7 @@ function createDialogueBuilder(
 
 interface ScenarioBuilderApi {
   npc(id: string, opts: {
+    name?: string;
     role: string;
     faction: string;
     position: { x: number; y: number };
@@ -207,6 +208,7 @@ export function scenario(id: string, fn: (s: ScenarioBuilderApi) => void): Scena
       npcDialogueMap.set(npcId, []);
       npcs.push({
         id: npcId,
+        name: opts.name ?? npcId,
         role: opts.role,
         faction: opts.faction,
         position: opts.position,

@@ -91,6 +91,7 @@ export interface DialogueTreeData {
 
 export interface NpcDefinition {
   id: string;
+  name: string;
   role: string;
   faction: string;
   position: Position;

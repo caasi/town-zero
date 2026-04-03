@@ -16,6 +16,7 @@ import { emptyResourceStore, DEFAULT_MAX_HP } from "@town-zero/shared";
 
 interface AgentInit {
   id: string;
+  name?: string;
   position: Position;
   faction: string;
   role: string;
@@ -26,6 +27,7 @@ interface AgentInit {
 
 export class Agent {
   readonly id: string;
+  name: string;
   position: Position;
   faction: string;
   role: string;
@@ -51,6 +53,7 @@ export class Agent {
 
   constructor(init: AgentInit) {
     this.id = init.id;
+    this.name = init.name ?? init.id;
     this.position = { ...init.position };
     this.faction = init.faction;
     this.role = init.role;

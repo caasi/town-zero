@@ -2,6 +2,7 @@ import { scenario, setFact, take, fact, player } from "@town-zero/shared/script-
 
 export const farmerReedScenario = scenario("farmer-reed", (s) => {
   s.npc("farmer-reed", {
+    name: "Farmer Reed",
     role: "farmer",
     faction: "village-1",
     position: { x: 9, y: 19 },
