@@ -48,8 +48,9 @@ export class DialogueSession {
     return this.engine.isEnded();
   }
 
-  /** Get the current state as a pre-rendered message for the client. */
-  getState(): DialogueStateMessage {
+  /** Get the current state as a pre-rendered message for the client.
+   *  Auto-advances through action nodes (executing effects) until a visible node is reached. */
+  getState(depth = 0): DialogueStateMessage {
     const node = this.engine.getCurrentNode();
     const ctx = this.buildEvalContext();
     const nodeId = this.engine.getCurrentNodeId();
@@ -91,8 +92,11 @@ export class DialogueSession {
 
       case "action":
         // Auto-advance through action nodes, executing effects
+        if (depth >= 100) {
+          throw new Error(`Dialogue "${treeId}" exceeded maximum action chain depth at node "${nodeId}" — possible cycle in action nodes`);
+        }
         this.engine.advanceWithEffects(this.buildMutableContext());
-        return this.getState(); // recurse to get the next visible node
+        return this.getState(depth + 1);
 
       case "end":
         return {
@@ -149,37 +153,36 @@ export class DialogueSession {
     };
   }
 
+  private resolveAgentRef(ref: string): Agent {
+    if (ref === "$npc") return this.npc;
+    if (ref === "$player") return this.player;
+    throw new Error(`Unknown agent reference "${ref}" in dialogue session — only "$npc" and "$player" are supported`);
+  }
+
   private buildMutableContext(): MutableContext {
     const ctx = this.buildEvalContext();
     return {
       ...ctx,
       npcId: this.npc.id,
       setFact: (ref: string, key: string, value: Value) => {
-        const targetAgent = ref === "$npc" ? this.npc : ref === "$player" ? this.player : null;
-        if (targetAgent) {
-          targetAgent.setBelief(key, { key, value, tick: this.currentTick, source: this.npc.id });
-          this.triggerRegistry?.recordChangedFact(key);
-        }
+        const targetAgent = this.resolveAgentRef(ref);
+        targetAgent.setBelief(key, { key, value, tick: this.currentTick, source: this.npc.id });
+        this.triggerRegistry?.recordChangedFact(key);
       },
       setLocal: (key: string, value: Value) => {
         this.locals.set(key, value);
       },
       giveItem: (ref: string, item: ResourceType, amount: number) => {
-        const targetAgent = ref === "$npc" ? this.npc : ref === "$player" ? this.player : null;
-        if (targetAgent) {
-          targetAgent.addToInventory(item, amount);
-        }
+        const targetAgent = this.resolveAgentRef(ref);
+        targetAgent.addToInventory(item, amount);
       },
       takeItem: (ref: string, item: ResourceType, amount: number): boolean => {
-        const targetAgent = ref === "$npc" ? this.npc : ref === "$player" ? this.player : null;
-        if (!targetAgent) return false;
+        const targetAgent = this.resolveAgentRef(ref);
         return targetAgent.removeFromInventory(item, amount);
       },
       damage: (ref: string, amount: number) => {
-        const targetAgent = ref === "$npc" ? this.npc : ref === "$player" ? this.player : null;
-        if (targetAgent) {
-          targetAgent.takeDamage(amount);
-        }
+        const targetAgent = this.resolveAgentRef(ref);
+        targetAgent.takeDamage(amount);
       },
       registerTrigger: (rule) => {
         this.triggerRegistry?.register(rule);
