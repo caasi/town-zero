@@ -49,6 +49,10 @@ export function formatKeyHints(labels: Record<string, string>): string {
   return `${move}:Move  ${labels.KeyE}:Interact  ${labels.KeyQ}:Attack  ${labels.KeyG}:Gather  ${labels.KeyT}:Deposit`;
 }
 
+export function formatDialogueKeyHints(labels: Record<string, string>): string {
+  return `${labels.KeyW}/${labels.KeyS}:Select  ${labels.KeyE}:Confirm  Esc:Close`;
+}
+
 const MOVE_THROTTLE_MS = 120;
 
 const MOVE_KEYS: Record<string, { dx: number; dy: number }> = {
