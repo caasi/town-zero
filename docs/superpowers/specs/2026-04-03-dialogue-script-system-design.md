@@ -50,8 +50,9 @@ interface Fact {
 Each agent has a **BeliefStore** alongside its existing `MapMemory`:
 
 ```typescript
-// On Agent class
+// On Agent class — runtime uses Map, serialized form is Record
 beliefs: Map<string, Fact>
+// Serializes as: Record<string, Fact>
 ```
 
 Facts are created dynamically by dialogue effects or game events. There is no predefined registry of fact keys. Any script can create any fact key at runtime.
@@ -78,17 +79,18 @@ This runs at the same point in the tick loop as `MapMemory` merge (step 8), exte
 Separate from beliefs, each agent tracks its own dialogue state:
 
 ```typescript
-// On Agent class
+// On Agent class — runtime uses Map, serialized form is Record
 dialogueProgress: Map<string, DialogueProgressEntry>
 
+// All fields use JSON-safe types (arrays and records, not Set/Map)
 interface DialogueProgressEntry {
-  visitedNodes: Set<string>;
-  selectedOptions: Map<string, string>;  // nodeId -> optionId
-  locals: Map<string, boolean | number | string>;
+  visitedNodes: string[];
+  selectedOptions: Record<string, string>;  // nodeId -> optionId
+  locals: Record<string, boolean | number | string>;
 }
 ```
 
-This tracks which dialogue branches have been explored with each NPC and persists across conversations. It does not propagate to other agents.
+This tracks which dialogue branches have been explored with each NPC and persists across conversations. It does not propagate to other agents. The runtime `Map` wrapper around `DialogueProgressEntry` is converted to/from `Record` for serialization.
 
 ### 2. Expression AST
 
@@ -116,7 +118,7 @@ type Expr =
 type AgentRef = string;  // agent ID or "$player", "$faction:xxx"
 
 type Effect =
-  | { type: "set_fact"; key: string; value: Expr }
+  | { type: "set_fact"; target: AgentRef; key: string; value: Expr }
   | { type: "set_local"; key: string; value: Expr }
   | { type: "give_item"; target: AgentRef; item: string; amount: Expr }
   | { type: "take_item"; target: AgentRef; item: string; amount: Expr }
@@ -136,34 +138,43 @@ A template like `"你有 {player.food} 個食物"` compiles to:
 ["你有 ", { "type": "prop_ref", "target": "player", "prop": "food" }, " 個食物"]
 ```
 
+#### Agent References in Expressions
+
+`AgentRef` strings (`"$player"`, `"$npc"`, `"elder_chen"`, `"$faction:village_a"`) appear in `Effect` nodes as plain strings. When used as arguments to white-listed functions within `Expr`, they are encoded as `{ type: "literal"; value: "$player" }`. The evaluator resolves these magic-prefix strings to actual agent lookups through `EvalContext`.
+
 #### White-Listed Functions
 
 The `call` expression node can invoke these functions:
 
-- `has_item(target, item)` returns boolean
+- `has_item(target, item, amount)` returns boolean — checks if agent has at least `amount` of `item`
 - `count_item(target, item)` returns number
 - `distance(a, b)` returns number
 - `faction_of(agent)` returns string
 
-New functions are added by extending the function registry, not the evaluator.
+Arguments with `$`-prefixed strings are resolved as agent references. New functions are added by extending the function registry, not the evaluator.
 
 ### 3. Evaluator and Executor
 
 #### Evaluator (Pure, No Side Effects)
 
 ```typescript
+// AgentAccessor: read-only view of an Agent's public state (id, position, inventory, hp, role, faction)
+// SettlementAccessor: read-only view of a Settlement's public state (id, inventory, population count)
+// Both are thin wrappers that expose properties by string key for prop_ref resolution.
+
 interface EvalContext {
   beliefs: ReadonlyMap<string, Fact>;
   locals: ReadonlyMap<string, Value>;
   agentState: {
     player: AgentAccessor;
     npc: AgentAccessor;
-    settlement?: SettlementAccessor;
+    settlement: SettlementAccessor | null;  // null when NPC is not in a settlement (wandering)
   };
   currentTick: number;
 }
 
 function evaluate(expr: Expr, ctx: EvalContext): Value;
+  // prop_ref with target "settlement" returns null/0/"" when ctx.agentState.settlement is null
 function interpolate(template: TextTemplate, ctx: EvalContext, locale?: Locale): string;
 function checkCondition(expr: Expr, ctx: EvalContext): boolean;
 ```
@@ -172,16 +183,21 @@ function checkCondition(expr: Expr, ctx: EvalContext): boolean;
 
 ```typescript
 interface MutableContext extends EvalContext {
-  setFact(agentId: string, key: string, value: Value, tick: number): void;
+  resolveAgent(ref: AgentRef): Agent;         // resolves "$player", "$npc", IDs
+  setFact(ref: AgentRef, key: string, value: Value): void;
   setLocal(key: string, value: Value): void;
-  giveItem(target: string, item: string, amount: number): void;
-  takeItem(target: string, item: string, amount: number): boolean;
-  damage(target: string, amount: number): void;
+  giveItem(ref: AgentRef, item: string, amount: number): void;
+  takeItem(ref: AgentRef, item: string, amount: number): boolean;
+  damage(ref: AgentRef, amount: number): void;
   registerTrigger(rule: TriggerRule): void;
 }
 
 function executeEffects(effects: Effect[], ctx: MutableContext): void;
 ```
+
+`setFact` automatically fills in `tick` from `ctx.currentTick` and `source` from the acting NPC's agent ID. The `target` field on the `set_fact` effect determines whose `BeliefStore` receives the fact. Typically `"$npc"` (the NPC in the current dialogue), but can target any agent.
+
+**Effect failure policy**: if `take_item` returns false (insufficient items), the remaining effects in the array are **skipped** (short-circuit). Dialogue scripts should guard with a condition (e.g., `.when(player.hasItem(...))`) before reaching an action node with `take_item`. This matches the pattern in the eDSL example where the choice condition gates the action.
 
 Effect handlers are a registry keyed by `Effect["type"]`. Adding a new effect type means adding one handler function.
 
@@ -189,22 +205,38 @@ Effect handlers are a registry keyed by `Effect["type"]`. Adding a new effect ty
 
 ```typescript
 interface TriggerRule {
-  id: string;
+  id: string;                     // auto-generated: "scenario:{scenarioId}:{index}" or "rt:{tick}:{index}"
   when: Expr;
   then: Effect[];
   targets: AgentRef[];
   once: boolean;
   source: "scenario" | "runtime";
+  fired: boolean;                 // tracks one-shot state
 }
 ```
 
-Triggers fire **reactively** when a fact changes (inside `set_fact`), not by polling every tick. On each `set_fact` call, the trigger registry scans rules whose `when` expression references the changed fact key. If the condition evaluates to true, the `then` effects execute for each agent in `targets`.
+#### Execution Model: Deferred-Batch
 
-`targets` supports:
-- Concrete agent IDs: `"elder_chen"`
-- Special references: `"$player"` (current dialogue player), `"$faction:village_a"` (all agents in faction)
+Triggers do **not** fire inline during `set_fact`. Instead, each `set_fact` call records the changed key in a per-tick `changedFacts: Set<string>`. At the end of the tick (step 8 in the tick flow), the trigger registry evaluates all rules whose `when` expression references any key in `changedFacts`. This avoids cascading trigger chains and keeps the execution order deterministic.
 
-One-shot triggers (`once: true`) are marked as fired and skipped on subsequent evaluations. Scenario-defined triggers reset on scenario reload; runtime-created triggers persist until the world resets.
+If a trigger's `then` effects call `set_fact`, those changes are **not** re-evaluated in the same tick. They become part of the next tick's `changedFacts`. This prevents infinite loops without needing a recursion guard.
+
+#### Target Resolution
+
+`targets` are resolved at **fire time** (not registration time):
+- Concrete agent IDs: `"elder_chen"` — resolves to that agent, skipped if dead
+- `"$player"` — the player agent who was in the dialogue that registered the trigger (captured at registration time as a concrete ID)
+- `"$faction:village_a"` — all living agents in that faction at fire time
+
+For `once: true` triggers, "once" means once per trigger (not per target). After firing, `fired` is set to `true` and the rule is skipped on all subsequent evaluations.
+
+#### Trigger IDs
+
+Scenario-defined triggers get deterministic IDs: `"scenario:{scenarioId}:{index}"`. Runtime-created triggers (via `register_trigger` effect) get `"rt:{currentTick}:{index}"`. The builder auto-generates IDs; script authors do not supply them.
+
+#### Damage via Triggers
+
+`damage` effects from triggers can kill agents (same as `Agent.takeDamage`). The trigger author is responsible for guarding with conditions. No special validation is applied beyond what `Agent.takeDamage` already does.
 
 ### 5. Scenario eDSL
 
@@ -229,8 +261,8 @@ interface NpcDefinition {
   role: string;
   faction: string;
   position: Position;
-  initialBeliefs: Array<{ key: string; value: Value }>;
-  dialogueId: string;
+  initialBeliefs: Array<{ key: string; value: Value }>;  // plain data, not Effect nodes
+  dialogueIds: string[];                                   // an NPC can have multiple dialogue trees
 }
 
 interface DialogueTreeData {
@@ -262,11 +294,13 @@ Note: compared to the current `DialogueNode` type, `content` and `label` change 
 
 #### eDSL Example
 
+The builder API uses `@town-zero/shared/script-dsl` (subpath export from the shared package). The `belief()` helper produces `{ key, value }` plain data for `initialBeliefs` (distinct from `setFact()` which produces an `Effect` node). Text nodes without an explicit `next` auto-chain to the next node in source order. The last node in a dialogue must be an `end` node.
+
 ```typescript
 import {
-  scenario, dialogue, fact, local, player,
-  setFact, setLocal, give, take, when, t,
-} from "@town-zero/script-dsl";
+  belief, fact, give, local, npc, player,
+  scenario, setFact, take, trigger, when, t,
+} from "@town-zero/shared/script-dsl";
 
 export default scenario("bridge-crisis", (s) => {
   s.npc("elder_chen", {
@@ -274,8 +308,8 @@ export default scenario("bridge-crisis", (s) => {
     faction: "village_a",
     position: { x: 10, y: 5 },
     initialBeliefs: [
-      setFact("is_elder", true),
-      setFact("bridge_status", "intact"),
+      belief("is_elder", true),        // { key: "is_elder", value: true }
+      belief("bridge_status", "intact"),
     ],
   });
 
@@ -284,11 +318,15 @@ export default scenario("bridge-crisis", (s) => {
     faction: "village_a",
     position: { x: 15, y: 8 },
     initialBeliefs: [
-      setFact("patrol_route", "north"),
+      belief("patrol_route", "north"),
     ],
   });
 
+  // s.dialogue() binds a dialogue tree to an NPC and adds it to the NPC's dialogueIds.
+  // An NPC can have multiple dialogues (e.g., quest dialogue + idle chatter).
+  // The first dialogue registered becomes the default.
   s.dialogue("elder_chen", "elder-talk", (d) => {
+    // text nodes auto-chain: "greeting" -> next node in source order ("main")
     d.text("greeting",
       t`歡迎，旅人。${fact("last_visitor")} 之前也來過。`);
 
@@ -303,10 +341,13 @@ export default scenario("bridge-crisis", (s) => {
         .goto("farewell"),
     ]);
 
+    // "bridge-info" auto-chains to "bridge-offer"
     d.text("bridge-info",
       t`橋已經 ${fact("bridge_status")} 了。我們需要 ${local("repair_cost")} 木材修復。`);
 
     d.choice("bridge-offer", [
+      // player.hasItem() compiles to: { type: "call", fn: "has_item",
+      //   args: [literal("$player"), literal("wood"), local_ref("repair_cost")] }
       d.option(t`我有木材（持有 ${player.prop("wood")} 個）`)
         .when(player.hasItem("wood", local("repair_cost")))
         .goto("accept-repair"),
@@ -314,27 +355,31 @@ export default scenario("bridge-crisis", (s) => {
         .goto("farewell"),
     ]);
 
+    // action nodes require explicit next
     d.action("accept-repair", [
-      take("player", "wood", local("repair_cost")),
-      setFact("bridge_status", "repaired"),
-      setFact("rep_with_player", fact("rep_with_player").add(5)),
+      take("$player", "wood", local("repair_cost")),
+      setFact("$npc", "bridge_status", "repaired"),
+      setFact("$npc", "rep_with_player", fact("rep_with_player").add(5)),
     ], { next: "thanks" });
 
+    // "thanks" auto-chains to "farewell"
     d.text("thanks", t`太好了！你真是大恩人。`);
 
     d.trigger(
       when(fact("bridge_status").eq("repaired")),
-      [setFact("trade_route_open", true)],
+      [setFact("$npc", "trade_route_open", true)],
       { targets: ["elder_chen", "scout_lin", "$player"] },
     );
 
     d.text("farewell", t`一路平安。`);
-    d.end("farewell");
+
+    // end node: "farewell" text auto-chains to "end" since it's the last text before end
+    d.end("done");
   });
 
   s.trigger(
     when(fact("bridge_status").eq("destroyed")),
-    [setFact("bridge_crisis_active", true)],
+    [setFact("$npc", "bridge_crisis_active", true)],
     { targets: ["elder_chen", "scout_lin"] },
   );
 });
@@ -384,22 +429,28 @@ The existing `PromptBuilder` is extended to serialize an agent's `BeliefStore` i
 - trade_route_open: false (learned tick 1050 from elder_chen)
 ```
 
-This gives LLM-controlled NPCs access to propagated narrative state when making decisions. The `DialogueGate` prompt similarly includes relevant beliefs for y/n decisions.
+This gives LLM-controlled NPCs access to propagated narrative state when making decisions.
+
+The `DialogueGate` (`evaluateDialogueGate`) currently takes `requestLabel: string`. After migration, `request` nodes have `label: TextTemplate`. The gate must interpolate the template before sending to the LLM: `interpolate(node.label, ctx)` produces the plain string for the prompt.
 
 ### 8. Updated Tick Flow
 
+Matches the existing `processTick` phase numbering in `server/src/simulation/tick.ts`:
+
 ```
 Per tick (1s):
-  1. Process ongoing multi-tick actions
-  2. Dequeue and execute next command from each agent's plan
-  3. Bot controller decides for idle bot agents
-  4. Production facilities convert raw materials
-  5. Agents consume food (starvation -> HP loss -> death)
-  6. Merchant spawning and movement
-  7. Vision update (MapMemory per agent)
-  8. Memory merge: MapMemory + BeliefStore (adjacent same-faction)  [EXTENDED]
-  9. Trigger evaluation (reactive, on fact changes during this tick) [NEW]
+  Phase 1:   Process ongoing multi-tick actions (gathering, fighting)
+  Phase 2:   Dequeue and execute next command for idle agents
+  Phase 2.5: Bot controller decides for idle bot agents
+  Phase 3:   Production
+  Phase 4:   Consumption
+  Phase 5:   Merchant movement and spawning
+  Phase 6:   Vision update (MapMemory per agent)
+  Phase 7:   Memory merge: MapMemory + BeliefStore (adjacent same-faction)  [EXTENDED]
+  Phase 8:   Trigger evaluation (deferred-batch, process changedFacts set)  [NEW]
 ```
+
+Phase 7 extends the existing `mergeAdjacentMemories` to also call `mergeBeliefs`. Phase 8 is a new phase added after merge: collect all fact keys changed during this tick, evaluate trigger conditions, fire matching triggers.
 
 ### 9. Serialization Constraint
 
@@ -428,14 +479,18 @@ The existing `DialogueEngine` is refactored to use the evaluator for conditions 
 
 ## Package Layout
 
+The eDSL builders live in `shared/` with a subpath export (`@town-zero/shared/script-dsl`), configured in `shared/package.json` `"exports"` field. This allows both build-time compilation tools and (eventually) client-side tooling to import them. The evaluator and executor live in `server/` since they are authoritative server-side logic.
+
 ```
 shared/
+  package.json         -- add "exports": { "./script-dsl": "./src/script-dsl/index.ts" }
   src/
-    types.ts           -- Expr, Effect, TextTemplate, TriggerRule, Fact, etc.
-    script-dsl/        -- eDSL builder API (scenario, dialogue, fact, etc.)
-      index.ts
-      builders.ts
+    types.ts           -- Expr, Effect, TextTemplate, TriggerRule, Fact, Value, etc.
+    script-dsl/        -- eDSL builder API
+      index.ts         -- re-exports: scenario, dialogue, fact, belief, t, etc.
+      builders.ts      -- scenario/dialogue/npc builder functions
       template.ts      -- tagged template literal `t`
+      expressions.ts   -- fact(), local(), player proxy, comparison chain builders
 
 server/
   src/
@@ -443,13 +498,11 @@ server/
       dialogue-engine.ts   -- refactored to use evaluator/executor
       evaluator.ts         -- evaluate(), interpolate(), checkCondition()
       executor.ts          -- executeEffects(), effect handler registry
-      trigger-registry.ts  -- TriggerRegistry, reactive evaluation
-      dialogue-gate.ts     -- extended prompt includes beliefs
+      trigger-registry.ts  -- TriggerRegistry, deferred-batch evaluation
+      dialogue-gate.ts     -- interpolates TextTemplate label, includes beliefs in prompt
     simulation/
-      agent.ts             -- +beliefs, +dialogueProgress
+      agent.ts             -- +beliefs: Map<string, Fact>, +dialogueProgress
       scenarios/           -- compiled ScenarioData JSON files
     ai/
-      prompt-builder.ts    -- +belief serialization
+      prompt-builder.ts    -- +belief serialization section
 ```
-
-The eDSL builders live in `shared/` so that both build-time compilation tools and (eventually) client-side tooling can import them. The evaluator and executor live in `server/` since they are authoritative server-side logic.
