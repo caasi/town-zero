@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-04-03-multi-tile-settlement-design.md`
 
-**DO NOT TOUCH:** Movement system (active development on separate branch). No changes to agent movement, pathfinding, or collision.
+**DO NOT TOUCH:** Movement prediction / display system (`display.ts`, `input.ts` movement logic). No changes to agent movement, pathfinding, collision, or lerp rendering. Zone overlay integrates into the existing tile drawing path only.
 
 ---
 
@@ -25,11 +25,14 @@
 | Modify | `server/src/rooms/sync.ts` | Sync `zoneType` in `syncTiles()`, change settlement `x,y` to core position in `syncSettlement()` |
 | Create | `server/src/map/templates.ts` | Settlement layout templates (village 5×5, den 4×4) |
 | Modify | `server/src/map/generator.ts` | Replace `rect()` + manual `addStructure()` with template stamping |
+| Modify | `client/src/types.ts` | Add `zoneType?` and `ownerFaction?` to `TileSnapshot` |
+| Modify | `client/src/fog.ts` | Snapshot `zoneType` and `ownerFaction` in `revealAround()` and `update()` |
 | Modify | `client/src/renderer.ts` | Replace `drawSettlement()` with per-tile `drawZoneOverlay()` |
 | Modify | `server/test/simulation/grid.test.ts` | Tests for `getZoneType()`/`setZoneType()` |
 | Create | `server/test/map/templates.test.ts` | Tests for template validity and stamping |
 | Modify | `server/test/map/generator.test.ts` | Update tests for template-based generation |
 | Modify | `server/test/rooms/sync.test.ts` | Tests for `zoneType` sync and core-based settlement `x,y` |
+| Modify | `client/test/fog.test.ts` | Tests for `zoneType`/`ownerFaction` in snapshots |
 
 ---
 
@@ -667,59 +670,122 @@ git commit -m "feat: rewrite map generator to use settlement templates"
 
 ---
 
-### Task 7: Replace drawSettlement with Zone Overlay Rendering
+### Task 7: Extend Fog Snapshots with Zone Data
 
 **Files:**
-- Modify: `client/src/renderer.ts:62-73,104-147,189-202`
+- Modify: `client/src/types.ts:6-12`
+- Modify: `client/src/fog.ts:40-86`
+- Modify: `client/test/fog.test.ts`
 
-This task has no automated tests (Canvas 2D rendering). Verify visually by running the client.
+Zone overlay rendering needs `zoneType` and `ownerFaction` per tile. These must flow through the fog snapshot model (not raw `state.tiles`) to respect the information model — players should only see zones they've observed.
 
-- [ ] **Step 1: Add zone overlay rendering to drawTile**
+- [ ] **Step 1: Write failing test for zone data in snapshots**
 
-In `client/src/renderer.ts`, modify `drawTile()` (lines 104-147). After the terrain pattern drawing (line 126) and before the fog overlay (line 142), add zone overlay rendering:
-
-First, refactor the tile lookup at lines 111-117 to extract the `tile` variable to a wider scope so it can be reused. Change:
+Add to `client/test/fog.test.ts` inside `describe("FogManager")`:
 
 ```typescript
-let terrain = "plains";
-let resourceYield = "";
-if (state?.tiles) {
-  const tile = state.tiles.get(`${x},${y}`);
-  if (tile) {
-    terrain = tile.terrain || "plains";
-    resourceYield = tile.resourceYield || "";
-  }
+it("snapshots zoneType and ownerFaction from live state", () => {
+  const fog = new FogManager();
+  const tiles = new Map([
+    ["5,5", { terrain: "plains", resourceYield: "", zoneType: "core", ownerFaction: "village-1" }],
+  ]);
+  fog.revealAround(5, 5, 0, tiles, [], null);
+
+  const snapshot = fog.getSnapshot(5, 5);
+  expect(snapshot?.zoneType).toBe("core");
+  expect(snapshot?.ownerFaction).toBe("village-1");
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `pnpm run test -- --run client/test/fog.test.ts`
+Expected: FAIL — `zoneType` property does not exist on `TileSnapshot`.
+
+- [ ] **Step 3: Add zoneType and ownerFaction to TileSnapshot**
+
+In `client/src/types.ts`, extend `TileSnapshot`:
+
+```typescript
+export interface TileSnapshot {
+  terrain: TerrainType;
+  entities: EntitySnapshot[];
+  timestamp: number;
+  resourceYield?: string;
+  zoneType?: string;
+  ownerFaction?: string;
 }
 ```
 
-to:
+- [ ] **Step 4: Update FogManager.revealAround() to snapshot zone fields**
+
+In `client/src/fog.ts`, the `revealAround()` method reads from the `tiles` parameter. Update the `tiles` parameter type and snapshot creation to include `zoneType` and `ownerFaction`.
+
+Change the `tiles` parameter type (line 44):
 
 ```typescript
-const tile = state?.tiles?.get(`${x},${y}`);
-const terrain = tile?.terrain || "plains";
-const resourceYield = tile?.resourceYield || "";
+tiles: { get(key: string): { terrain: string; resourceYield?: string; zoneType?: string; ownerFaction?: string } | undefined } | undefined,
 ```
 
-Then add zone overlay code after the terrain pattern (after line 126), before the resource yield dot:
+Update the snapshot creation inside the `if (tile)` block (lines 78-84):
 
 ```typescript
-// Zone overlay (after terrain pattern, before fog)
+this.snapshots.set(key, {
+  terrain: tile.terrain as TerrainType,
+  entities: agentsByTile.get(key) ?? [],
+  timestamp: this.lastTick,
+  resourceYield: tile.resourceYield,
+  zoneType: tile.zoneType,
+  ownerFaction: tile.ownerFaction,
+});
+```
+
+- [ ] **Step 5: Run tests to verify they pass**
+
+Run: `pnpm run test -- --run client/test/fog.test.ts`
+Expected: ALL PASS
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add client/src/types.ts client/src/fog.ts client/test/fog.test.ts
+git commit -m "feat: extend fog snapshots with zoneType and ownerFaction"
+```
+
+---
+
+### Task 8: Replace drawSettlement with Zone Overlay Rendering
+
+**Files:**
+- Modify: `client/src/renderer.ts:73-84,128-171,213-226`
+
+This task has no automated tests (Canvas 2D rendering). Verify visually by running the client.
+
+**Current architecture (post PR #4):** `drawTile()` reads terrain/resource from `FogManager.getSnapshot()` (not raw `state.tiles`). Agents use lerped positions from `DisplayState`. The `drawSettlement()` loop (lines 73-84) draws single-tile markers.
+
+- [ ] **Step 1: Add zone overlay rendering to drawTile**
+
+In `client/src/renderer.ts`, modify `drawTile()` (lines 128-171). The method already reads from `fog.getSnapshot(x, y)` for terrain and resourceYield. After the terrain pattern (line 149) and before the resource yield dot (line 153), add zone overlay rendering:
+
+```typescript
+// Zone overlay (after terrain pattern, before resource dot)
 if (fogLevel !== "unknown") {
-  const zoneType = tile?.zoneType || "";
-  const ownerFaction = tile?.ownerFaction || "";
+  const zoneType = snapshot?.zoneType || "";
+  const ownerFaction = snapshot?.ownerFaction || "";
 
   if (zoneType) {
     this.drawZoneOverlay(ctx, px, py, zoneType, ownerFaction);
   } else if (ownerFaction) {
-    // Empty territory tile — subtle border
     this.drawTerritoryBorder(ctx, px, py, ownerFaction);
   }
 }
 ```
 
-- [ ] **Step 2: Add drawZoneOverlay method**
+Note: uses `snapshot` (already in scope from line 137), not `state.tiles` — respects the fog information model.
 
-Add after `drawTerrainPattern()` (after line 187):
+- [ ] **Step 2: Add drawZoneOverlay and drawTerritoryBorder methods**
+
+Add after `drawTerrainPattern()` (after line 211):
 
 ```typescript
 private drawZoneOverlay(
@@ -781,7 +847,7 @@ private drawTerritoryBorder(
 
 - [ ] **Step 3: Delete drawSettlement method and its call site**
 
-Remove the settlement rendering loop (lines 62-73 in `draw()`):
+Remove the settlement rendering loop (lines 73-84 in `draw()`):
 
 ```typescript
 // Delete this entire block:
@@ -792,7 +858,7 @@ if (state?.settlements) {
 }
 ```
 
-Remove the `drawSettlement()` method (lines 189-202).
+Remove the `drawSettlement()` method (lines 213-226).
 
 - [ ] **Step 4: Verify visually**
 
@@ -803,7 +869,8 @@ Expected:
 - Each zone tile has a colored overlay with letter marker (★ for core, H for housing, P for production)
 - Empty territory tiles have a subtle faction-colored border
 - Fog of war still works correctly (explored zones dimmed, unknown zones hidden)
-- Agents still render on top of zones
+- Agents still render on top of zones with smooth lerp movement
+- Movement prediction still works — no regression from display.ts integration
 
 - [ ] **Step 5: Commit**
 
@@ -814,7 +881,7 @@ git commit -m "feat: replace single-tile settlement marker with per-tile zone ov
 
 ---
 
-### Task 8: Run Full Test Suite and Verify
+### Task 9: Run Full Test Suite and Verify
 
 **Files:** None (verification only)
 

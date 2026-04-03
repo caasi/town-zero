@@ -17,7 +17,7 @@ Settlements currently render as a single tile marker (gold/purple square) despit
 - Dynamic building/destruction (future work)
 - Procedural settlement layout generation (future work — MVP uses handwritten templates)
 - Object layer (walls, beds, doors — future work, separate from zone layer)
-- Movement system changes (active development on separate branch)
+- Movement system changes (merged in PR #4)
 
 ## Design
 
@@ -198,11 +198,24 @@ schema.y = core?.position.y ?? 0;
 
 Replace the single-tile `drawSettlement()` method with zone overlay rendering in the tile drawing loop.
 
-**Rendering order per tile:**
-1. Draw terrain base (existing — `drawTerrain()`)
-2. Draw zone overlay (new — `drawZoneOverlay()`)
-3. Apply fog darkening overlay (existing — fog alpha reduction)
-4. Draw agents in a separate pass (existing — `drawAgent()`)
+**Current renderer architecture (post PR #4):** `drawTile()` reads terrain/resource from fog snapshots (`FogManager.getSnapshot()`), not raw `state.tiles`. Agent rendering uses lerped pixel positions from `DisplayState`. The fog snapshot model stores `TileSnapshot` = terrain + entities + timestamp + resourceYield.
+
+**Zone data source:** Zone overlays need `zoneType` and `ownerFaction` per tile. These are static (set at map generation). Two options:
+1. Add `zoneType` and `ownerFaction` to `TileSnapshot` — consistent with the snapshot model, renders correctly for explored tiles
+2. Read from raw `state.tiles` — simpler, but breaks the fog information model (reveals zone info for unseen tiles)
+
+**Chosen:** Option 1 — extend `TileSnapshot` with optional `zoneType` and `ownerFaction` fields. `FogManager.revealAround()` already snapshots `terrain` and `resourceYield` from live tile state; add `zoneType` and `ownerFaction` to the same snapshot path.
+
+**Rendering order per tile (in `drawTile()`):**
+1. Read from fog snapshot (existing — terrain, resourceYield, now also zoneType/ownerFaction)
+2. Draw terrain base (existing)
+3. Draw terrain pattern (existing — `drawTerrainPattern()`)
+4. Draw zone overlay (new — `drawZoneOverlay()`) — between terrain pattern and resource yield dot
+5. Draw resource yield dot (existing)
+6. Draw grid lines (existing)
+7. Apply fog darkening overlay (existing — fog alpha reduction)
+
+Agents are drawn in a separate pass after tiles (existing — `drawAgent()` with lerped positions from `DisplayState`).
 
 **Zone overlay visual spec:**
 
@@ -216,7 +229,7 @@ Replace the single-tile `drawSettlement()` method with zone overlay rendering in
 
 Fog of war applies uniformly — `explored` tiles render at 50% opacity, `unknown` tiles are hidden. No special fog logic needed for zones.
 
-**Delete:** `drawSettlement()` method and the settlement rendering loop that calls it. Settlements no longer need separate rendering — zones are drawn per-tile.
+**Delete:** `drawSettlement()` method and the settlement rendering loop (lines 73-84 in `renderer.ts`) that calls it. Settlements no longer need separate rendering — zones are drawn per-tile.
 
 ### Command System Impact
 
@@ -233,12 +246,12 @@ No new commands are added.
 
 ### What This Design Does NOT Touch
 
-- **Movement system** — active development on a separate branch. This design only affects tile data, rendering, map generation, and sync. Agent movement, pathfinding, and collision are out of scope.
+- **Movement / display system** — client-side movement prediction with lerp (PR #4) is complete. This design does not modify `display.ts`, `input.ts`, or the movement prediction pipeline. Zone overlay rendering integrates into the existing tile drawing path.
 - **Agent schema/simulation** — no changes to Agent fields or behavior
 - **Food consumption / starvation** — unchanged
 - **Production cycle** — logic unchanged, only the way production structures are placed changes
 - **Merchant / vision / memory merge** — unchanged
-- **Client input / camera / network** — unchanged
+- **Client network** — unchanged
 
 ## Future Extensions
 
