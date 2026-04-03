@@ -20,6 +20,8 @@ export async function evaluateDialogueGate(
       if (p === "id") return agent.id;
       if (p === "role") return agent.role;
       if (p === "faction") return agent.faction;
+      if (p === "x") return agent.position.x;
+      if (p === "y") return agent.position.y;
       if (p in agent.inventory) return agent.inventory[p as keyof typeof agent.inventory];
       return 0;
     },

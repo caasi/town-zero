@@ -197,6 +197,8 @@ export class DialogueSession {
         if (prop === "id") return agent.id;
         if (prop === "role") return agent.role;
         if (prop === "faction") return agent.faction;
+        if (prop === "x") return agent.position.x;
+        if (prop === "y") return agent.position.y;
         const inv = agent.inventory;
         if (prop in inv) return inv[prop as keyof typeof inv];
         return 0;
