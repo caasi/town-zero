@@ -120,10 +120,11 @@ type AgentRef = string;  // agent ID or "$player", "$faction:xxx"
 type Effect =
   | { type: "set_fact"; target: AgentRef; key: string; value: Expr }
   | { type: "set_local"; key: string; value: Expr }
-  | { type: "give_item"; target: AgentRef; item: string; amount: Expr }
-  | { type: "take_item"; target: AgentRef; item: string; amount: Expr }
+  | { type: "give_item"; target: AgentRef; item: ResourceType; amount: Expr }
+  | { type: "take_item"; target: AgentRef; item: ResourceType; amount: Expr }
   | { type: "damage"; target: AgentRef; amount: Expr }
   | { type: "register_trigger"; trigger: TriggerRule };
+// item uses ResourceType ("food" | "material" | "currency") from shared/src/types.ts
 ```
 
 #### Text Template
@@ -142,6 +143,15 @@ A template like `"你有 {player.food} 個食物"` compiles to:
 
 `AgentRef` strings (`"$player"`, `"$npc"`, `"elder_chen"`, `"$faction:village_a"`) appear in `Effect` nodes as plain strings. When used as arguments to white-listed functions within `Expr`, they are encoded as `{ type: "literal"; value: "$player" }`. The evaluator resolves these magic-prefix strings to actual agent lookups through `EvalContext`.
 
+**Scope rules for special references:**
+- `"$npc"` — valid only inside dialogue-scoped effects and triggers. In scenario-level triggers, use concrete agent IDs instead.
+- `"$player"` — valid only inside dialogue-scoped effects and triggers, where it is captured as a concrete agent ID at registration time. Scenario-level triggers must not use `"$player"` (no player context exists at load time).
+- `"$faction:xxx"` — valid anywhere. Resolved at fire time to all living agents in that faction.
+
+#### Belief Context for `fact_ref`
+
+`fact_ref` reads from `ctx.beliefs`, which is the **NPC's** `BeliefStore`. During dialogue evaluation, the NPC is the "point of view" agent. This means conditions like `fact("bridge_destroyed").eq(true)` check whether *the NPC believes* the bridge is destroyed, not whether it objectively is. The player's beliefs are not consulted during NPC dialogue evaluation.
+
 #### White-Listed Functions
 
 The `call` expression node can invoke these functions:
@@ -152,6 +162,43 @@ The `call` expression node can invoke these functions:
 - `faction_of(agent)` returns string
 
 Arguments with `$`-prefixed strings are resolved as agent references. New functions are added by extending the function registry, not the evaluator.
+
+#### Expression Builder Chain API
+
+The eDSL functions `fact()`, `local()`, and `player.prop()` return an `ExprBuilder` proxy — a thin wrapper around an `Expr` node that exposes chainable methods. Each method returns a new `ExprBuilder` wrapping the resulting AST node.
+
+```typescript
+interface ExprBuilder {
+  // Comparison — returns ExprBuilder wrapping { type: "compare", ... }
+  eq(other: ExprBuilder | Value): ExprBuilder;
+  neq(other: ExprBuilder | Value): ExprBuilder;
+  gt(other: ExprBuilder | Value): ExprBuilder;
+  lt(other: ExprBuilder | Value): ExprBuilder;
+  gte(other: ExprBuilder | Value): ExprBuilder;
+  lte(other: ExprBuilder | Value): ExprBuilder;
+
+  // Arithmetic — returns ExprBuilder wrapping { type: "arithmetic", ... }
+  add(other: ExprBuilder | Value): ExprBuilder;
+  sub(other: ExprBuilder | Value): ExprBuilder;
+  mul(other: ExprBuilder | Value): ExprBuilder;
+  div(other: ExprBuilder | Value): ExprBuilder;
+
+  // Logic — returns ExprBuilder wrapping { type: "logic", ... }
+  and(other: ExprBuilder): ExprBuilder;
+  or(other: ExprBuilder): ExprBuilder;
+
+  // Extracts the underlying Expr AST node (called by the builder internals)
+  toExpr(): Expr;
+}
+```
+
+When a `Value` (boolean, number, string) is passed where an `ExprBuilder` is expected, it is auto-wrapped in `{ type: "literal", value }`. This is why `setFact("$npc", "key", "repaired")` and `setFact("$npc", "key", fact("x").add(5))` both work — the builder accepts `Value | ExprBuilder` for the value argument.
+
+The `player` object is a proxy that provides:
+- `player.prop(name)` — returns `ExprBuilder` wrapping `{ type: "prop_ref", target: "player", prop: name }`
+- `player.hasItem(item, amount)` — returns `ExprBuilder` wrapping `{ type: "call", fn: "has_item", args: [literal("$player"), literal(item), amount.toExpr()] }`
+
+Similarly, `npc.prop(name)` and `settlement.prop(name)` are available.
 
 ### 3. Evaluator and Executor
 
@@ -269,6 +316,7 @@ interface DialogueTreeData {
   id: string;
   root: string;
   nodes: Record<string, DialogueNodeData>;
+  triggers: TriggerRule[];  // triggers defined inside this dialogue (hoisted at compile time)
 }
 ```
 
@@ -294,7 +342,7 @@ Note: compared to the current `DialogueNode` type, `content` and `label` change 
 
 #### eDSL Example
 
-The builder API uses `@town-zero/shared/script-dsl` (subpath export from the shared package). The `belief()` helper produces `{ key, value }` plain data for `initialBeliefs` (distinct from `setFact()` which produces an `Effect` node). Text nodes without an explicit `next` auto-chain to the next node in source order. The last node in a dialogue must be an `end` node.
+The builder API uses `@town-zero/shared/script-dsl` (subpath export from the shared package). The `belief()` helper produces `{ key, value }` plain data for `initialBeliefs` (distinct from `setFact()` which produces an `Effect` node). Text nodes without an explicit `next` auto-chain to the next registered node in source order. `d.trigger()` calls are **not** dialogue nodes — they register triggers on the `DialogueTreeData.triggers` array and do not affect auto-chaining. The last node in a dialogue must be an `end` node.
 
 ```typescript
 import {
@@ -343,13 +391,13 @@ export default scenario("bridge-crisis", (s) => {
 
     // "bridge-info" auto-chains to "bridge-offer"
     d.text("bridge-info",
-      t`橋已經 ${fact("bridge_status")} 了。我們需要 ${local("repair_cost")} 木材修復。`);
+      t`橋已經 ${fact("bridge_status")} 了。我們需要 ${local("repair_cost")} 個材料修復。`);
 
     d.choice("bridge-offer", [
       // player.hasItem() compiles to: { type: "call", fn: "has_item",
-      //   args: [literal("$player"), literal("wood"), local_ref("repair_cost")] }
-      d.option(t`我有木材（持有 ${player.prop("wood")} 個）`)
-        .when(player.hasItem("wood", local("repair_cost")))
+      //   args: [literal("$player"), literal("material"), local_ref("repair_cost")] }
+      d.option(t`我有材料（持有 ${player.prop("material")} 個）`)
+        .when(player.hasItem("material", local("repair_cost")))
         .goto("accept-repair"),
       d.option("我去找找看")
         .goto("farewell"),
@@ -357,14 +405,16 @@ export default scenario("bridge-crisis", (s) => {
 
     // action nodes require explicit next
     d.action("accept-repair", [
-      take("$player", "wood", local("repair_cost")),
+      take("$player", "material", local("repair_cost")),
       setFact("$npc", "bridge_status", "repaired"),
       setFact("$npc", "rep_with_player", fact("rep_with_player").add(5)),
     ], { next: "thanks" });
 
-    // "thanks" auto-chains to "farewell"
+    // "thanks" auto-chains to "farewell" (d.trigger is not a node, doesn't break chain)
     d.text("thanks", t`太好了！你真是大恩人。`);
 
+    // Dialogue-scoped trigger: $npc and $player are valid here.
+    // $player is captured as a concrete ID when the trigger is registered (during dialogue).
     d.trigger(
       when(fact("bridge_status").eq("repaired")),
       [setFact("$npc", "trade_route_open", true)],
@@ -373,17 +423,20 @@ export default scenario("bridge-crisis", (s) => {
 
     d.text("farewell", t`一路平安。`);
 
-    // end node: "farewell" text auto-chains to "end" since it's the last text before end
     d.end("done");
   });
 
+  // Scenario-level trigger: must use concrete agent IDs, not $npc or $player
+  // (no dialogue context exists at scenario load time).
   s.trigger(
     when(fact("bridge_status").eq("destroyed")),
-    [setFact("$npc", "bridge_crisis_active", true)],
+    [setFact("elder_chen", "bridge_crisis_active", true)],
     { targets: ["elder_chen", "scout_lin"] },
   );
 });
 ```
+
+**`prop_ref` property resolution**: `AgentAccessor` exposes `ResourceStore` fields directly — `player.prop("food")`, `player.prop("material")`, `player.prop("currency")` map to `agent.inventory[prop]`. Top-level agent fields (`"hp"`, `"role"`, `"faction"`, `"id"`) are also accessible. Invalid property names return `0` for numbers, `""` for strings.
 
 ### 6. i18n (Keyless)
 
