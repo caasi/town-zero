@@ -149,9 +149,9 @@ export class Renderer {
       }
     }
 
-    // Bush object
+    // Bush object (drawTile is only called for non-"unknown" fog levels)
     const objectType = snapshot?.objectType || "";
-    if (fogLevel !== "unknown" && objectType === "bush") {
+    if (objectType === "bush") {
       ctx.fillStyle = "#2a8a2a";
       ctx.beginPath();
       ctx.arc(px + TILE_SIZE / 2 - 6, py + TILE_SIZE / 2, 5, 0, Math.PI * 2);
