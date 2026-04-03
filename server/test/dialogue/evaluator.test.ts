@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { evaluate, checkCondition, interpolate, normalizeTemplateKey } from "../../src/dialogue/evaluator.js";
+import { evaluate, checkCondition, interpolate, normalizeTemplateKey, resolveLocale } from "../../src/dialogue/evaluator.js";
 import type { Expr, Fact, Value, TextTemplate } from "@town-zero/shared";
 
 function makeCtx(overrides: {
@@ -136,6 +136,28 @@ describe("evaluate()", () => {
       ],
     }, ctx)).toBe(3);
   });
+
+  it("throws on unknown expression type", () => {
+    expect(() => evaluate({ type: "bogus" } as unknown as Expr, makeCtx())).toThrow("Unknown expression type");
+  });
+
+  it("throws on unknown agent reference in has_item", () => {
+    expect(() => evaluate({
+      type: "call", fn: "has_item",
+      args: [
+        { type: "literal", value: "$bogus" },
+        { type: "literal", value: "food" },
+        { type: "literal", value: 1 },
+      ],
+    }, makeCtx())).toThrow('Unknown agent reference: "$bogus"');
+  });
+
+  it("throws when settlement is null in prop_ref", () => {
+    expect(() => evaluate(
+      { type: "prop_ref", target: "settlement", prop: "food" },
+      makeCtx(),
+    )).toThrow("No settlement available");
+  });
 });
 
 describe("checkCondition()", () => {
@@ -171,5 +193,57 @@ describe("normalizeTemplateKey()", () => {
 
   it("pure string returns as-is", () => {
     expect(normalizeTemplateKey(["Hello world"])).toBe("Hello world");
+  });
+});
+
+describe("resolveLocale()", () => {
+  it("returns original template when locale is undefined", () => {
+    const tpl: TextTemplate = ["Hello ", { type: "fact_ref", key: "name" }];
+    expect(resolveLocale(tpl, undefined)).toBe(tpl);
+  });
+
+  it("returns original template when key is not found in locale", () => {
+    const tpl: TextTemplate = ["Goodbye"];
+    const locale = { "Hello {0}": "こんにちは{0}" };
+    expect(resolveLocale(tpl, locale)).toBe(tpl);
+  });
+
+  it("translates a pure string template", () => {
+    const tpl: TextTemplate = ["Hello world"];
+    const locale = { "Hello world": "こんにちは世界" };
+    expect(resolveLocale(tpl, locale)).toEqual(["こんにちは世界"]);
+  });
+
+  it("translates and re-inserts expression placeholders", () => {
+    const nameExpr: Expr = { type: "fact_ref", key: "name" };
+    const tpl: TextTemplate = ["Hello ", nameExpr, "!"];
+    const locale = { "Hello {0}!": "こんにちは{0}さん！" };
+    const result = resolveLocale(tpl, locale);
+    expect(result).toEqual(["こんにちは", nameExpr, "さん！"]);
+  });
+
+  it("supports @@context suffix for disambiguation", () => {
+    const tpl: TextTemplate = ["Open"];
+    const locale = { "Open@@door": "開ける", "Open@@window": "開く" };
+    expect(resolveLocale(tpl, locale, "door")).toEqual(["開ける"]);
+    expect(resolveLocale(tpl, locale, "window")).toEqual(["開く"]);
+  });
+
+  it("handles out-of-range placeholder index gracefully", () => {
+    const nameExpr: Expr = { type: "fact_ref", key: "name" };
+    const tpl: TextTemplate = ["Hi ", nameExpr];
+    // Translation references {0} and {5} — {5} is out of range and should be omitted
+    const locale = { "Hi {0}": "{0}こんにちは{5}" };
+    const result = resolveLocale(tpl, locale);
+    expect(result).toEqual([nameExpr, "こんにちは"]);
+  });
+
+  it("filters empty strings from translated result", () => {
+    const nameExpr: Expr = { type: "fact_ref", key: "name" };
+    const tpl: TextTemplate = ["Hello ", nameExpr];
+    // Translation starts with a placeholder — leading empty string is filtered
+    const locale = { "Hello {0}": "{0}!" };
+    const result = resolveLocale(tpl, locale);
+    expect(result).toEqual([nameExpr, "!"]);
   });
 });

@@ -61,9 +61,12 @@ function resolveAccessor(ref: string, ctx: EvalContext): AgentAccessor {
   if (ref === "$player") return ctx.agentState.player;
   if (ref === "$npc") return ctx.agentState.npc;
   if (ref === "$settlement") {
-    return ctx.agentState.settlement ?? { get: () => 0 };
+    if (!ctx.agentState.settlement) {
+      throw new Error(`No settlement available in context (referenced by "${ref}")`);
+    }
+    return ctx.agentState.settlement;
   }
-  return ctx.agentState.npc;
+  throw new Error(`Unknown agent reference: "${ref}"`);
 }
 
 // --- Evaluator ---
@@ -83,7 +86,10 @@ export function evaluate(expr: Expr, ctx: EvalContext): Value | undefined {
 
     case "prop_ref": {
       if (expr.target === "settlement") {
-        return ctx.agentState.settlement?.get(expr.prop) ?? 0;
+        if (!ctx.agentState.settlement) {
+          throw new Error(`No settlement available in context for prop_ref "${expr.prop}"`);
+        }
+        return ctx.agentState.settlement.get(expr.prop);
       }
       return ctx.agentState[expr.target].get(expr.prop);
     }
@@ -98,8 +104,8 @@ export function evaluate(expr: Expr, ctx: EvalContext): Value | undefined {
         case "lt": return (left as number) < (right as number);
         case "gte": return (left as number) >= (right as number);
         case "lte": return (left as number) <= (right as number);
+        default: throw new Error(`Unknown compare operator: ${(expr as { op: string }).op}`);
       }
-      break;
     }
 
     case "arithmetic": {
@@ -110,8 +116,8 @@ export function evaluate(expr: Expr, ctx: EvalContext): Value | undefined {
         case "sub": return left - right;
         case "mul": return left * right;
         case "div": return right !== 0 ? left / right : 0;
+        default: throw new Error(`Unknown arithmetic operator: ${(expr as { op: string }).op}`);
       }
-      break;
     }
 
     case "logic": {
@@ -119,8 +125,8 @@ export function evaluate(expr: Expr, ctx: EvalContext): Value | undefined {
         case "and": return expr.args.every((a) => !!evaluate(a, ctx));
         case "or": return expr.args.some((a) => !!evaluate(a, ctx));
         case "not": return !evaluate(expr.args[0], ctx);
+        default: throw new Error(`Unknown logic operator: ${(expr as { op: string }).op}`);
       }
-      break;
     }
 
     case "call": {
@@ -129,9 +135,10 @@ export function evaluate(expr: Expr, ctx: EvalContext): Value | undefined {
       const args = expr.args.map((a) => evaluate(a, ctx) as Value);
       return fn(args, ctx);
     }
-  }
 
-  return undefined;
+    default:
+      throw new Error(`Unknown expression type: ${(expr as { type: string }).type}`);
+  }
 }
 
 // --- Convenience ---
