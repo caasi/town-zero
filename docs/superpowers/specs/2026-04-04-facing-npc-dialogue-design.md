@@ -80,7 +80,7 @@ The three dialogue protocol messages (`dialogue:advance`, `dialogue:choose`, `di
 |---------|---------|------|
 | `dialogue:state` | `DialogueStatePayload` | Each visible node (text or choice) |
 | `dialogue:end` | `{ reason: "complete" \| "timeout" \| "closed" }` | Dialogue session ends |
-| `dialogue:error` | `{ reason: "busy" \| "too_far" \| "wrong_facing" \| "no_dialogue" }` | Talk command validation fails |
+| `dialogue:error` | `{ reason: "busy" \| "too_far" \| "no_dialogue" }` | Talk command validation fails |
 
 **DialogueStatePayload:**
 
@@ -103,7 +103,7 @@ type DialogueStatePayload = {
 };
 ```
 
-**Option visibility vs enabled:** The existing `getVisibleOptions()` in `DialogueEngine` filters options by condition, hiding them entirely. This changes to: all options are always sent to the client, but with `enabled: false` when their condition fails. This lets the player see what's possible (e.g., "Here you go." greyed out when they don't have enough food), providing implicit feedback about requirements.
+**Option visibility vs enabled:** The existing `getVisibleOptions()` in `DialogueEngine` filters options by condition, hiding them entirely. This changes to: all options are always sent to the client, but with `enabled: false` when their condition fails. This lets the player see what's possible (e.g., "Here you go." greyed out when they don't have enough food), providing implicit feedback about requirements. Implementation note: `getVisibleOptions()` should be replaced with a new method (e.g., `getAllOptionsWithStatus()`) that returns all options with an `enabled` flag. `DialogueSession.select()` must then validate against `enabled` instead of presence.
 
 **Action nodes are transparent to client.** Server executes effects and skips to the next visible node (text/choice/end). Client never receives `nodeType: "action"`.
 
