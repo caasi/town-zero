@@ -132,7 +132,13 @@ export function evaluate(expr: Expr, ctx: EvalContext): Value | undefined {
     case "call": {
       const fn = builtinFunctions[expr.fn];
       if (!fn) throw new Error(`Unknown function: ${expr.fn}`);
-      const args = expr.args.map((a) => evaluate(a, ctx) as Value);
+      const args: Value[] = expr.args.map((a, index) => {
+        const value = evaluate(a, ctx);
+        if (value === undefined) {
+          throw new Error(`Function "${expr.fn}" argument at index ${index} evaluated to undefined`);
+        }
+        return value;
+      });
       return fn(args, ctx);
     }
 

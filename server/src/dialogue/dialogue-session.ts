@@ -115,8 +115,12 @@ export class DialogueSession {
     return this.getState();
   }
 
-  /** Player picks a choice option. */
+  /** Player picks a choice option. Validates the option is currently visible (condition-gated). */
   select(optionId: string): DialogueStateMessage {
+    const visible = this.engine.getVisibleOptions(this.buildEvalContext());
+    if (!visible.some((opt) => opt.id === optionId)) {
+      throw new Error(`Option "${optionId}" is not currently selectable`);
+    }
     this.engine.selectOptionById(optionId);
     return this.getState();
   }
