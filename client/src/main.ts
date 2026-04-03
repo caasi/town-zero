@@ -160,11 +160,8 @@ function gameLoop(now: number): void {
   lastFrameTime = now;
 
   if (gameState === "playing") {
-    updateInputContext();
-    input?.update();
-    updateHUD();
-
-    // Single pass over agents: collect data for both displayState sync and fog
+    // Sync display positions from server BEFORE input so predictions
+    // aren't immediately overridden by an uninitialized lastServerPos.
     const syncEntries: Array<[string, { x: number; y: number }]> = [];
     const agentList: Array<{ id: string; x: number; y: number; role: string; faction: string }> = [];
     if (network.state?.agents) {
@@ -175,17 +172,21 @@ function gameLoop(now: number): void {
       displayState.syncFromServer(syncEntries);
     }
 
+    updateInputContext();
+    input?.update();
+    updateHUD();
+
     // Lerp all render positions
     displayState.updateRender(dt);
 
     const player = network.state?.agents?.get(network.playerId ?? "");
     if (player) {
-      // Camera and fog follow predicted position
+      // Fog reveal uses stable predicted tile coords (displayX/Y) to
+      // avoid mid-lerp rounding artifacts. Camera uses lerped pixel
+      // position for smooth visual tracking.
       const playerDisplay = displayState.get(network.playerId!);
       if (playerDisplay) {
-        const tileX = Math.round(playerDisplay.renderX / TILE_SIZE);
-        const tileY = Math.round(playerDisplay.renderY / TILE_SIZE);
-        fog.revealAround(tileX, tileY, DEFAULT_VISION_RADIUS, network.state?.tiles, agentList, network.playerId);
+        fog.revealAround(playerDisplay.displayX, playerDisplay.displayY, DEFAULT_VISION_RADIUS, network.state?.tiles, agentList, network.playerId);
         camera.update(playerDisplay.renderX / TILE_SIZE + 0.5, playerDisplay.renderY / TILE_SIZE + 0.5);
       } else {
         fog.revealAround(player.x, player.y, DEFAULT_VISION_RADIUS, network.state?.tiles, agentList, network.playerId);
