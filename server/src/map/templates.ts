@@ -1,5 +1,11 @@
 import { ZoneType } from "@town-zero/shared";
 import type { Position, StructureType } from "@town-zero/shared";
+
+const ZONE_TO_STRUCTURE: Partial<Record<ZoneType, StructureType>> = {
+  [ZoneType.CORE]: "core",
+  [ZoneType.HOUSING]: "housing",
+  [ZoneType.PRODUCTION]: "production",
+};
 import type { Grid } from "../simulation/grid.js";
 
 // --- Templates ---
@@ -64,10 +70,11 @@ export function stampTemplate(
       grid.setZoneType(worldX, worldY, zone);
       territory.push({ x: worldX, y: worldY });
 
-      if (zone !== ZoneType.EMPTY) {
+      const structureType = ZONE_TO_STRUCTURE[zone];
+      if (structureType) {
         structures.push({
           id: `${faction}-${zone}-${worldX}-${worldY}`,
-          type: zone as StructureType,
+          type: structureType,
           position: { x: worldX, y: worldY },
           operatorId: null,
         });
