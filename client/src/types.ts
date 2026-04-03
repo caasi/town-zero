@@ -9,6 +9,8 @@ export interface TileSnapshot {
   entities: EntitySnapshot[];
   timestamp: number;
   resourceYield?: string;
+  zoneType?: string;
+  ownerFaction?: string;
 }
 
 export interface VisionData {

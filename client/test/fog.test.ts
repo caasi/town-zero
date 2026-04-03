@@ -129,6 +129,18 @@ describe("FogManager", () => {
       expect(fog.getLevel(1, 1)).toBe("unknown");
     });
 
+    it("snapshots zoneType and ownerFaction from live state", () => {
+      const fog = new FogManager();
+      const tiles = new Map([
+        ["5,5", { terrain: "plains", resourceYield: "", zoneType: "core", ownerFaction: "village-1" }],
+      ]);
+      fog.revealAround(5, 5, 0, tiles, [], null);
+
+      const snapshot = fog.getSnapshot(5, 5);
+      expect(snapshot?.zoneType).toBe("core");
+      expect(snapshot?.ownerFaction).toBe("village-1");
+    });
+
     it("does not snapshot tiles not in live state", () => {
       const fog = new FogManager();
       const tiles = makeLiveTiles({}); // no tiles

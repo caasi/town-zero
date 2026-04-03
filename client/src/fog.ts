@@ -41,7 +41,7 @@ export class FogManager {
     cx: number,
     cy: number,
     radius: number,
-    tiles: { get(key: string): { terrain: string; resourceYield?: string } | undefined } | undefined,
+    tiles: { get(key: string): { terrain: string; resourceYield?: string; zoneType?: string; ownerFaction?: string } | undefined } | undefined,
     agents: Iterable<{ id: string; x: number; y: number; role: string; faction: string }>,
     localPlayerId: string | null,
   ): void {
@@ -80,6 +80,8 @@ export class FogManager {
           entities: agentsByTile.get(key) ?? [],
           timestamp: this.lastTick,
           resourceYield: tile.resourceYield,
+          zoneType: tile.zoneType,
+          ownerFaction: tile.ownerFaction,
         });
       }
     }
