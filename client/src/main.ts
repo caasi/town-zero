@@ -187,7 +187,7 @@ function gameLoop(now: number): void {
       const playerDisplay = displayState.get(network.playerId!);
       if (playerDisplay) {
         fog.revealAround(playerDisplay.displayX, playerDisplay.displayY, DEFAULT_VISION_RADIUS, network.state?.tiles, agentList, network.playerId);
-        camera.update(playerDisplay.renderX / TILE_SIZE + 0.5, playerDisplay.renderY / TILE_SIZE + 0.5);
+        camera.update(playerDisplay.renderX / TILE_SIZE, playerDisplay.renderY / TILE_SIZE);
       } else {
         fog.revealAround(player.x, player.y, DEFAULT_VISION_RADIUS, network.state?.tiles, agentList, network.playerId);
         camera.update(player.x, player.y);
