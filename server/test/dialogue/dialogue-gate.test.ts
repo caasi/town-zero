@@ -3,13 +3,23 @@ import { evaluateDialogueGate } from "../../src/dialogue/dialogue-gate.js";
 import { Agent } from "../../src/simulation/agent.js";
 import type { TextTemplate, Fact } from "@town-zero/shared";
 
-function makeTestAgent(): Agent {
+function makeNpc(): Agent {
   return new Agent({
     id: "npc-1",
     position: { x: 0, y: 0 },
     faction: "village",
     role: "merchant",
-    controller: "npc",
+    controller: "bot",
+  });
+}
+
+function makePlayer(): Agent {
+  return new Agent({
+    id: "player-1",
+    position: { x: 1, y: 0 },
+    faction: "village",
+    role: "player",
+    controller: "player",
   });
 }
 
@@ -20,7 +30,8 @@ describe("evaluateDialogueGate", () => {
     const beliefs = new Map<string, Fact>();
 
     const result = await evaluateDialogueGate(
-      makeTestAgent(),
+      makeNpc(),
+      makePlayer(),
       label,
       beliefs,
       "player1",
@@ -38,7 +49,8 @@ describe("evaluateDialogueGate", () => {
     const beliefs = new Map<string, Fact>();
 
     const result = await evaluateDialogueGate(
-      makeTestAgent(),
+      makeNpc(),
+      makePlayer(),
       label,
       beliefs,
       "player1",
@@ -58,7 +70,8 @@ describe("evaluateDialogueGate", () => {
     const beliefs = new Map<string, Fact>();
 
     const result = await evaluateDialogueGate(
-      makeTestAgent(),
+      makeNpc(),
+      makePlayer(),
       label,
       beliefs,
       "player1",
@@ -87,7 +100,8 @@ describe("evaluateDialogueGate", () => {
     ]);
 
     await evaluateDialogueGate(
-      makeTestAgent(),
+      makeNpc(),
+      makePlayer(),
       label,
       beliefs,
       "player1",
@@ -106,7 +120,7 @@ describe("evaluateDialogueGate", () => {
       return "y";
     };
 
-    const npc = makeTestAgent();
+    const npc = makeNpc();
     npc.addToInventory("food", 42);
 
     const label: TextTemplate = [
@@ -118,6 +132,7 @@ describe("evaluateDialogueGate", () => {
 
     await evaluateDialogueGate(
       npc,
+      makePlayer(),
       label,
       beliefs,
       "player1",
