@@ -12,6 +12,6 @@
     "build": "pnpm --filter @town-zero/shared build && pnpm --filter @town-zero/server build",
     "dev:server": "pnpm --filter @town-zero/shared build && pnpm --filter @town-zero/server dev",
     "dev:client": "pnpm --filter @town-zero/client dev",
-    "test": "pnpm --filter @town-zero/server test"
+    "test": "pnpm --filter @town-zero/server test && pnpm --filter @town-zero/client test"
   }
 }

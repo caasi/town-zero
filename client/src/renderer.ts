@@ -2,8 +2,10 @@
 import type { FogLevel } from "./types.js";
 import type { FogManager } from "./fog.js";
 import type { Camera } from "./camera.js";
+import type { DisplayState } from "./display.js";
+import { TILE_SIZE } from "./constants.js";
 
-const TILE_SIZE = 32;
+const EIGENGRAU = "#16161d"; // perceived color of darkness — used for unknown tiles
 
 const TERRAIN_COLORS: Record<string, string> = {
   plains: "#3a6a3e",
@@ -33,6 +35,7 @@ export class Renderer {
     fog: FogManager,
     camera: Camera,
     playerId: string | null,
+    displayState?: DisplayState,
   ): void {
     const { width, height } = this.canvas;
     const ctx = this.ctx;
@@ -45,7 +48,8 @@ export class Renderer {
       if (pa) playerFaction = pa.faction;
     }
 
-    ctx.fillStyle = "#111";
+    // Void (outside map) is true black
+    ctx.fillStyle = "#000";
     ctx.fillRect(0, 0, width, height);
 
     // Draw tiles
@@ -55,7 +59,14 @@ export class Renderer {
         const py = (y - vp.startY) * TILE_SIZE + vp.offsetY;
         const fogLevel = fog.getLevel(x, y);
 
-        this.drawTile(ctx, px, py, state, x, y, fogLevel);
+        if (fogLevel === "unknown") {
+          // Eigengrau — distinguishes "unseen tile" from "void outside map"
+          ctx.fillStyle = EIGENGRAU;
+          ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+          continue;
+        }
+
+        this.drawTile(ctx, px, py, fog, x, y, fogLevel);
       }
     }
 
@@ -75,13 +86,26 @@ export class Renderer {
     // Draw agents on visible tiles (from live server state)
     if (state?.agents) {
       state.agents.forEach((agent: any) => {
-        if (agent.x >= vp.startX && agent.x < vp.endX && agent.y >= vp.startY && agent.y < vp.endY) {
-          const fl = fog.getLevel(agent.x, agent.y);
-          if (fl !== "visible") return; // Only draw live agents on visible tiles
-          const px = (agent.x - vp.startX) * TILE_SIZE + vp.offsetX;
-          const py = (agent.y - vp.startY) * TILE_SIZE + vp.offsetY;
-          this.drawAgent(ctx, px, py, agent, playerId, playerFaction, "visible");
-        }
+        // Use lerped render position if available, else fall back to server position
+        const display = displayState?.get(agent.id);
+        const pxWorld = display ? display.renderX : agent.x * TILE_SIZE;
+        const pyWorld = display ? display.renderY : agent.y * TILE_SIZE;
+
+        // Convert from world pixel coords to screen coords
+        const px = pxWorld - vp.startX * TILE_SIZE + vp.offsetX;
+        const py = pyWorld - vp.startY * TILE_SIZE + vp.offsetY;
+
+        // Use stable integer tile position for fog/culling to avoid
+        // mid-lerp flicker when rounding flips at the half-tile point.
+        const tileX = display ? display.displayX : agent.x;
+        const tileY = display ? display.displayY : agent.y;
+        const fl = fog.getLevel(tileX, tileY);
+        if (fl !== "visible") return;
+
+        // Cull agents outside viewport (with 1-tile margin for sliding agents)
+        if (tileX < vp.startX - 1 || tileX > vp.endX || tileY < vp.startY - 1 || tileY > vp.endY) return;
+
+        this.drawAgent(ctx, px, py, agent, playerId, playerFaction, "visible");
       });
     }
 
@@ -90,11 +114,11 @@ export class Renderer {
       for (let x = vp.startX; x < vp.endX; x++) {
         const fl = fog.getLevel(x, y);
         if (fl !== "explored") continue;
-        const entry = fog.getEntry(x, y);
-        if (!entry?.lastEntities.length) continue;
+        const snapshot = fog.getSnapshot(x, y);
+        if (!snapshot?.entities.length) continue;
         const px = (x - vp.startX) * TILE_SIZE + vp.offsetX;
         const py = (y - vp.startY) * TILE_SIZE + vp.offsetY;
-        for (const entity of entry.lastEntities) {
+        for (const entity of snapshot.entities) {
           this.drawFogEntity(ctx, px, py, entity, playerFaction);
         }
       }
@@ -103,17 +127,17 @@ export class Renderer {
 
   private drawTile(
     ctx: CanvasRenderingContext2D, px: number, py: number,
-    state: any, x: number, y: number, fogLevel: FogLevel,
+    fog: FogManager, x: number, y: number, fogLevel: FogLevel,
   ): void {
-    // Get terrain from state tiles or fog entry
+    // Read terrain from fog snapshots, not raw server state.
+    // This respects the information model: explored tiles show
+    // what the player last observed, not omniscient live data.
     let terrain = "plains";
     let resourceYield = "";
-    if (state?.tiles) {
-      const tile = state.tiles.get(`${x},${y}`);
-      if (tile) {
-        terrain = tile.terrain || "plains";
-        resourceYield = tile.resourceYield || "";
-      }
+    const snapshot = fog.getSnapshot(x, y);
+    if (snapshot) {
+      terrain = snapshot.terrain || "plains";
+      resourceYield = snapshot.resourceYield || "";
     }
 
     // Base color

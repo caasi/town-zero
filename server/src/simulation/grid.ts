@@ -1,3 +1,4 @@
+import { tilesInManhattanRadius } from "@town-zero/shared";
 import type { Position, TerrainType, ResourceType } from "@town-zero/shared";
 
 interface TileData {
@@ -78,18 +79,7 @@ export class Grid {
   }
 
   getTilesInRadius(center: Position, radius: number): Position[] {
-    const result: Position[] = [];
-    for (let dy = -radius; dy <= radius; dy++) {
-      for (let dx = -radius; dx <= radius; dx++) {
-        if (Math.abs(dx) + Math.abs(dy) <= radius) {
-          const x = center.x + dx;
-          const y = center.y + dy;
-          if (this.inBounds(x, y)) {
-            result.push({ x, y });
-          }
-        }
-      }
-    }
-    return result;
+    return tilesInManhattanRadius(center, radius)
+      .filter((p) => this.inBounds(p.x, p.y));
   }
 }

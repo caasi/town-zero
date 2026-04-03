@@ -1,6 +1,7 @@
 // client/src/input.ts
 import type { ActionCommand } from "@town-zero/shared";
 import type { ModalRequest } from "./types.js";
+import type { DisplayState } from "./display.js";
 
 export type SendFn = (cmd: ActionCommand) => void;
 
@@ -48,7 +49,7 @@ export function formatKeyHints(labels: Record<string, string>): string {
   return `${move}:Move  ${labels.KeyE}:Interact  ${labels.KeyQ}:Attack  ${labels.KeyG}:Gather  ${labels.KeyT}:Deposit`;
 }
 
-const MOVE_THROTTLE_MS = 200;
+const MOVE_THROTTLE_MS = 120;
 
 const MOVE_KEYS: Record<string, { dx: number; dy: number }> = {
   KeyW: { dx: 0, dy: -1 }, ArrowUp: { dx: 0, dy: -1 },
@@ -68,16 +69,46 @@ export class InputHandler {
   private nearbyEntities: NearbyEntity[] = [];
   private currentSettlementId: string | null = null;
 
+  // Movement prediction
+  private displayState: DisplayState | null = null;
+  private tiles: { get(key: string): { terrain: string } | undefined } | null = null;
+  private playerState: string = "idle";
+
+  // Held-key tracking for continuous movement
+  private heldKeys = new Set<string>();
+
+  private handleBlur = (): void => {
+    this.heldKeys.clear();
+  };
+
   constructor(send: SendFn) {
     this.send = send;
     this.handleKey = this.handleKey.bind(this);
+    this.handleKeyUp = this.handleKeyUp.bind(this);
     window.addEventListener("keydown", this.handleKey);
+    window.addEventListener("keyup", this.handleKeyUp);
+    window.addEventListener("blur", this.handleBlur);
+    document.addEventListener("visibilitychange", this.handleBlur);
   }
 
-  setPlayerInfo(agent: AgentInfo | null, nearby: NearbyEntity[], settlementId: string | null): void {
+  setPredictionContext(
+    displayState: DisplayState,
+    tiles: { get(key: string): { terrain: string } | undefined },
+  ): void {
+    this.displayState = displayState;
+    this.tiles = tiles;
+  }
+
+  setPlayerInfo(
+    agent: AgentInfo | null,
+    nearby: NearbyEntity[],
+    settlementId: string | null,
+    agentState?: string,
+  ): void {
     this.playerAgent = agent;
     this.nearbyEntities = nearby;
     this.currentSettlementId = settlementId;
+    this.playerState = agentState ?? "idle";
   }
 
   setModalHandler(handler: (req: ModalRequest) => void): void {
@@ -88,24 +119,56 @@ export class InputHandler {
     this.enabled = enabled;
   }
 
-  private handleKey(e: KeyboardEvent): void {
+  /**
+   * Called every frame from the game loop. Processes held movement keys.
+   */
+  update(): void {
     if (!this.enabled || !this.playerAgent) return;
-    if (e.repeat) return;
 
-    const code = e.code;
+    // Find the first held movement key
+    for (const code of this.heldKeys) {
+      const move = MOVE_KEYS[code];
+      if (!move) continue;
 
-    // WASD / arrow movement (physical key position, layout-independent)
-    const move = MOVE_KEYS[code];
-    if (move) {
       const now = Date.now();
       if (now - this.lastMoveTime < MOVE_THROTTLE_MS) return;
       this.lastMoveTime = now;
+
+      const origin = this.displayState?.getLocalPlayerPosition()
+        ?? { x: this.playerAgent.x, y: this.playerAgent.y };
+      const targetX = origin.x + move.dx;
+      const targetY = origin.y + move.dy;
+
+      if (this.displayState && this.tiles) {
+        const predicted = this.displayState.predictMove(
+          targetX, targetY, this.playerState, this.tiles,
+        );
+        if (!predicted) return;
+      }
+
       this.send({
         type: "move",
-        target: { x: this.playerAgent.x + move.dx, y: this.playerAgent.y + move.dy },
+        target: { x: targetX, y: targetY },
       });
       return;
     }
+  }
+
+  private handleKey(e: KeyboardEvent): void {
+    if (!this.enabled || !this.playerAgent) return;
+
+    const code = e.code;
+
+    // Track movement key presses — actual movement happens in update().
+    // preventDefault stops Arrow keys from scrolling the page.
+    if (code in MOVE_KEYS) {
+      e.preventDefault();
+      this.heldKeys.add(code);
+      return;
+    }
+
+    // Block repeat for action keys
+    if (e.repeat) return;
 
     const { x, y, faction } = this.playerAgent;
 
@@ -161,11 +224,19 @@ export class InputHandler {
     }
   }
 
+  private handleKeyUp(e: KeyboardEvent): void {
+    this.heldKeys.delete(e.code);
+  }
+
   private isAdjacent(x1: number, y1: number, x2: number, y2: number): boolean {
     return Math.abs(x1 - x2) + Math.abs(y1 - y2) === 1;
   }
 
   destroy(): void {
     window.removeEventListener("keydown", this.handleKey);
+    window.removeEventListener("keyup", this.handleKeyUp);
+    window.removeEventListener("blur", this.handleBlur);
+    document.removeEventListener("visibilitychange", this.handleBlur);
+    this.heldKeys.clear();
   }
 }

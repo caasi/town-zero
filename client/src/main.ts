@@ -1,10 +1,12 @@
 // client/src/main.ts
-import { MERCHANT_TRADE_RATE } from "@town-zero/shared";
+import { MERCHANT_TRADE_RATE, DEFAULT_VISION_RADIUS } from "@town-zero/shared";
 import { NetworkClient } from "./network.js";
 import { FogManager } from "./fog.js";
 import { Camera } from "./camera.js";
 import { Renderer } from "./renderer.js";
 import { InputHandler, getKeyLabels, formatKeyHints } from "./input.js";
+import { DisplayState } from "./display.js";
+import { TILE_SIZE } from "./constants.js";
 import type { GameState, ModalRequest } from "./types.js";
 
 // DOM elements
@@ -23,6 +25,7 @@ const network = new NetworkClient();
 const fog = new FogManager();
 const camera = new Camera();
 const renderer = new Renderer(canvas);
+const displayState = new DisplayState();
 
 let gameState: GameState = "connecting";
 let input: InputHandler | null = null;
@@ -89,6 +92,7 @@ function updateInputContext(): void {
     { x: player.x, y: player.y, faction: player.faction },
     nearby,
     settlementId,
+    player.state,  // FSM state for prediction gating
   );
 }
 
@@ -149,17 +153,48 @@ function setOverlay(state: GameState): void {
 }
 
 // Game loop
-function gameLoop(): void {
+let lastFrameTime = performance.now();
+
+function gameLoop(now: number): void {
+  const dt = now - lastFrameTime;
+  lastFrameTime = now;
+
   if (gameState === "playing") {
+    // Sync display positions from server BEFORE input so predictions
+    // aren't immediately overridden by an uninitialized lastServerPos.
+    const syncEntries: Array<[string, { x: number; y: number }]> = [];
+    const agentList: Array<{ id: string; x: number; y: number; role: string; faction: string }> = [];
+    if (network.state?.agents) {
+      network.state.agents.forEach((agent: any) => {
+        syncEntries.push([agent.id, { x: agent.x, y: agent.y }]);
+        agentList.push({ id: agent.id, x: agent.x, y: agent.y, role: agent.role, faction: agent.faction });
+      });
+      displayState.syncFromServer(syncEntries);
+    }
+
     updateInputContext();
+    input?.update();
     updateHUD();
+
+    // Lerp all render positions
+    displayState.updateRender(dt);
 
     const player = network.state?.agents?.get(network.playerId ?? "");
     if (player) {
-      camera.update(player.x, player.y);
+      // Fog reveal uses stable predicted tile coords (displayX/Y) to
+      // avoid mid-lerp rounding artifacts. Camera uses lerped pixel
+      // position for smooth visual tracking.
+      const playerDisplay = displayState.get(network.playerId!);
+      if (playerDisplay) {
+        fog.revealAround(playerDisplay.displayX, playerDisplay.displayY, DEFAULT_VISION_RADIUS, network.state?.tiles, agentList, network.playerId);
+        camera.update(playerDisplay.renderX / TILE_SIZE, playerDisplay.renderY / TILE_SIZE);
+      } else {
+        fog.revealAround(player.x, player.y, DEFAULT_VISION_RADIUS, network.state?.tiles, agentList, network.playerId);
+        camera.update(player.x, player.y);
+      }
     }
 
-    renderer.draw(network.state, fog, camera, network.playerId);
+    renderer.draw(network.state, fog, camera, network.playerId, displayState);
   }
   requestAnimationFrame(gameLoop);
 }
@@ -172,6 +207,7 @@ async function connect(): Promise<void> {
   gameState = "connecting";
   setOverlay("connecting");
   fog.clear();
+  displayState.clear();
 
   try {
     await network.connect("Player");
@@ -183,6 +219,8 @@ async function connect(): Promise<void> {
 
     input = new InputHandler((cmd) => network.send(cmd));
     input.setModalHandler(handleModal);
+    displayState.setLocalPlayer(network.playerId);
+    input.setPredictionContext(displayState, fog.tileSource());
 
     network.onVision((vision) => fog.update(vision));
     network.onDeath(() => {
@@ -206,12 +244,14 @@ async function connect(): Promise<void> {
 document.getElementById("rejoin-btn")!.addEventListener("click", () => {
   network.disconnect();
   input?.destroy();
+  displayState.clear();
   connect();
 });
 
 document.getElementById("retry-btn")!.addEventListener("click", () => {
   network.disconnect();
   input?.destroy();
+  displayState.clear();
   connect();
 });
 
