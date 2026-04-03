@@ -1,5 +1,5 @@
 // client/src/renderer.ts
-import { ZoneType } from "@town-zero/shared";
+import { ZoneType, type Facing } from "@town-zero/shared";
 import type { FogLevel } from "./types.js";
 import type { FogManager } from "./fog.js";
 import type { Camera } from "./camera.js";
@@ -330,7 +330,7 @@ export class Renderer {
 
     // Facing indicator (skip for dead agents)
     if (!isDead) {
-      this.drawFacingIndicator(ctx, px, py, cx, cy, agent.facing);
+      this.drawFacingIndicator(ctx, px, py, cx, cy, agent.facing as Facing | undefined);
     }
 
     // Dead X mark
@@ -350,7 +350,7 @@ export class Renderer {
 
   private drawFacingIndicator(
     ctx: CanvasRenderingContext2D, px: number, py: number,
-    cx: number, cy: number, facing: string | undefined,
+    cx: number, cy: number, facing: Facing | undefined,
   ): void {
     if (!facing) return;
     let dotX: number;
