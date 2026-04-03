@@ -102,4 +102,14 @@ describe("Agent", () => {
     const agent = makeAgent();
     expect(agent.getMemory(0, 0)).toBeNull();
   });
+
+  it("initializes with facing south by default", () => {
+    const agent = makeAgent();
+    expect(agent.facing).toBe("south");
+  });
+
+  it("accepts custom facing in constructor", () => {
+    const agent = makeAgent({ facing: "north" });
+    expect(agent.facing).toBe("north");
+  });
 });

@@ -173,6 +173,16 @@ describe("syncToSchema", () => {
     syncToSchema(sim, state);
     expect(state.agents.get("a1")!.inventory.get("food")).toBe(10);
   });
+
+  it("syncs agent facing field", () => {
+    const agent = makeAgent("a1");
+    agent.facing = "east";
+    const sim = makeSimState({ agents: new Map([["a1", agent]]) });
+    const state = new WorldStateSchema();
+
+    syncToSchema(sim, state);
+    expect(state.agents.get("a1")!.facing).toBe("east");
+  });
 });
 
 describe("syncTiles", () => {

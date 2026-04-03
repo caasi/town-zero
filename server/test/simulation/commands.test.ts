@@ -191,6 +191,37 @@ describe("executeCommand", () => {
     expect(ctx.settlements.get("v1")!.inventory.food).toBe(10);
   });
 
+  it("move east sets facing to east", () => {
+    const ctx = makeContext();
+    const cmd: ActionCommand = { type: "move", target: { x: 6, y: 5 } };
+    executeCommand(cmd, ctx);
+    expect(ctx.agent.facing).toBe("east");
+  });
+
+  it("move west sets facing to west", () => {
+    const ctx = makeContext();
+    const cmd: ActionCommand = { type: "move", target: { x: 4, y: 5 } };
+    executeCommand(cmd, ctx);
+    expect(ctx.agent.facing).toBe("west");
+  });
+
+  it("move north sets facing to north", () => {
+    const ctx = makeContext();
+    const cmd: ActionCommand = { type: "move", target: { x: 5, y: 4 } };
+    executeCommand(cmd, ctx);
+    expect(ctx.agent.facing).toBe("north");
+  });
+
+  it("move south sets facing to south", () => {
+    const ctx = makeContext();
+    // Agent starts facing south by default, move north first to change facing
+    executeCommand({ type: "move", target: { x: 5, y: 4 } }, ctx);
+    expect(ctx.agent.facing).toBe("north");
+    // Now move south
+    executeCommand({ type: "move", target: { x: 5, y: 5 } }, ctx);
+    expect(ctx.agent.facing).toBe("south");
+  });
+
   it("trade does not credit when offer debit fails", () => {
     const ctx = makeContext();
     const target = new Agent({ id: "a2", position: { x: 6, y: 5 }, faction: "v1", role: "farmer", controller: "llm" });
