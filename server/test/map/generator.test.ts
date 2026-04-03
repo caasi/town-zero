@@ -68,4 +68,31 @@ describe("generateMap", () => {
     const village = Array.from(state.settlements.values()).find((s) => s.type === "village")!;
     expect(village.inventory.food).toBeGreaterThan(0);
   });
+
+  it("village has a core structure", () => {
+    const state = generateMap();
+    const village = Array.from(state.settlements.values()).find((s) => s.type === "village")!;
+    expect(village.structures.some((s) => s.type === "core")).toBe(true);
+  });
+
+  it("den has a core structure", () => {
+    const state = generateMap();
+    const den = Array.from(state.settlements.values()).find((s) => s.type === "den")!;
+    expect(den.structures.some((s) => s.type === "core")).toBe(true);
+  });
+
+  it("sets zoneType on grid tiles for village territory", () => {
+    const state = generateMap();
+    const village = Array.from(state.settlements.values()).find((s) => s.type === "village")!;
+    const core = village.structures.find((s) => s.type === "core")!;
+    expect(state.grid.getZoneType(core.position.x, core.position.y)).toBe("core");
+  });
+
+  it("sets ownerFaction on all village territory tiles", () => {
+    const state = generateMap();
+    const village = Array.from(state.settlements.values()).find((s) => s.type === "village")!;
+    for (const pos of village.territory) {
+      expect(state.grid.getOwner(pos.x, pos.y)).toBe(village.faction);
+    }
+  });
 });
