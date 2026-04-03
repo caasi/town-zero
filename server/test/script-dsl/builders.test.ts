@@ -251,6 +251,29 @@ describe("builders", () => {
       })).toThrow(/Duplicate npcId/);
     });
 
+    it("d.entry() adds entryPoints to dialogue tree", () => {
+      const data = scenario("entry-test", (s) => {
+        s.npc("a", { role: "farmer", faction: "f", position: { x: 0, y: 0 }, initialBeliefs: [] });
+        s.dialogue("a", "d", (d) => {
+          d.text("greeting", ["Hello!"], { next: "done" });
+          d.text("alt-entry", ["Welcome back!"], { next: "done" });
+          d.end("done");
+          d.entry("alt-entry", fact("quest_active").eq(true));
+        });
+      });
+
+      const tree = data.dialogues[0];
+      expect(tree.root).toBe("greeting");
+      expect(tree.entryPoints).toHaveLength(1);
+      expect(tree.entryPoints![0].nodeId).toBe("alt-entry");
+      expect(tree.entryPoints![0].condition).toEqual({
+        type: "compare",
+        op: "eq",
+        left: { type: "fact_ref", key: "quest_active" },
+        right: { type: "literal", value: true },
+      });
+    });
+
     it("option labels can be TextTemplate", () => {
       const data = scenario("tpl-label", (s) => {
         s.npc("a", { role: "scout", faction: "f", position: { x: 0, y: 0 }, initialBeliefs: [] });

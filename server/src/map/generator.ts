@@ -5,6 +5,8 @@ import { Settlement } from "../simulation/settlement.js";
 import type { SimulationState } from "../simulation/tick.js";
 import type { Position } from "@town-zero/shared";
 import { stampTemplate, VILLAGE_TEMPLATE, DEN_TEMPLATE } from "./templates.js";
+import { farmerReedScenario } from "../scenarios/farmer-reed.js";
+import { loadScenario } from "../simulation/scenario-loader.js";
 
 function rect(cx: number, cy: number, r: number): Position[] {
   const result: Position[] = [];
@@ -137,5 +139,13 @@ export function generateMap(): SimulationState {
     den.populationIds.push(id);
   }
 
-  return { grid, agents, settlements, tick: 0, nextMerchantId: 0, activeSessions: new Map(), dialogueTrees: new Map() };
+  const state: SimulationState = { grid, agents, settlements, tick: 0, nextMerchantId: 0, activeSessions: new Map(), dialogueTrees: new Map() };
+
+  // Load Farmer Reed scenario
+  const { triggerRegistry, dialogueTrees } = loadScenario(farmerReedScenario, state);
+  state.triggerRegistry = triggerRegistry;
+  state.dialogueTrees = dialogueTrees;
+  village.populationIds.push("farmer-reed");
+
+  return state;
 }
