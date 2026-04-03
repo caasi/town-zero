@@ -96,3 +96,7 @@ pnpm run test
 - [x] Restore Canvas 2D client with renderer, input, fog of war, HUD
 - [ ] Wire LLM scheduler into GameRoom tick
 - [ ] Add facing direction to Agent (needed for dialogue target selection and future combat/animation)
+- [ ] **Dialogue eDSL review:** `shared/package.json` subpath export points to `.ts` not `dist/`; `t()` missing `boolean` in type signature; add `not()` to `ExprBuilder`; add `DialogueTreeData.validate()` for build-time graph integrity checks (dangling refs, empty next, action cycles); deduplicate `toExpr()` helper across `expressions.ts` and `builders.ts`
+- [ ] **Phase 8 trigger execution:** only `set_fact` supported (others warn); `effect.target` ignored (uses `rule.targets` instead); global omniscience in belief aggregation violates no-global-omniscience principle; add early-exit when no facts changed
+- [ ] **Trigger registry wiring:** `setBelief()` and `mergeBeliefs()` don't call `recordChangedFact()` — triggers only fire from dialogue-session changes; `mergeBeliefs()` should return changed keys `Set<string>`; empty `extractFactKeys` deps means trigger never fires; `loadScenario()` doesn't assign `triggerRegistry` to `SimulationState`
+- [ ] **TriggerRule type split:** `fired: boolean` mixes mutable execution state into data type; split into `TriggerRuleData` (immutable) + registry-managed `firedIds: Set<string>`
