@@ -236,6 +236,14 @@ describe("builders", () => {
       })).toThrow(/unregistered NPC/);
     });
 
+    it("throws on duplicate dialogue ID", () => {
+      expect(() => scenario("dup-dialogue", (s) => {
+        s.npc("a", { role: "scout", faction: "f", position: { x: 0, y: 0 }, initialBeliefs: [] });
+        s.dialogue("a", "talk", (d) => { d.text("hi", t`Hi`); d.end("done"); });
+        s.dialogue("a", "talk", (d) => { d.text("yo", t`Yo`); d.end("end"); });
+      })).toThrow(/Duplicate dialogueId/);
+    });
+
     it("throws on duplicate NPC ID", () => {
       expect(() => scenario("dup-npc", (s) => {
         s.npc("a", { role: "scout", faction: "f", position: { x: 0, y: 0 }, initialBeliefs: [] });

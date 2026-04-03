@@ -186,6 +186,7 @@ export function scenario(id: string, fn: (s: ScenarioBuilderApi) => void): Scena
   const dialogues: DialogueTreeData[] = [];
   const triggers: TriggerRule[] = [];
   const npcDialogueMap = new Map<string, string[]>();
+  const dialogueIds = new Set<string>();
   let triggerIndex = 0;
 
   const api: ScenarioBuilderApi = {
@@ -209,6 +210,10 @@ export function scenario(id: string, fn: (s: ScenarioBuilderApi) => void): Scena
       if (!ids) {
         throw new Error(`Cannot add dialogue "${dialogueId}" to unregistered NPC "${npcId}" in scenario "${id}". Register the NPC with s.npc() first.`);
       }
+      if (dialogueIds.has(dialogueId)) {
+        throw new Error(`Duplicate dialogueId "${dialogueId}" in scenario "${id}"`);
+      }
+      dialogueIds.add(dialogueId);
       const { api: dApi, build } = createDialogueBuilder(dialogueId, id);
       builderFn(dApi);
       dialogues.push(build());
