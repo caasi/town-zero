@@ -81,6 +81,8 @@ pnpm run test
 - Input uses held-key tracking (`keydown`/`keyup` Set + `update()` polling from game loop), not `keydown` repeat events — OS repeat has variable initial delay and rate
 - Fog memory uses a snapshot model (`TileSnapshot` = terrain + entities + timestamp). Fog level is derived: `predictedVisible` → visible, has snapshot → explored, else → unknown. No `level` field stored — add new tile properties to `TileSnapshot` and they're automatically captured
 - Unknown tiles render as eigengrau (`#16161d`), void outside map boundary renders as true black (`#000`)
+- Dialogue system: `talk` command is handled immediately in GameRoom (not through tick pipeline) via `session-manager.ts`. `dialogue:advance/choose/close` messages use the same session-manager API. Timeout is detected in `tickDialogues()` called from the tick loop. Client enters `dialogueMode` which intercepts W/S/E/Esc for dialogue navigation
+- `DialogueBuilderApi.entry()` adds conditional entry points to dialogue trees. `entryPoints` are evaluated in `startDialogue()` against NPC beliefs to select the starting node
 
 ## Known Debt
 
@@ -95,7 +97,8 @@ pnpm run test
 - [x] Handle player commands via `onMessage`
 - [x] Restore Canvas 2D client with renderer, input, fog of war, HUD
 - [ ] Wire LLM scheduler into GameRoom tick
-- [ ] Add facing direction to Agent (needed for dialogue target selection and future combat/animation)
+- [x] Add facing direction to Agent (needed for dialogue target selection and future combat/animation)
+- [x] Add NPC dialogue system (session manager, Farmer Reed scenario, GameRoom integration, client UI)
 - [ ] **Dialogue eDSL review:** `shared/package.json` subpath export points to `.ts` not `dist/`; `t()` missing `boolean` in type signature; add `not()` to `ExprBuilder`; add `DialogueTreeData.validate()` for build-time graph integrity checks (dangling refs, empty next, action cycles); deduplicate `toExpr()` helper across `expressions.ts` and `builders.ts`
 - [ ] **Phase 8 trigger execution:** only `set_fact` supported (others warn); `effect.target` ignored (uses `rule.targets` instead); global omniscience in belief aggregation violates no-global-omniscience principle; add early-exit when no facts changed
 - [ ] **Trigger registry wiring:** `setBelief()` and `mergeBeliefs()` don't call `recordChangedFact()` — triggers only fire from dialogue-session changes; `mergeBeliefs()` should return changed keys `Set<string>`; empty `extractFactKeys` deps means trigger never fires; `loadScenario()` doesn't assign `triggerRegistry` to `SimulationState`
