@@ -24,7 +24,7 @@ function makeWorld(): SimulationState {
     agents: new Map([["a1", agent]]),
     settlements: new Map([["v1", settlement]]),
     tick: 0,
-    nextMerchantId: 0,
+    nextMerchantId: 0, activeSessions: new Map(), dialogueTrees: new Map(),
   };
 }
 

@@ -45,6 +45,10 @@ export class Agent {
   currentCommandTarget: number = 0;
   currentTargetId: string | null = null;
 
+  // Dialogue lock state
+  talkingToNpcId: string | null = null;     // player → which NPC am I talking to
+  currentTalkingTo: string | null = null;   // NPC → which player is talking to me
+
   constructor(init: AgentInit) {
     this.id = init.id;
     this.position = { ...init.position };

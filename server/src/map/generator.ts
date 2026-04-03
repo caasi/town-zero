@@ -137,5 +137,5 @@ export function generateMap(): SimulationState {
     den.populationIds.push(id);
   }
 
-  return { grid, agents, settlements, tick: 0, nextMerchantId: 0 };
+  return { grid, agents, settlements, tick: 0, nextMerchantId: 0, activeSessions: new Map(), dialogueTrees: new Map() };
 }

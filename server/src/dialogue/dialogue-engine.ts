@@ -59,6 +59,16 @@ export class DialogueEngine {
     });
   }
 
+  /** Get all options for the current choice node with enabled status. */
+  getAllOptionsWithStatus(ctx: EvalContext): Array<ChoiceOptionData & { enabled: boolean }> {
+    const node = this.getCurrentNode();
+    if (node.type !== "choice") return [];
+    return node.options.map((opt) => ({
+      ...opt,
+      enabled: !opt.condition || checkCondition(opt.condition, ctx),
+    }));
+  }
+
   /** Advance past a text or action node. For action nodes, effects are NOT executed — use advanceWithEffects() instead. */
   advance(): void {
     const node = this.getCurrentNode();

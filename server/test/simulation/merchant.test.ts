@@ -14,7 +14,7 @@ function makeWorldWithRoad(): SimulationState {
   settlement.addResource("food", 10);
   settlement.addResource("material", 10);
 
-  return { grid, agents: new Map(), settlements: new Map([["v1", settlement]]), tick: 0, nextMerchantId: 0 };
+  return { grid, agents: new Map(), settlements: new Map([["v1", settlement]]), tick: 0, nextMerchantId: 0, activeSessions: new Map(), dialogueTrees: new Map() };
 }
 
 describe("spawnMerchant", () => {

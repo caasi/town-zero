@@ -1,5 +1,5 @@
 import { GATHER_DURATION, ATTACK_COOLDOWN_TICKS, MERCHANT_SPAWN_INTERVAL } from "@town-zero/shared";
-import type { Fact, Value } from "@town-zero/shared";
+import type { Fact, Value, DialogueTreeData } from "@town-zero/shared";
 import { Agent } from "./agent.js";
 import type { Grid } from "./grid.js";
 import type { Settlement } from "./settlement.js";
@@ -18,6 +18,8 @@ export interface SimulationState {
   tick: number;
   nextMerchantId: number;
   triggerRegistry?: TriggerRegistry;
+  activeSessions: Map<string, import("../dialogue/dialogue-session.js").DialogueSession>;
+  dialogueTrees: Map<string, DialogueTreeData>;
 }
 
 export function spawnMerchant(state: SimulationState): void {

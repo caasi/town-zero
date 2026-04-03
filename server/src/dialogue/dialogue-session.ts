@@ -16,11 +16,15 @@ export interface DialogueStateMessage {
 
 export class DialogueSession {
   private engine: DialogueEngine;
-  private npc: Agent;
-  private player: Agent;
+  private _npc: Agent;
+  private _player: Agent;
   private currentTick: number;
   private triggerRegistry?: TriggerRegistry;
   private locals: Map<string, Value> = new Map();
+
+  // Timeout tracking
+  startTick: number;
+  lastInteractionTick: number;
 
   constructor(opts: {
     tree: DialogueTreeData;
@@ -30,10 +34,12 @@ export class DialogueSession {
     triggerRegistry?: TriggerRegistry;
   }) {
     this.engine = new DialogueEngine(opts.tree);
-    this.npc = opts.npc;
-    this.player = opts.player;
+    this._npc = opts.npc;
+    this._player = opts.player;
     this.currentTick = opts.currentTick;
     this.triggerRegistry = opts.triggerRegistry;
+    this.startTick = opts.currentTick;
+    this.lastInteractionTick = opts.currentTick;
 
     // Load existing dialogue progress locals
     const progress = opts.npc.getDialogueProgress(opts.tree.id);
@@ -42,6 +48,14 @@ export class DialogueSession {
         this.locals.set(k, v);
       }
     }
+  }
+
+  get npcId(): string { return this._npc.id; }
+  get playerId(): string { return this._player.id; }
+
+  updateTick(tick: number): void {
+    this.lastInteractionTick = tick;
+    this.currentTick = tick;
   }
 
   isEnded(): boolean {
@@ -137,7 +151,7 @@ export class DialogueSession {
     for (const [k, v] of this.locals) {
       localsObj[k] = v;
     }
-    this.npc.setDialogueProgress(this.engine.getTreeId(), {
+    this._npc.setDialogueProgress(this.engine.getTreeId(), {
       visitedNodes: this.engine.getVisitedNodes(),
       selectedOptions: this.engine.getSelectedOptions(),
       locals: localsObj,
@@ -146,11 +160,11 @@ export class DialogueSession {
 
   private buildEvalContext(): EvalContext {
     return {
-      beliefs: this.npc.getAllBeliefs(),
+      beliefs: this._npc.getAllBeliefs(),
       locals: this.locals,
       agentState: {
-        player: this.makeAgentAccessor(this.player),
-        npc: this.makeAgentAccessor(this.npc),
+        player: this.makeAgentAccessor(this._player),
+        npc: this.makeAgentAccessor(this._npc),
         settlement: null,
       },
       currentTick: this.currentTick,
@@ -158,8 +172,8 @@ export class DialogueSession {
   }
 
   private resolveAgentRef(ref: string): Agent {
-    if (ref === "$npc") return this.npc;
-    if (ref === "$player") return this.player;
+    if (ref === "$npc") return this._npc;
+    if (ref === "$player") return this._player;
     throw new Error(`Unknown agent reference "${ref}" in dialogue session — only "$npc" and "$player" are supported`);
   }
 
@@ -167,10 +181,10 @@ export class DialogueSession {
     const ctx = this.buildEvalContext();
     return {
       ...ctx,
-      npcId: this.npc.id,
+      npcId: this._npc.id,
       setFact: (ref: string, key: string, value: Value) => {
         const targetAgent = this.resolveAgentRef(ref);
-        targetAgent.setBelief(key, { key, value, tick: this.currentTick, source: this.npc.id });
+        targetAgent.setBelief(key, { key, value, tick: this.currentTick, source: this._npc.id });
         this.triggerRegistry?.recordChangedFact(key);
       },
       setLocal: (key: string, value: Value) => {
