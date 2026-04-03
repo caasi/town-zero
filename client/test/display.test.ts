@@ -138,15 +138,18 @@ describe("DisplayState", () => {
       ds.setLocalPlayer("p1");
       ds.syncFromServer([["p1", { x: 0, y: 0 }]]);
 
-      // Predict move to (1,0), but server rejects (e.g. collision)
+      // Predict move to (1,0)
       const tiles = makeTiles({ "1,0": { terrain: "plains" } });
       ds.predictMove(1, 0, "idle", tiles);
       expect(ds.get("p1")!.displayX).toBe(1);
 
-      // Server says player is still at (0,0) — but with a new tick
-      // We need the server to send a DIFFERENT position to trigger override.
-      // If server stays at (0,0), prediction is preserved (by design).
-      // Server correction only happens when server sends a changed position.
+      // Server sends a different authoritative position, which should
+      // override the local prediction.
+      ds.syncFromServer([["p1", { x: 0, y: 1 }]]);
+
+      const player = ds.get("p1");
+      expect(player!.displayX).toBe(0);
+      expect(player!.displayY).toBe(1);
     });
 
     it("removes displays for agents that disappear", () => {
