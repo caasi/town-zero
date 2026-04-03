@@ -88,6 +88,22 @@ describe("generateMap", () => {
     expect(state.grid.getZoneType(core.position.x, core.position.y)).toBe("core");
   });
 
+  it("places bush tiles east of village with food yield", () => {
+    const state = generateMap();
+    // Bush positions are relative to village center (10, 20)
+    const expectedBushes = [
+      { x: 14, y: 19 },
+      { x: 14, y: 20 },
+      { x: 15, y: 20 },
+      { x: 15, y: 21 },
+      { x: 14, y: 21 },
+    ];
+    for (const pos of expectedBushes) {
+      expect(state.grid.getObjectType(pos.x, pos.y)).toBe("bush");
+      expect(state.grid.getResourceYield(pos.x, pos.y)).toBe("food");
+    }
+  });
+
   it("sets ownerFaction on all village territory tiles", () => {
     const state = generateMap();
     const village = Array.from(state.settlements.values()).find((s) => s.type === "village")!;
