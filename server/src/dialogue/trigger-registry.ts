@@ -31,6 +31,9 @@ export class TriggerRegistry {
   private ruleFactKeys: Map<string, Set<string>> = new Map();
 
   register(rule: TriggerRule): void {
+    if (this.ruleFactKeys.has(rule.id)) {
+      throw new Error(`Duplicate trigger rule id: "${rule.id}"`);
+    }
     this.rules.push(rule);
     this.ruleFactKeys.set(rule.id, extractFactKeys(rule.when));
   }
