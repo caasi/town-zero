@@ -1,7 +1,7 @@
-import type { DialogueTreeData, Fact, Value, TextTemplate, ResourceType } from "@town-zero/shared";
+import type { DialogueTreeData, Value, ResourceType } from "@town-zero/shared";
 import { DialogueEngine } from "./dialogue-engine.js";
 import { interpolate, type EvalContext, type AgentAccessor } from "./evaluator.js";
-import { executeEffects, type MutableContext } from "./executor.js";
+import type { MutableContext } from "./executor.js";
 import type { Agent } from "../simulation/agent.js";
 import type { TriggerRegistry } from "./trigger-registry.js";
 
