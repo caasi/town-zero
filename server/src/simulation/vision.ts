@@ -54,6 +54,9 @@ export function mergeAdjacentMemories(agents: Agent[], grid: Grid): void {
 
       a.mergeMemory(b.getAllMemory());
       b.mergeMemory(a.getAllMemory());
+
+      a.mergeBeliefs(b.getAllBeliefs());
+      b.mergeBeliefs(a.getAllBeliefs());
     }
   }
 }
