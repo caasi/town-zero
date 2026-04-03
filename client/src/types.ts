@@ -1,5 +1,5 @@
 // client/src/types.ts
-import type { TerrainType, EntitySnapshot, ActionCommand } from "@town-zero/shared";
+import type { TerrainType, EntitySnapshot, ActionCommand, ZoneType } from "@town-zero/shared";
 
 export type FogLevel = "visible" | "explored" | "unknown";
 
@@ -9,7 +9,7 @@ export interface TileSnapshot {
   entities: EntitySnapshot[];
   timestamp: number;
   resourceYield?: string;
-  zoneType?: string;
+  zoneType?: ZoneType;
   ownerFaction?: string;
   structureId?: string;
   operatorId?: string | null;

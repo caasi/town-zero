@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { FogManager } from "../src/fog.js";
+import { ZoneType } from "@town-zero/shared";
 import type { TerrainType } from "@town-zero/shared";
 
 function makeLiveTiles(
@@ -132,12 +133,12 @@ describe("FogManager", () => {
     it("snapshots zoneType and ownerFaction from live state", () => {
       const fog = new FogManager();
       const tiles = new Map([
-        ["5,5", { terrain: "plains", resourceYield: "", zoneType: "core", ownerFaction: "village-1" }],
+        ["5,5", { terrain: "plains", resourceYield: "", zoneType: ZoneType.CORE, ownerFaction: "village-1" }],
       ]);
       fog.revealAround(5, 5, 0, tiles, [], null);
 
       const snapshot = fog.getSnapshot(5, 5);
-      expect(snapshot?.zoneType).toBe("core");
+      expect(snapshot?.zoneType).toBe(ZoneType.CORE);
       expect(snapshot?.ownerFaction).toBe("village-1");
     });
 
@@ -147,7 +148,7 @@ describe("FogManager", () => {
         ["3,3", {
           terrain: "plains",
           resourceYield: "",
-          zoneType: "housing",
+          zoneType: ZoneType.HOUSING,
           ownerFaction: "village-1",
           structureId: "village-1-housing-3-3",
           operatorId: "npc1",
@@ -181,7 +182,7 @@ describe("FogManager", () => {
         ["2,2", {
           terrain: "plains",
           resourceYield: "food",
-          zoneType: "housing",
+          zoneType: ZoneType.HOUSING,
           ownerFaction: "village-1",
           structureId: "village-1-housing-2-2",
           operatorId: "npc1",
@@ -202,7 +203,7 @@ describe("FogManager", () => {
       expect(snapshot?.terrain).toBe("plains");
       expect(snapshot?.timestamp).toBe(5);
       expect(snapshot?.resourceYield).toBe("food");
-      expect(snapshot?.zoneType).toBe("housing");
+      expect(snapshot?.zoneType).toBe(ZoneType.HOUSING);
       expect(snapshot?.ownerFaction).toBe("village-1");
       expect(snapshot?.structureId).toBe("village-1-housing-2-2");
       expect(snapshot?.operatorId).toBe("npc1");

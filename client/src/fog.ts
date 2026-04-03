@@ -1,6 +1,6 @@
 // client/src/fog.ts
 import { tilesInManhattanRadius } from "@town-zero/shared";
-import type { TerrainType, EntitySnapshot } from "@town-zero/shared";
+import type { TerrainType, EntitySnapshot, ZoneType } from "@town-zero/shared";
 import type { FogLevel, TileSnapshot, VisionData } from "./types.js";
 
 /**
@@ -46,7 +46,7 @@ export class FogManager {
     cx: number,
     cy: number,
     radius: number,
-    tiles: { get(key: string): { terrain: string; resourceYield?: string; zoneType?: string; ownerFaction?: string; structureId?: string; operatorId?: string | null } | undefined } | undefined,
+    tiles: { get(key: string): { terrain: string; resourceYield?: string; zoneType?: ZoneType; ownerFaction?: string; structureId?: string; operatorId?: string | null } | undefined } | undefined,
     agents: Iterable<{ id: string; x: number; y: number; role: string; faction: string }>,
     localPlayerId: string | null,
   ): void {
