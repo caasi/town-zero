@@ -275,17 +275,7 @@ export class InputHandler {
     return FACING_DELTA[facing] ?? null;
   }
 
-  /** Facing tile from predicted position — matches what the player sees. */
-  private getFacingTile(): { x: number; y: number } | null {
-    if (!this.playerAgent) return null;
-    const delta = this.getFacingDelta();
-    if (!delta) return null;
-    const origin = this.displayState?.getLocalPlayerPosition()
-      ?? { x: this.playerAgent.x, y: this.playerAgent.y };
-    return { x: origin.x + delta.dx, y: origin.y + delta.dy };
-  }
-
-  /** Facing tile from server position — for commands the server validates by position. */
+  /** Facing tile from server position — entity positions and server validation both use server coords. */
   private getServerFacingTile(): { x: number; y: number } | null {
     if (!this.playerAgent) return null;
     const delta = this.getFacingDelta();
@@ -296,7 +286,10 @@ export class InputHandler {
   private handleInteract(): void {
     if (!this.playerAgent) return;
     const { faction } = this.playerAgent;
-    const target = this.getFacingTile();
+    // Use server position for all interaction checks — entity positions
+    // in nearbyEntities are server-authoritative, and the server validates
+    // adjacency from its own position.
+    const target = this.getServerFacingTile();
     if (!target) return;
 
     const atFacing = (e: NearbyEntity) => e.x === target.x && e.y === target.y;
@@ -321,9 +314,7 @@ export class InputHandler {
     }
 
     // 3. Gather from facing resource tile (bush)
-    // Use server position so the server's adjacency check agrees.
-    const serverTarget = this.getServerFacingTile();
-    if (serverTarget) this.send({ type: "gather", resourceTile: serverTarget });
+    if (target) this.send({ type: "gather", resourceTile: target });
   }
 
   private handleKeyUp(e: KeyboardEvent): void {
