@@ -9,6 +9,7 @@ interface AgentInfo {
   x: number;
   y: number;
   faction: string;
+  facing: string;
 }
 
 interface NearbyEntity {
@@ -77,6 +78,7 @@ export class InputHandler {
   private displayState: DisplayState | null = null;
   private tiles: { get(key: string): { terrain: string } | undefined } | null = null;
   private playerState: string = "idle";
+  private predictedFacing: string = "south";
 
   // Held-key tracking for continuous movement
   private heldKeys = new Set<string>();
@@ -122,6 +124,7 @@ export class InputHandler {
     this.nearbyEntities = nearby;
     this.currentSettlementId = settlementId;
     this.playerState = agentState ?? "idle";
+    if (agent) this.predictedFacing = agent.facing;
   }
 
   setModalHandler(handler: (req: ModalRequest) => void): void {
@@ -165,7 +168,17 @@ export class InputHandler {
       const targetX = origin.x + move.dx;
       const targetY = origin.y + move.dy;
 
-      if (this.displayState && this.tiles) {
+      // Determine intended facing from move direction
+      let intendedFacing = this.predictedFacing;
+      if (move.dx > 0) intendedFacing = "east";
+      else if (move.dx < 0) intendedFacing = "west";
+      else if (move.dy > 0) intendedFacing = "south";
+      else if (move.dy < 0) intendedFacing = "north";
+
+      if (intendedFacing !== this.predictedFacing) {
+        // Turn only — don't predict position change
+        this.predictedFacing = intendedFacing;
+      } else if (this.displayState && this.tiles) {
         const predicted = this.displayState.predictMove(
           targetX, targetY, this.playerState, this.tiles,
         );

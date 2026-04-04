@@ -37,9 +37,10 @@ describe("processTick", () => {
 
   it("executes agent move command from plan", () => {
     const world = makeWorld();
-    world.agents.get("a1")!.setPlan([{ type: "move", target: { x: 6, y: 5 } }]);
+    // Agent default facing is south, so move south to actually move (not just turn)
+    world.agents.get("a1")!.setPlan([{ type: "move", target: { x: 5, y: 6 } }]);
     processTick(world);
-    expect(world.agents.get("a1")!.position).toEqual({ x: 6, y: 5 });
+    expect(world.agents.get("a1")!.position).toEqual({ x: 5, y: 6 });
   });
 
   it("starts gathering when gather command issued", () => {

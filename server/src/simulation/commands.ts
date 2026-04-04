@@ -85,11 +85,18 @@ export function executeCommand(cmd: ActionCommand, ctx: CommandContext): void {
     case "move": {
       const dx = cmd.target.x - agent.position.x;
       const dy = cmd.target.y - agent.position.y;
-      if (dx > 0) agent.facing = "east";
-      else if (dx < 0) agent.facing = "west";
-      else if (dy > 0) agent.facing = "south";
-      else if (dy < 0) agent.facing = "north";
-      agent.position = { ...cmd.target };
+      let newFacing = agent.facing;
+      if (dx > 0) newFacing = "east";
+      else if (dx < 0) newFacing = "west";
+      else if (dy > 0) newFacing = "south";
+      else if (dy < 0) newFacing = "north";
+
+      if (newFacing !== agent.facing) {
+        // Turn only — don't move
+        agent.facing = newFacing;
+      } else {
+        agent.position = { ...cmd.target };
+      }
       break;
     }
     case "deposit": {

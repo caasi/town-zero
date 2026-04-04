@@ -93,7 +93,7 @@ function updateInputContext(): void {
   }
 
   input.setPlayerInfo(
-    { x: player.x, y: player.y, faction: player.faction },
+    { x: player.x, y: player.y, faction: player.faction, facing: player.facing },
     nearby,
     settlementId,
     player.state,  // FSM state for prediction gating

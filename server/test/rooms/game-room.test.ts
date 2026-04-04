@@ -127,6 +127,10 @@ describe("GameRoom integration", () => {
     const origX = playerAgent.x;
     const origY = playerAgent.y;
 
+    // First move in a new direction only turns (turn-before-move);
+    // second move in same direction actually moves.
+    sendCommand(room, client, { type: "move", target: { x: origX + 1, y: origY } });
+    tick(room);
     sendCommand(room, client, { type: "move", target: { x: origX + 1, y: origY } });
     tick(room);
 
