@@ -6,7 +6,13 @@ import type { SimulationState } from "../simulation/tick.js";
 
 type DialogueResult =
   | { ok: true; payload: DialogueStatePayload; ended: boolean }
-  | { ok: false; error: "busy" | "too_far" | "no_dialogue" | "not_in_dialogue" | "invalid_option" };
+  | { ok: false; error: "busy" | "too_far" | "no_dialogue" | "not_in_dialogue" | "invalid_option" | "wrong_node_type" };
+
+function nodeTypeFromMsg(type: string): DialogueStatePayload["nodeType"] {
+  if (type === "choice") return "choice";
+  if (type === "request_pending") return "request_pending";
+  return "text";
+}
 
 function buildPayload(session: DialogueSession, state: SimulationState): DialogueStatePayload {
   const msg = session.getState();
@@ -14,7 +20,7 @@ function buildPayload(session: DialogueSession, state: SimulationState): Dialogu
   return {
     npcId: session.npcId,
     npcName: npc.name,
-    nodeType: msg.type === "choice" ? "choice" : "text",
+    nodeType: nodeTypeFromMsg(msg.type),
     speaker: msg.speaker || undefined,
     content: msg.text || undefined,
     options: msg.type === "choice" ? session.getOptionsWithStatus() : undefined,
@@ -157,7 +163,12 @@ export function advanceDialogue(
   if (!session || session.playerId !== playerId) return { ok: false, error: "not_in_dialogue" };
 
   session.updateTick(state.tick);
-  session.advance();
+
+  try {
+    session.advance();
+  } catch {
+    return { ok: false, error: "wrong_node_type" };
+  }
 
   const ended = session.isEnded();
   if (ended) {

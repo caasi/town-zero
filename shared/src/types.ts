@@ -106,7 +106,7 @@ export interface TileMemory {
 export interface DialogueStatePayload {
   npcId: string;
   npcName: string;
-  nodeType: "text" | "choice";
+  nodeType: "text" | "choice" | "request_pending";
   speaker?: string;
   content?: string;
   options?: Array<{ id: string; label: string; enabled: boolean }>;

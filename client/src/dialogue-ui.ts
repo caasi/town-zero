@@ -10,6 +10,7 @@ export class DialogueUI {
 
   private selectedIndex = 0;
   private options: Array<{ id: string; label: string; enabled: boolean }> = [];
+  private _requestPending = false;
 
   constructor(containerId: string) {
     this.container = document.getElementById(containerId)!;
@@ -24,8 +25,16 @@ export class DialogueUI {
 
     this.speakerEl.textContent = payload.speaker ?? payload.npcName;
 
+    this._requestPending = payload.nodeType === "request_pending";
+
     if (payload.nodeType === "text") {
       this.contentEl.textContent = payload.content ?? "";
+      this.optionsEl.replaceChildren();
+      this.options = [];
+      this.contentEl.classList.remove("hidden");
+      this.optionsEl.classList.add("hidden");
+    } else if (payload.nodeType === "request_pending") {
+      this.contentEl.textContent = payload.content ?? "Waiting for response…";
       this.optionsEl.replaceChildren();
       this.options = [];
       this.contentEl.classList.remove("hidden");
@@ -73,7 +82,7 @@ export class DialogueUI {
   }
 
   isShowingText(): boolean {
-    return this.options.length === 0 && !this.container.classList.contains("hidden");
+    return this.options.length === 0 && !this._requestPending && !this.container.classList.contains("hidden");
   }
 
   updateTimer(remainingSeconds: number): void {
