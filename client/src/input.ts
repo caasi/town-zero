@@ -264,7 +264,11 @@ export class InputHandler {
     };
     const delta = FACING_DELTA[facing];
     if (!delta) return null;
-    return { x: this.playerAgent.x + delta.dx, y: this.playerAgent.y + delta.dy };
+    // Use predicted position so facing tile matches what the player sees,
+    // not the potentially-stale server position.
+    const origin = this.displayState?.getLocalPlayerPosition()
+      ?? { x: this.playerAgent.x, y: this.playerAgent.y };
+    return { x: origin.x + delta.dx, y: origin.y + delta.dy };
   }
 
   private handleInteract(): void {
