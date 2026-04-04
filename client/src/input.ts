@@ -79,6 +79,7 @@ export class InputHandler {
   private tiles: { get(key: string): { terrain: string } | undefined } | null = null;
   private playerState: string = "idle";
   private predictedFacing: string = "south";
+  private lastServerFacing: string = "south";
 
   // Held-key tracking for continuous movement
   private heldKeys = new Set<string>();
@@ -124,7 +125,10 @@ export class InputHandler {
     this.nearbyEntities = nearby;
     this.currentSettlementId = settlementId;
     this.playerState = agentState ?? "idle";
-    if (agent) this.predictedFacing = agent.facing;
+    if (agent && agent.facing !== this.lastServerFacing) {
+      this.predictedFacing = agent.facing;
+      this.lastServerFacing = agent.facing;
+    }
   }
 
   setModalHandler(handler: (req: ModalRequest) => void): void {
