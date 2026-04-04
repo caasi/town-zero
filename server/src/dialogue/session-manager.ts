@@ -28,6 +28,17 @@ function buildPayload(session: DialogueSession, state: SimulationState): Dialogu
   };
 }
 
+/**
+ * Dispose a session and remove it from activeSessions.
+ * Idempotent — safe to call even if session doesn't exist or is already disposed.
+ */
+export function endDialogue(npcId: string, state: SimulationState): void {
+  const session = state.activeSessions.get(npcId);
+  if (!session) return;
+  session.dispose();
+  state.activeSessions.delete(npcId);
+}
+
 export function startDialogue(
   playerId: string,
   targetId: string,
@@ -52,7 +63,7 @@ export function startDialogue(
 
   // Find dialogue tree for this NPC
   let treeId: string | null = null;
-  for (const [id, tree] of state.dialogueTrees) {
+  for (const [id] of state.dialogueTrees) {
     // Convention: tree ID contains the NPC ID
     if (id.startsWith(targetId)) {
       treeId = id;
@@ -143,15 +154,22 @@ export function startDialogue(
   player.state = "talking";
   player.talkingToNpcId = targetId;
   target.currentTalkingTo = playerId;
-
   state.activeSessions.set(targetId, session);
 
-  if (session.isEnded()) {
+  // Build payload — if this throws, dispose cleans up the locks
+  try {
+    const ended = session.isEnded();
+    if (ended) {
+      const payload = buildPayload(session, state);
+      endDialogue(targetId, state);
+      return { ok: true, payload, ended: true };
+    }
+    return { ok: true, payload: buildPayload(session, state), ended: false };
+  } catch (err) {
+    console.error(`[session-manager] startDialogue buildPayload failed for ${playerId} → ${targetId}:`, err);
     endDialogue(targetId, state);
-    return { ok: true, payload: buildPayload(session, state), ended: true };
+    return { ok: false, error: "no_dialogue" };
   }
-
-  return { ok: true, payload: buildPayload(session, state), ended: false };
 }
 
 export function advanceDialogue(
@@ -161,7 +179,8 @@ export function advanceDialogue(
   const player = state.agents.get(playerId);
   if (!player || !player.talkingToNpcId) return { ok: false, error: "not_in_dialogue" };
 
-  const session = state.activeSessions.get(player.talkingToNpcId);
+  const npcId = player.talkingToNpcId;
+  const session = state.activeSessions.get(npcId);
   if (!session || session.playerId !== playerId) return { ok: false, error: "not_in_dialogue" };
 
   session.updateTick(state.tick);
@@ -172,12 +191,19 @@ export function advanceDialogue(
     return { ok: false, error: "wrong_node_type" };
   }
 
-  const ended = session.isEnded();
-  if (ended) {
-    endDialogue(player.talkingToNpcId, state);
+  try {
+    const ended = session.isEnded();
+    if (ended) {
+      const payload = buildPayload(session, state);
+      endDialogue(npcId, state);
+      return { ok: true, payload, ended: true };
+    }
+    return { ok: true, payload: buildPayload(session, state), ended };
+  } catch (err) {
+    console.error(`[session-manager] advanceDialogue buildPayload failed for ${playerId}:`, err);
+    endDialogue(npcId, state);
+    return { ok: false, error: "not_in_dialogue" };
   }
-
-  return { ok: true, payload: buildPayload(session, state), ended };
 }
 
 export function chooseDialogue(
@@ -188,7 +214,8 @@ export function chooseDialogue(
   const player = state.agents.get(playerId);
   if (!player || !player.talkingToNpcId) return { ok: false, error: "not_in_dialogue" };
 
-  const session = state.activeSessions.get(player.talkingToNpcId);
+  const npcId = player.talkingToNpcId;
+  const session = state.activeSessions.get(npcId);
   if (!session || session.playerId !== playerId) return { ok: false, error: "not_in_dialogue" };
 
   session.updateTick(state.tick);
@@ -199,28 +226,18 @@ export function chooseDialogue(
     return { ok: false, error: "invalid_option" };
   }
 
-  const ended = session.isEnded();
-  if (ended) {
-    endDialogue(player.talkingToNpcId, state);
-  }
-
-  return { ok: true, payload: buildPayload(session, state), ended };
-}
-
-export function endDialogue(npcId: string, state: SimulationState): void {
-  const session = state.activeSessions.get(npcId);
-  if (!session) return;
-
-  session.end();
-  state.activeSessions.delete(npcId);
-
-  const npc = state.agents.get(npcId);
-  if (npc) npc.currentTalkingTo = null;
-
-  const player = state.agents.get(session.playerId);
-  if (player) {
-    player.state = "idle";
-    player.talkingToNpcId = null;
+  try {
+    const ended = session.isEnded();
+    if (ended) {
+      const payload = buildPayload(session, state);
+      endDialogue(npcId, state);
+      return { ok: true, payload, ended: true };
+    }
+    return { ok: true, payload: buildPayload(session, state), ended };
+  } catch (err) {
+    console.error(`[session-manager] chooseDialogue buildPayload failed for ${playerId}:`, err);
+    endDialogue(npcId, state);
+    return { ok: false, error: "not_in_dialogue" };
   }
 }
 

@@ -21,6 +21,7 @@ export class DialogueSession {
   private currentTick: number;
   private triggerRegistry?: TriggerRegistry;
   private locals: Map<string, Value> = new Map();
+  private disposed = false;
 
   // Timeout tracking
   startTick: number;
@@ -60,6 +61,35 @@ export class DialogueSession {
 
   isEnded(): boolean {
     return this.engine.isEnded();
+  }
+
+  isDisposed(): boolean {
+    return this.disposed;
+  }
+
+  /**
+   * Release agent locks and persist progress. Idempotent — safe to call
+   * multiple times or from any cleanup path.
+   */
+  dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
+
+    // Persist dialogue progress on NPC
+    const localsObj: Record<string, Value> = {};
+    for (const [k, v] of this.locals) {
+      localsObj[k] = v;
+    }
+    this._npc.setDialogueProgress(this.engine.getTreeId(), {
+      visitedNodes: this.engine.getVisitedNodes(),
+      selectedOptions: this.engine.getSelectedOptions(),
+      locals: localsObj,
+    });
+
+    // Release locks on both agents
+    this._npc.currentTalkingTo = null;
+    this._player.state = "idle";
+    this._player.talkingToNpcId = null;
   }
 
   /** Get the current state as a pre-rendered message for the client.
@@ -155,19 +185,6 @@ export class DialogueSession {
       label: typeof opt.label === "string" ? opt.label : interpolate(opt.label, ctx),
       enabled: opt.enabled,
     }));
-  }
-
-  /** Clean up and persist progress on NPC. */
-  end(): void {
-    const localsObj: Record<string, Value> = {};
-    for (const [k, v] of this.locals) {
-      localsObj[k] = v;
-    }
-    this._npc.setDialogueProgress(this.engine.getTreeId(), {
-      visitedNodes: this.engine.getVisitedNodes(),
-      selectedOptions: this.engine.getSelectedOptions(),
-      locals: localsObj,
-    });
   }
 
   private buildEvalContext(): EvalContext {

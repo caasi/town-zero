@@ -181,7 +181,7 @@ describe("DialogueSession", () => {
     session.advance(); // -> choices
     session.select("opt_thanks"); // -> farewell
     session.advance(); // -> end
-    session.end();
+    session.dispose();
 
     const progress = npc.getDialogueProgress("greet");
     expect(progress).toBeDefined();

@@ -34,16 +34,7 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
 
       // Handle talk command immediately (not through tick pipeline)
       if (cmd.type === "talk") {
-        let result: ReturnType<typeof startDialogue>;
-        try {
-          result = startDialogue(agentId, cmd.targetId, this.simState);
-        } catch (err) {
-          // Clean up partial state if startDialogue threw after locking agents
-          endDialogue(cmd.targetId, this.simState);
-          console.error(`[GameRoom] startDialogue threw for ${agentId} → ${cmd.targetId}:`, err);
-          client.send("dialogue:error", { error: "no_dialogue" });
-          return;
-        }
+        const result = startDialogue(agentId, cmd.targetId, this.simState);
         if (result.ok) {
           // Sync both agents immediately so facing changes reach clients
           // before the next tick (startDialogue sets facing on both).
@@ -73,16 +64,7 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
       const agentId = this.sessionToAgent.get(client.sessionId);
       if (!agentId) return;
 
-      let result: ReturnType<typeof advanceDialogue>;
-      try {
-        result = advanceDialogue(agentId, this.simState);
-      } catch (err) {
-        const agent = this.simState.agents.get(agentId);
-        if (agent?.talkingToNpcId) endDialogue(agent.talkingToNpcId, this.simState);
-        console.error(`[GameRoom] advanceDialogue threw for ${agentId}:`, err);
-        client.send("dialogue:end", { reason: "closed" });
-        return;
-      }
+      const result = advanceDialogue(agentId, this.simState);
       if (result.ok) {
         if (result.ended) {
           client.send("dialogue:end", { reason: "completed" });
@@ -100,16 +82,7 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
 
       if (!data || typeof data !== "object" || !("optionId" in data) || typeof (data as any).optionId !== "string") return;
 
-      let result: ReturnType<typeof chooseDialogue>;
-      try {
-        result = chooseDialogue(agentId, (data as any).optionId, this.simState);
-      } catch (err) {
-        const agent = this.simState.agents.get(agentId);
-        if (agent?.talkingToNpcId) endDialogue(agent.talkingToNpcId, this.simState);
-        console.error(`[GameRoom] chooseDialogue threw for ${agentId}:`, err);
-        client.send("dialogue:end", { reason: "closed" });
-        return;
-      }
+      const result = chooseDialogue(agentId, (data as any).optionId, this.simState);
       if (result.ok) {
         if (result.ended) {
           client.send("dialogue:end", { reason: "completed" });
@@ -188,7 +161,6 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
 
     const agent = this.simState.agents.get(agentId);
     if (agent) {
-      // End any active dialogue before switching to bot control
       if (agent.talkingToNpcId) {
         endDialogue(agent.talkingToNpcId, this.simState);
       }
@@ -205,18 +177,6 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
     const expired = tickDialogues(this.simState);
     for (const { playerId, reason } of expired) {
       this.sendToAgent(playerId, "dialogue:end", { reason });
-    }
-
-    // Self-heal orphaned "talking" state: if an agent is marked as talking
-    // but has no active session, reset to idle.
-    for (const [, agent] of this.simState.agents) {
-      if (agent.talkingToNpcId && !this.simState.activeSessions.has(agent.talkingToNpcId)) {
-        agent.state = "idle";
-        agent.talkingToNpcId = null;
-      }
-      if (agent.currentTalkingTo && !this.simState.activeSessions.has(agent.id)) {
-        agent.currentTalkingTo = null;
-      }
     }
 
     syncToSchema(this.simState, this.state);
