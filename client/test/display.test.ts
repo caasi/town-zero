@@ -102,52 +102,6 @@ describe("DisplayState", () => {
       expect(display!.displayX).toBe(1);
     });
 
-    it("caps prediction at MAX_PREDICTION_TILES from server position", () => {
-      const ds = new DisplayState();
-      ds.setLocalPlayer("p1");
-      ds.syncFromServer([["p1", { x: 0, y: 0, facing: "east" }]]);
-
-      const tiles = makeTiles({
-        "1,0": { terrain: "plains" },
-        "2,0": { terrain: "plains" },
-        "3,0": { terrain: "plains" },
-        "4,0": { terrain: "plains" },
-        "5,0": { terrain: "plains" },
-      });
-
-      // Move east 4 times (server at 0, predict up to 4 tiles ahead)
-      for (let i = 1; i <= 4; i++) {
-        expect(ds.predictMove(i, 0, "idle", tiles)).toBe(true);
-      }
-      expect(ds.get("p1")!.displayX).toBe(4);
-
-      // 5th prediction exceeds cap — rejected
-      expect(ds.predictMove(5, 0, "idle", tiles)).toBe(false);
-      expect(ds.get("p1")!.displayX).toBe(4);
-    });
-
-    it("resets prediction cap when server position advances", () => {
-      const ds = new DisplayState();
-      ds.setLocalPlayer("p1");
-      ds.syncFromServer([["p1", { x: 0, y: 0, facing: "east" }]]);
-
-      const tiles = makeTiles({
-        "1,0": { terrain: "plains" }, "2,0": { terrain: "plains" },
-        "3,0": { terrain: "plains" }, "4,0": { terrain: "plains" },
-        "5,0": { terrain: "plains" }, "6,0": { terrain: "plains" },
-      });
-
-      // Predict 4 tiles ahead
-      for (let i = 1; i <= 4; i++) ds.predictMove(i, 0, "idle", tiles);
-      expect(ds.get("p1")!.displayX).toBe(4);
-
-      // Server catches up to x=4
-      ds.syncFromServer([["p1", { x: 4, y: 0, facing: "east" }]]);
-
-      // Can now predict further
-      expect(ds.predictMove(5, 0, "idle", tiles)).toBe(true);
-      expect(ds.get("p1")!.displayX).toBe(5);
-    });
   });
 
   describe("syncFromServer", () => {

@@ -1,7 +1,8 @@
 // --- World ---
 export const GRID_WIDTH = 40;
 export const GRID_HEIGHT = 40;
-export const TICK_RATE_MS = 1000; // 1 tick per second
+export const TICK_RATE_MS = 1000;          // 1 tick per second
+export const MOVEMENT_INTERVAL_MS = 120;  // movement processing rate (independent of tick)
 
 // --- Vision ---
 export const DEFAULT_VISION_RADIUS = 5;

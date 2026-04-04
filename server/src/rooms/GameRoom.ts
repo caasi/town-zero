@@ -1,9 +1,9 @@
 import { Room, Client } from "@colyseus/core";
-import { TICK_RATE_MS } from "@town-zero/shared";
+import { TICK_RATE_MS, MOVEMENT_INTERVAL_MS } from "@town-zero/shared";
 import type { Facing } from "@town-zero/shared";
 import { WorldStateSchema } from "./schemas/WorldStateSchema.js";
 import { generateMap } from "../map/generator.js";
-import { processTick, type SimulationState } from "../simulation/tick.js";
+import { processTick, processHeldMovement, type SimulationState } from "../simulation/tick.js";
 import { syncToSchema, syncTiles, syncAgent } from "./sync.js";
 import { isValidActionCommand } from "./validation.js";
 import { extractVisionForPlayer } from "./vision.js";
@@ -131,6 +131,13 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
 
     // Fixed-step simulation: deltaTime is intentionally ignored
     this.setSimulationInterval(() => this.tick(), TICK_RATE_MS);
+
+    // Fast movement loop: processes held-direction movement and syncs
+    // positions independently of the simulation tick for responsive feel.
+    this.clock.setInterval(() => {
+      processHeldMovement(this.simState);
+      syncToSchema(this.simState, this.state);
+    }, MOVEMENT_INTERVAL_MS);
 
     console.log("GameRoom created");
   }

@@ -4,7 +4,6 @@ import type { TerrainType } from "@town-zero/shared";
 import { TILE_SIZE } from "./constants.js";
 const BASE_LERP_FACTOR = 0.5;
 const BASE_FRAME_MS = 16.67; // 60fps baseline
-const MAX_PREDICTION_TILES = 4; // match server MOVES_PER_TICK
 
 export interface AgentDisplay {
   displayX: number;
@@ -78,14 +77,6 @@ export class DisplayState {
     if (intendedFacing !== display.facing) {
       display.facing = intendedFacing;
       return true;
-    }
-
-    // Cap prediction distance from last known server position to prevent
-    // client drifting ahead of server (which moves MOVES_PER_TICK per tick).
-    const lastServer = this.lastServerPos.get(this.localPlayerId!);
-    if (lastServer) {
-      const dist = Math.abs(targetX - lastServer.x) + Math.abs(targetY - lastServer.y);
-      if (dist > MAX_PREDICTION_TILES) return false;
     }
 
     // Check tile from fog snapshots (not raw server state)
