@@ -94,21 +94,6 @@ export function generateMap(): SimulationState {
   village.addResource("material", 10);
   settlements.set("village-1", village);
 
-  const villageRoles = ["farmer", "farmer", "hunter", "scout", "worker"];
-  for (let i = 0; i < villageRoles.length; i++) {
-    const id = `vnpc-${i}`;
-    const agent = new Agent({
-      id,
-      position: { x: villageCx + (i % 3) - 1, y: villageCy + Math.floor(i / 3) - 1 },
-      faction: "village-1",
-      role: villageRoles[i],
-      controller: "llm",
-    });
-    agent.addToInventory("food", 5);
-    agents.set(id, agent);
-    village.populationIds.push(id);
-  }
-
   // Monster den
   const denStamp = stampTemplate(grid, DEN_TEMPLATE, denCx, denCy, "den-1");
   const den = new Settlement({
