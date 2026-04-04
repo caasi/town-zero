@@ -48,6 +48,9 @@ export class Agent {
   currentTargetId: string | null = null;
   gatherTile: Position | null = null;
 
+  // Held-direction for continuous movement (key-state model)
+  heldDirection: Facing | null = null;
+
   // Dialogue lock state
   talkingToNpcId: string | null = null;     // player → which NPC am I talking to
   currentTalkingTo: string | null = null;   // NPC → which player is talking to me

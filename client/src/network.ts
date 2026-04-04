@@ -82,6 +82,14 @@ export class NetworkClient {
     this.room?.send("command", cmd);
   }
 
+  sendMoveStart(direction: string): void {
+    this.room?.send("move:start", { direction });
+  }
+
+  sendMoveStop(): void {
+    this.room?.send("move:stop");
+  }
+
   onVision(cb: (data: VisionData) => void): void {
     this.visionCallbacks.push(cb);
   }

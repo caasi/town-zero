@@ -150,8 +150,9 @@ export function startDialogue(
     triggerRegistry: state.triggerRegistry,
   });
 
-  // Lock both agents
+  // Lock both agents and stop any held movement
   player.state = "talking";
+  player.heldDirection = null;
   player.talkingToNpcId = targetId;
   target.currentTalkingTo = playerId;
   state.activeSessions.set(targetId, session);

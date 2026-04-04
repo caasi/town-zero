@@ -62,6 +62,13 @@ const MOVE_KEYS: Record<string, { dx: number; dy: number }> = {
   KeyD: { dx: 1, dy: 0 },  ArrowRight: { dx: 1, dy: 0 },
 };
 
+const CODE_TO_DIRECTION: Record<string, string> = {
+  KeyW: "north", ArrowUp: "north",
+  KeyA: "west",  ArrowLeft: "west",
+  KeyS: "south", ArrowDown: "south",
+  KeyD: "east",  ArrowRight: "east",
+};
+
 export class InputHandler {
   private send: SendFn;
   private lastMoveTime = 0;
@@ -81,6 +88,10 @@ export class InputHandler {
   // Held-key tracking for continuous movement
   private heldKeys = new Set<string>();
 
+  // Key-state movement callbacks (server-authoritative model)
+  onMoveStart: ((direction: string) => void) | null = null;
+  onMoveStop: (() => void) | null = null;
+
   // Dialogue mode
   private _dialogueMode = false;
   onDialogueAdvance: (() => void) | null = null;
@@ -91,7 +102,9 @@ export class InputHandler {
   onDialogueIsText: (() => boolean) | null = null;
 
   private handleBlur = (): void => {
+    const hadMovement = [...this.heldKeys].some((k) => k in MOVE_KEYS);
     this.heldKeys.clear();
+    if (hadMovement) this.onMoveStop?.();
   };
 
   constructor(send: SendFn) {
@@ -138,7 +151,9 @@ export class InputHandler {
 
   enterDialogueMode(): void {
     this._dialogueMode = true;
+    const hadMovement = [...this.heldKeys].some((k) => k in MOVE_KEYS);
     this.heldKeys.clear();
+    if (hadMovement) this.onMoveStop?.();
   }
 
   exitDialogueMode(): void {
@@ -146,12 +161,15 @@ export class InputHandler {
   }
 
   /**
-   * Called every frame from the game loop. Processes held movement keys.
+   * Called every frame from the game loop. Runs local movement prediction
+   * for smooth visuals. Actual movement is server-authoritative via
+   * move:start / move:stop messages sent on keydown/keyup.
    */
   update(): void {
     if (!this.enabled || !this.playerAgent || this._dialogueMode) return;
+    if (!this.displayState || !this.tiles) return;
 
-    // Find the first held movement key
+    // Find the first held movement key and predict locally
     for (const code of this.heldKeys) {
       const move = MOVE_KEYS[code];
       if (!move) continue;
@@ -160,24 +178,14 @@ export class InputHandler {
       if (now - this.lastMoveTime < MOVE_THROTTLE_MS) return;
       this.lastMoveTime = now;
 
-      // Use server position for target so the command is always adjacent
-      // to where the server thinks the agent is. setPlan replaces the plan
-      // each message, so only the last target before a tick survives —
-      // predicted-position targets drift too far for the server to accept.
-      const targetX = this.playerAgent.x + move.dx;
-      const targetY = this.playerAgent.y + move.dy;
+      const origin = this.displayState.getLocalPlayerPosition()
+        ?? { x: this.playerAgent.x, y: this.playerAgent.y };
+      const targetX = origin.x + move.dx;
+      const targetY = origin.y + move.dy;
 
-      if (this.displayState && this.tiles) {
-        const predicted = this.displayState.predictMove(
-          targetX, targetY, this.playerState, this.tiles,
-        );
-        if (!predicted) return;
-      }
-
-      this.send({
-        type: "move",
-        target: { x: targetX, y: targetY },
-      });
+      this.displayState.predictMove(
+        targetX, targetY, this.playerState, this.tiles,
+      );
       return;
     }
   }
@@ -218,11 +226,17 @@ export class InputHandler {
 
     const code = e.code;
 
-    // Track movement key presses — actual movement happens in update().
+    // Track movement key presses and send direction to server.
     // preventDefault stops Arrow keys from scrolling the page.
     if (code in MOVE_KEYS) {
       e.preventDefault();
+      const wasEmpty = ![...this.heldKeys].some((k) => k in MOVE_KEYS);
       this.heldKeys.add(code);
+      // Send the direction of the most recently pressed key
+      const direction = CODE_TO_DIRECTION[code];
+      if (direction && (wasEmpty || !e.repeat)) {
+        this.onMoveStart?.(direction);
+      }
       return;
     }
 
@@ -314,6 +328,18 @@ export class InputHandler {
 
   private handleKeyUp(e: KeyboardEvent): void {
     this.heldKeys.delete(e.code);
+
+    // When the released key was a movement key, check remaining held keys
+    if (e.code in MOVE_KEYS) {
+      // Find another held movement key to switch to
+      const nextMove = [...this.heldKeys].find((k) => k in MOVE_KEYS);
+      if (nextMove) {
+        const direction = CODE_TO_DIRECTION[nextMove];
+        if (direction) this.onMoveStart?.(direction);
+      } else {
+        this.onMoveStop?.();
+      }
+    }
   }
 
   private isAdjacent(x1: number, y1: number, x2: number, y2: number): boolean {

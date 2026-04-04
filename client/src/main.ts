@@ -231,6 +231,8 @@ async function connect(): Promise<void> {
 
     input = new InputHandler((cmd) => network.send(cmd));
     input.setModalHandler(handleModal);
+    input.onMoveStart = (dir) => network.sendMoveStart(dir);
+    input.onMoveStop = () => network.sendMoveStop();
     input.onDialogueAdvance = () => network.sendDialogueAdvance();
     input.onDialogueChoose = (optionId) => network.sendDialogueChoose(optionId);
     input.onDialogueClose = () => network.sendDialogueClose();

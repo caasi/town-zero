@@ -1,5 +1,6 @@
 import { Room, Client } from "@colyseus/core";
 import { TICK_RATE_MS } from "@town-zero/shared";
+import type { Facing } from "@town-zero/shared";
 import { WorldStateSchema } from "./schemas/WorldStateSchema.js";
 import { generateMap } from "../map/generator.js";
 import { processTick, type SimulationState } from "../simulation/tick.js";
@@ -8,6 +9,8 @@ import { isValidActionCommand } from "./validation.js";
 import { extractVisionForPlayer } from "./vision.js";
 import { Agent } from "../simulation/agent.js";
 import { startDialogue, advanceDialogue, chooseDialogue, endDialogue, tickDialogues } from "../dialogue/session-manager.js";
+
+const VALID_DIRECTIONS = new Set<string>(["north", "south", "east", "west"]);
 
 export class GameRoom extends Room<{ state: WorldStateSchema }> {
   private simState!: SimulationState;
@@ -58,6 +61,27 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
 
       if (agent.state === "talking") return;
       agent.setPlan([cmd]);
+    });
+
+    // Key-state movement: client sends direction on keydown/keyup
+    this.onMessage("move:start", (client: Client, data: unknown) => {
+      const agentId = this.sessionToAgent.get(client.sessionId);
+      if (!agentId) return;
+      const agent = this.simState.agents.get(agentId);
+      if (!agent || !agent.isAlive()) return;
+      if (agent.state === "talking") return;
+      if (typeof data !== "object" || data === null) return;
+      const dir = (data as any).direction;
+      if (!VALID_DIRECTIONS.has(dir)) return;
+      agent.heldDirection = dir as Facing;
+    });
+
+    this.onMessage("move:stop", (client: Client) => {
+      const agentId = this.sessionToAgent.get(client.sessionId);
+      if (!agentId) return;
+      const agent = this.simState.agents.get(agentId);
+      if (!agent) return;
+      agent.heldDirection = null;
     });
 
     this.onMessage("dialogue:advance", (client: Client) => {
