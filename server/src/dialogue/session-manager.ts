@@ -73,13 +73,15 @@ export function startDialogue(
 
   const tree = state.dialogueTrees.get(treeId)!;
 
-  // Auto-face toward target
+  // Auto-face both agents toward each other
   const fdx = target.position.x - player.position.x;
   const fdy = target.position.y - player.position.y;
   if (Math.abs(fdx) >= Math.abs(fdy)) {
     player.facing = fdx > 0 ? "east" : "west";
+    target.facing = fdx > 0 ? "west" : "east";
   } else {
     player.facing = fdy > 0 ? "south" : "north";
+    target.facing = fdy > 0 ? "north" : "south";
   }
 
   // Evaluate entry points for conditional root

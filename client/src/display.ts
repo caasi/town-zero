@@ -35,6 +35,13 @@ export class DisplayState {
     return { x: display.displayX, y: display.displayY };
   }
 
+  getLocalPlayerFacing(): string | null {
+    if (!this.localPlayerId) return null;
+    const display = this.displays.get(this.localPlayerId);
+    if (!display) return null;
+    return display.facing;
+  }
+
   /**
    * Attempt client-side predicted move for the local player.
    * Returns true if prediction was applied (caller should send command).

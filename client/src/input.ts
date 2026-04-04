@@ -252,23 +252,42 @@ export class InputHandler {
     }
   }
 
+  private getFacingTile(): { x: number; y: number } | null {
+    const pos = this.displayState?.getLocalPlayerPosition();
+    const display = this.displayState && pos
+      ? this.displayState.getLocalPlayerFacing()
+      : null;
+    if (!pos || !display) return null;
+    const FACING_DELTA: Record<string, { dx: number; dy: number }> = {
+      north: { dx: 0, dy: -1 }, south: { dx: 0, dy: 1 },
+      east: { dx: 1, dy: 0 }, west: { dx: -1, dy: 0 },
+    };
+    const delta = FACING_DELTA[display];
+    if (!delta) return null;
+    return { x: pos.x + delta.dx, y: pos.y + delta.dy };
+  }
+
   private handleInteract(): void {
     if (!this.playerAgent) return;
-    const { x, y, faction } = this.playerAgent;
+    const { faction } = this.playerAgent;
+    const target = this.getFacingTile();
+    if (!target) return;
 
-    // 1. Adjacent merchant
+    const atFacing = (e: NearbyEntity) => e.x === target.x && e.y === target.y;
+
+    // 1. Merchant in front
     const merchant = this.nearbyEntities.find(
-      (e) => e.role === "merchant" && this.isAdjacent(x, y, e.x, e.y),
+      (e) => e.role === "merchant" && atFacing(e),
     );
     if (merchant) {
       this.onModal?.({ type: "trade", merchantId: merchant.id });
       return;
     }
 
-    // 2. Adjacent same-faction NPC
+    // 2. Same-faction NPC in front
     const npc = this.nearbyEntities.find(
       (e) => e.faction === faction && e.controller !== "player" && e.hp > 0
-        && this.isAdjacent(x, y, e.x, e.y),
+        && atFacing(e),
     );
     if (npc) {
       this.send({ type: "talk", targetId: npc.id });
