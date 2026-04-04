@@ -76,17 +76,17 @@ describe("processTick", () => {
     expect(agent.hp).toBeLessThan(100);
   });
 
-  it("kills agents that starve to death", () => {
+  it("kills player agents that starve to death", () => {
     const world = makeWorld();
-    const agent = world.agents.get("a1")!;
-    agent.hp = 1;
-    agent.inventory.food = 0;
+    const player = new Agent({ id: "p1", position: { x: 5, y: 6 }, faction: "v1", role: "player", controller: "player" });
+    player.hp = 1;
+    world.agents.set("p1", player);
 
     for (let i = 0; i < FOOD_CONSUMPTION_INTERVAL * 20; i++) {
       processTick(world);
-      if (!agent.isAlive()) break;
+      if (!player.isAlive()) break;
     }
-    expect(agent.isAlive()).toBe(false);
+    expect(player.isAlive()).toBe(false);
   });
 
   it("completes combat after ATTACK_COOLDOWN_TICKS", () => {

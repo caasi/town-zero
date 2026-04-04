@@ -294,10 +294,8 @@ export class InputHandler {
       return;
     }
 
-    // 3. Standing on settlement
-    if (this.currentSettlementId) {
-      this.send({ type: "take", settlementId: this.currentSettlementId, resource: "food", amount: 1 });
-    }
+    // 3. Gather from facing resource tile (bush)
+    this.send({ type: "gather", resourceTile: target });
   }
 
   private handleKeyUp(e: KeyboardEvent): void {

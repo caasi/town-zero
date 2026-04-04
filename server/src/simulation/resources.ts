@@ -46,6 +46,11 @@ export function processConsumption(agent: Agent, tick: number): void {
   if (tick % FOOD_CONSUMPTION_INTERVAL !== 0) return;
 
   if (!agent.removeFromInventory("food", 1)) {
-    agent.takeDamage(STARVATION_DAMAGE);
+    if (agent.role !== "player") {
+      // NPCs survive starvation — floor at 1 HP
+      agent.hp = Math.max(1, agent.hp - STARVATION_DAMAGE);
+    } else {
+      agent.takeDamage(STARVATION_DAMAGE);
+    }
   }
 }
