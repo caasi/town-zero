@@ -5,6 +5,11 @@ import { TILE_SIZE } from "./constants.js";
 const BASE_LERP_FACTOR = 0.5;
 const BASE_FRAME_MS = 16.67; // 60fps baseline
 
+// Only snap local player to server when prediction drifts beyond this
+// Manhattan distance. Small differences are normal (prediction runs
+// slightly ahead of server patches) and shouldn't cause visual jitter.
+const MAX_DESYNC_TILES = 2;
+
 export interface AgentDisplay {
   displayX: number;
   displayY: number;
@@ -114,9 +119,12 @@ export class DisplayState {
       const lastPos = this.lastServerPos.get(id);
 
       if (id === this.localPlayerId) {
-        // Only update display when server state actually changes.
-        // This preserves client-side predictions between server updates.
-        if (!lastPos || lastPos.x !== agent.x || lastPos.y !== agent.y) {
+        // Trust client prediction for small differences — only snap when
+        // prediction has drifted significantly (wall collision, server
+        // rejection, teleport, etc.).
+        const dist = Math.abs(display.displayX - agent.x)
+                   + Math.abs(display.displayY - agent.y);
+        if (!lastPos || dist > MAX_DESYNC_TILES) {
           display.displayX = agent.x;
           display.displayY = agent.y;
         }

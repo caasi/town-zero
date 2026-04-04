@@ -164,22 +164,40 @@ describe("DisplayState", () => {
       expect(ds.get("p1")!.displayY).toBe(1);
     });
 
-    it("corrects misprediction when server moves differently", () => {
+    it("preserves prediction within desync threshold", () => {
       const ds = new DisplayState();
       ds.setLocalPlayer("p1");
       ds.syncFromServer([["p1", { x: 0, y: 0, facing: "south" }]]);
 
-      // Predict move south
+      // Predict 1 tile south — within threshold
       const tiles = makeTiles({ "0,1": { terrain: "plains" } });
       ds.predictMove(0, 1, "idle", tiles);
       expect(ds.get("p1")!.displayY).toBe(1);
 
-      // Server sends a different authoritative position
-      ds.syncFromServer([["p1", { x: 1, y: 0, facing: "east" }]]);
+      // Server confirms move to (0,1) — prediction preserved (dist=0)
+      ds.syncFromServer([["p1", { x: 0, y: 1, facing: "south" }]]);
+      expect(ds.get("p1")!.displayY).toBe(1);
+    });
 
-      const player = ds.get("p1");
-      expect(player!.displayX).toBe(1);
-      expect(player!.displayY).toBe(0);
+    it("snaps when prediction exceeds desync threshold", () => {
+      const ds = new DisplayState();
+      ds.setLocalPlayer("p1");
+      ds.syncFromServer([["p1", { x: 0, y: 0, facing: "south" }]]);
+
+      // Predict 3 tiles south (beyond MAX_DESYNC_TILES=2)
+      const tiles = makeTiles({
+        "0,1": { terrain: "plains" },
+        "0,2": { terrain: "plains" },
+        "0,3": { terrain: "plains" },
+      });
+      ds.predictMove(0, 1, "idle", tiles);
+      ds.predictMove(0, 2, "idle", tiles);
+      ds.predictMove(0, 3, "idle", tiles);
+      expect(ds.get("p1")!.displayY).toBe(3);
+
+      // Server only at (0,0) — distance 3 > threshold → snap
+      ds.syncFromServer([["p1", { x: 0, y: 0, facing: "south" }]]);
+      expect(ds.get("p1")!.displayY).toBe(0);
     });
 
     it("removes displays for agents that disappear", () => {
