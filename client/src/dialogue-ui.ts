@@ -77,10 +77,11 @@ export class DialogueUI {
   }
 
   updateTimer(remainingSeconds: number): void {
-    if (remainingSeconds <= 10) {
-      this.timerEl.textContent = `${Math.ceil(remainingSeconds)}s`;
+    const clamped = Math.max(0, remainingSeconds);
+    if (clamped <= 10) {
+      this.timerEl.textContent = `${Math.ceil(clamped)}s`;
       this.timerEl.classList.remove("hidden");
-      this.timerEl.classList.toggle("dlg-timer-warn", remainingSeconds <= 5);
+      this.timerEl.classList.toggle("dlg-timer-warn", clamped <= 5);
     } else {
       this.timerEl.classList.add("hidden");
     }
