@@ -255,18 +255,16 @@ export class InputHandler {
   }
 
   private getFacingTile(): { x: number; y: number } | null {
-    const pos = this.displayState?.getLocalPlayerPosition();
-    const display = this.displayState && pos
-      ? this.displayState.getLocalPlayerFacing()
-      : null;
-    if (!pos || !display) return null;
+    if (!this.playerAgent) return null;
+    const facing = this.displayState?.getLocalPlayerFacing();
+    if (!facing) return null;
     const FACING_DELTA: Record<string, { dx: number; dy: number }> = {
       north: { dx: 0, dy: -1 }, south: { dx: 0, dy: 1 },
       east: { dx: 1, dy: 0 }, west: { dx: -1, dy: 0 },
     };
-    const delta = FACING_DELTA[display];
+    const delta = FACING_DELTA[facing];
     if (!delta) return null;
-    return { x: pos.x + delta.dx, y: pos.y + delta.dy };
+    return { x: this.playerAgent.x + delta.dx, y: this.playerAgent.y + delta.dy };
   }
 
   private handleInteract(): void {

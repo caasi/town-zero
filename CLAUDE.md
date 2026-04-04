@@ -77,12 +77,14 @@ pnpm run test
 - Server runs on Node.js via tsx
 - Use pnpm, not bun — bun duplicates @colyseus/core instances causing matchmaker state isolation
 - Shared logic between server and client (e.g. `tilesInManhattanRadius` for vision shape) must live in `@town-zero/shared` — duplicating geometry/distance logic across packages causes shape mismatches
-- Client-side movement prediction (`display.ts`): `DisplayState` tracks predicted tile positions (`displayX/Y`) and lerped pixel positions (`renderX/Y`). `syncFromServer` only overrides local player when server position actually changes (via `lastServerPos` tracking) to preserve predictions between server ticks
+- Client-side movement prediction (`display.ts`): `DisplayState` tracks predicted tile positions (`displayX/Y`), predicted facing, and lerped pixel positions (`renderX/Y`). `syncFromServer` only overrides local player when server position/facing actually changes (via `lastServerPos` tracking) to preserve predictions between server ticks
 - Input uses held-key tracking (`keydown`/`keyup` Set + `update()` polling from game loop), not `keydown` repeat events — OS repeat has variable initial delay and rate
 - Fog memory uses a snapshot model (`TileSnapshot` = terrain + entities + timestamp). Fog level is derived: `predictedVisible` → visible, has snapshot → explored, else → unknown. No `level` field stored — add new tile properties to `TileSnapshot` and they're automatically captured
 - Unknown tiles render as eigengrau (`#16161d`), void outside map boundary renders as true black (`#000`)
 - Dialogue system: `talk` command is handled immediately in GameRoom (not through tick pipeline) via `session-manager.ts`. `dialogue:advance/choose/close` messages use the same session-manager API. Timeout is detected in `tickDialogues()` called from the tick loop. Client enters `dialogueMode` which intercepts W/S/E/Esc for dialogue navigation
 - `DialogueBuilderApi.entry()` adds conditional entry points to dialogue trees. `entryPoints` are evaluated in `startDialogue()` against NPC beliefs to select the starting node
+- **Turn-before-move:** `executeCommand` for `move` only updates `agent.facing` when the intended direction differs from current facing (no position change). A second move in the same direction actually moves. Client `DisplayState.predictMove` mirrors this logic. Interact (KeyE) checks only the tile directly in front of the player (predicted facing), not any adjacent tile
+- **Facing-based interaction:** interact (KeyE), gather (KeyG) check only the facing tile. Attack (KeyQ) currently checks any adjacent enemy but should be changed to facing-only in the future. Gather validation is adjacent (not same-tile); `agent.gatherTile` stores the target through the multi-tick action
 
 ## Known Debt
 

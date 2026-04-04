@@ -34,7 +34,16 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
 
       // Handle talk command immediately (not through tick pipeline)
       if (cmd.type === "talk") {
-        const result = startDialogue(agentId, cmd.targetId, this.simState);
+        let result: ReturnType<typeof startDialogue>;
+        try {
+          result = startDialogue(agentId, cmd.targetId, this.simState);
+        } catch (err) {
+          // Clean up partial state if startDialogue threw after locking agents
+          endDialogue(cmd.targetId, this.simState);
+          console.error(`[GameRoom] startDialogue threw for ${agentId} → ${cmd.targetId}:`, err);
+          client.send("dialogue:error", { error: "no_dialogue" });
+          return;
+        }
         if (result.ok) {
           // Sync both agents immediately so facing changes reach clients
           // before the next tick (startDialogue sets facing on both).
