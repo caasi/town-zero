@@ -3,7 +3,7 @@ import { ZoneType, type Facing } from "@town-zero/shared";
 import type { FogLevel } from "./types.js";
 import type { FogManager } from "./fog.js";
 import type { Camera } from "./camera.js";
-import type { DisplayState } from "./display.js";
+import type { DisplayState, AgentDisplay } from "./display.js";
 import { TILE_SIZE } from "./constants.js";
 
 const EIGENGRAU = "#16161d"; // perceived color of darkness — used for unknown tiles
@@ -93,7 +93,7 @@ export class Renderer {
         // Cull agents outside viewport (with 1-tile margin for sliding agents)
         if (tileX < vp.startX - 1 || tileX > vp.endX || tileY < vp.startY - 1 || tileY > vp.endY) return;
 
-        this.drawAgent(ctx, px, py, agent, playerId, playerFaction, "visible");
+        this.drawAgent(ctx, px, py, agent, playerId, playerFaction, "visible", display);
       });
     }
 
@@ -284,6 +284,7 @@ export class Renderer {
   private drawAgent(
     ctx: CanvasRenderingContext2D, px: number, py: number,
     agent: any, playerId: string | null, playerFaction: string, _fogLevel: FogLevel,
+    display?: AgentDisplay,
   ): void {
     const cx = px + TILE_SIZE / 2;
     const cy = py + TILE_SIZE / 2;
@@ -330,7 +331,8 @@ export class Renderer {
 
     // Facing indicator (skip for dead agents)
     if (!isDead) {
-      this.drawFacingIndicator(ctx, px, py, cx, cy, agent.facing as Facing | undefined);
+      const facing = (display?.facing ?? agent.facing) as Facing | undefined;
+      this.drawFacingIndicator(ctx, px, py, cx, cy, facing);
     }
 
     // Dead X mark

@@ -73,7 +73,7 @@ export type ActionCommand =
   | { type: "attack"; targetId: string }
   | { type: "deposit"; settlementId: string }
   | { type: "take"; settlementId: string; resource: ResourceType; amount: number }
-  | { type: "talk"; targetId: string; optionId: string }
+  | { type: "talk"; targetId: string }
   | { type: "trade"; targetId: string; offer: ResourceType; offerAmount: number; want: ResourceType; wantAmount: number }
   | { type: "idle" };
 
@@ -99,5 +99,17 @@ export interface TileMemory {
   terrain: TerrainType;
   entities: EntitySnapshot[];
   timestamp: number;   // tick when last observed
+}
+
+// --- Dialogue ---
+
+export interface DialogueStatePayload {
+  npcId: string;
+  npcName: string;
+  nodeType: "text" | "choice" | "request_pending";
+  speaker?: string;
+  content?: string;
+  options?: Array<{ id: string; label: string; enabled: boolean }>;
+  timeoutAt: number;
 }
 

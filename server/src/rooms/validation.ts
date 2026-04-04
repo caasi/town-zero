@@ -34,8 +34,7 @@ export function isValidActionCommand(cmd: unknown): cmd is ActionCommand {
       return typeof c.settlementId === "string" && c.settlementId.length > 0
         && isValidResource(c.resource) && isPositiveInteger(c.amount);
     case "talk":
-      return typeof c.targetId === "string" && c.targetId.length > 0
-        && typeof c.optionId === "string";
+      return typeof c.targetId === "string" && c.targetId.length > 0;
     case "trade":
       return typeof c.targetId === "string" && c.targetId.length > 0
         && isValidResource(c.offer) && isPositiveInteger(c.offerAmount)

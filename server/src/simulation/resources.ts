@@ -14,13 +14,15 @@ export function processGathering(agent: Agent, grid: Grid): void {
 
   agent.currentCommandTicks++;
   if (agent.currentCommandTicks >= agent.currentCommandTarget) {
-    const resource = grid.getResourceYield(agent.position.x, agent.position.y);
+    const tile = agent.gatherTile ?? agent.position;
+    const resource = grid.getResourceYield(tile.x, tile.y);
     if (resource) {
       agent.addToInventory(resource, 1);
     }
     agent.state = "idle";
     agent.currentCommandTicks = 0;
     agent.currentCommandTarget = 0;
+    agent.gatherTile = null;
   }
 }
 
@@ -44,6 +46,11 @@ export function processConsumption(agent: Agent, tick: number): void {
   if (tick % FOOD_CONSUMPTION_INTERVAL !== 0) return;
 
   if (!agent.removeFromInventory("food", 1)) {
-    agent.takeDamage(STARVATION_DAMAGE);
+    if (agent.role !== "player") {
+      // NPCs survive starvation — floor at 1 HP
+      agent.hp = Math.max(1, agent.hp - STARVATION_DAMAGE);
+    } else {
+      agent.takeDamage(STARVATION_DAMAGE);
+    }
   }
 }

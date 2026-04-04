@@ -16,6 +16,7 @@ import { emptyResourceStore, DEFAULT_MAX_HP } from "@town-zero/shared";
 
 interface AgentInit {
   id: string;
+  name?: string;
   position: Position;
   faction: string;
   role: string;
@@ -26,6 +27,7 @@ interface AgentInit {
 
 export class Agent {
   readonly id: string;
+  name: string;
   position: Position;
   faction: string;
   role: string;
@@ -44,9 +46,18 @@ export class Agent {
   currentCommandTicks: number = 0;
   currentCommandTarget: number = 0;
   currentTargetId: string | null = null;
+  gatherTile: Position | null = null;
+
+  // Held-direction for continuous movement (key-state model)
+  heldDirection: Facing | null = null;
+
+  // Dialogue lock state
+  talkingToNpcId: string | null = null;     // player → which NPC am I talking to
+  currentTalkingTo: string | null = null;   // NPC → which player is talking to me
 
   constructor(init: AgentInit) {
     this.id = init.id;
+    this.name = init.name ?? init.id;
     this.position = { ...init.position };
     this.faction = init.faction;
     this.role = init.role;

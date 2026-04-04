@@ -42,11 +42,18 @@ describe("validateCommand", () => {
     expect(validateCommand(cmd, ctx)).toBe(false);
   });
 
-  it("accepts gather on resource tile when agent is there", () => {
+  it("accepts gather on adjacent resource tile", () => {
     const ctx = makeContext();
-    ctx.agent.position = { x: 3, y: 3 };
+    ctx.agent.position = { x: 3, y: 2 };
     const cmd: ActionCommand = { type: "gather", resourceTile: { x: 3, y: 3 } };
     expect(validateCommand(cmd, ctx)).toBe(true);
+  });
+
+  it("rejects gather on non-adjacent resource tile", () => {
+    const ctx = makeContext();
+    ctx.agent.position = { x: 5, y: 5 };
+    const cmd: ActionCommand = { type: "gather", resourceTile: { x: 3, y: 3 } };
+    expect(validateCommand(cmd, ctx)).toBe(false);
   });
 
   it("rejects deposit when not in settlement territory", () => {
@@ -158,11 +165,12 @@ describe("validateCommand", () => {
 });
 
 describe("executeCommand", () => {
-  it("move changes agent position", () => {
+  it("move changes agent position when already facing that direction", () => {
     const ctx = makeContext();
-    const cmd: ActionCommand = { type: "move", target: { x: 6, y: 5 } };
+    // Default facing is south, move south to actually move
+    const cmd: ActionCommand = { type: "move", target: { x: 5, y: 6 } };
     executeCommand(cmd, ctx);
-    expect(ctx.agent.position).toEqual({ x: 6, y: 5 });
+    expect(ctx.agent.position).toEqual({ x: 5, y: 6 });
     expect(ctx.agent.state).toBe("idle");
   });
 
@@ -191,34 +199,49 @@ describe("executeCommand", () => {
     expect(ctx.settlements.get("v1")!.inventory.food).toBe(10);
   });
 
-  it("move east sets facing to east", () => {
+  it("move in same facing direction moves position", () => {
     const ctx = makeContext();
+    // Default facing is south, move south
+    const cmd: ActionCommand = { type: "move", target: { x: 5, y: 6 } };
+    executeCommand(cmd, ctx);
+    expect(ctx.agent.facing).toBe("south");
+    expect(ctx.agent.position).toEqual({ x: 5, y: 6 });
+  });
+
+  it("move in different facing direction only turns without moving", () => {
+    const ctx = makeContext();
+    // Default facing is south, move east → should only turn
     const cmd: ActionCommand = { type: "move", target: { x: 6, y: 5 } };
     executeCommand(cmd, ctx);
     expect(ctx.agent.facing).toBe("east");
+    expect(ctx.agent.position).toEqual({ x: 5, y: 5 }); // didn't move
   });
 
-  it("move west sets facing to west", () => {
+  it("second move in same direction after turning moves position", () => {
     const ctx = makeContext();
-    const cmd: ActionCommand = { type: "move", target: { x: 4, y: 5 } };
-    executeCommand(cmd, ctx);
-    expect(ctx.agent.facing).toBe("west");
+    // Default facing south, move east → turn only
+    executeCommand({ type: "move", target: { x: 6, y: 5 } }, ctx);
+    expect(ctx.agent.facing).toBe("east");
+    expect(ctx.agent.position).toEqual({ x: 5, y: 5 });
+    // Now already facing east, move east → actually move
+    executeCommand({ type: "move", target: { x: 6, y: 5 } }, ctx);
+    expect(ctx.agent.facing).toBe("east");
+    expect(ctx.agent.position).toEqual({ x: 6, y: 5 });
   });
 
-  it("move north sets facing to north", () => {
+  it("turning cycles through all four directions", () => {
     const ctx = makeContext();
-    const cmd: ActionCommand = { type: "move", target: { x: 5, y: 4 } };
-    executeCommand(cmd, ctx);
-    expect(ctx.agent.facing).toBe("north");
-  });
-
-  it("move south sets facing to south", () => {
-    const ctx = makeContext();
-    // Agent starts facing south by default, move north first to change facing
+    // south (default) → east
+    executeCommand({ type: "move", target: { x: 6, y: 5 } }, ctx);
+    expect(ctx.agent.facing).toBe("east");
+    // east → north
     executeCommand({ type: "move", target: { x: 5, y: 4 } }, ctx);
     expect(ctx.agent.facing).toBe("north");
-    // Now move south
-    executeCommand({ type: "move", target: { x: 5, y: 5 } }, ctx);
+    // north → west
+    executeCommand({ type: "move", target: { x: 4, y: 5 } }, ctx);
+    expect(ctx.agent.facing).toBe("west");
+    // west → south
+    executeCommand({ type: "move", target: { x: 5, y: 6 } }, ctx);
     expect(ctx.agent.facing).toBe("south");
   });
 

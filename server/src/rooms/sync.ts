@@ -8,7 +8,7 @@ import type { Agent } from "../simulation/agent.js";
 import type { Settlement } from "../simulation/settlement.js";
 import type { Grid } from "../simulation/grid.js";
 
-function syncAgent(agent: Agent, agentSchema: AgentSchema): void {
+export function syncAgent(agent: Agent, agentSchema: AgentSchema): void {
   agentSchema.id = agent.id;
   agentSchema.faction = agent.faction;
   agentSchema.role = agent.role;

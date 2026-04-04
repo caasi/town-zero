@@ -1,5 +1,5 @@
 import { GATHER_DURATION, ATTACK_COOLDOWN_TICKS, MERCHANT_SPAWN_INTERVAL } from "@town-zero/shared";
-import type { Fact, Value } from "@town-zero/shared";
+import type { Fact, Value, DialogueTreeData } from "@town-zero/shared";
 import { Agent } from "./agent.js";
 import type { Grid } from "./grid.js";
 import type { Settlement } from "./settlement.js";
@@ -18,6 +18,8 @@ export interface SimulationState {
   tick: number;
   nextMerchantId: number;
   triggerRegistry?: TriggerRegistry;
+  activeSessions: Map<string, import("../dialogue/dialogue-session.js").DialogueSession>;
+  dialogueTrees: Map<string, DialogueTreeData>;
 }
 
 export function spawnMerchant(state: SimulationState): void {
@@ -43,6 +45,11 @@ export function processMerchantTick(merchant: Agent, state: SimulationState): vo
     state.agents.delete(merchant.id);
   }
 }
+
+const DIRECTION_DELTA: Record<string, { dx: number; dy: number }> = {
+  north: { dx: 0, dy: -1 }, south: { dx: 0, dy: 1 },
+  east: { dx: 1, dy: 0 }, west: { dx: -1, dy: 0 },
+};
 
 export function processTick(state: SimulationState): void {
   state.tick++;
@@ -71,6 +78,20 @@ export function processTick(state: SimulationState): void {
       continue;
     }
 
+    // Phase 1.5: Held-direction movement (key-state model, one step per tick)
+    if (agent.state === "idle" && agent.heldDirection) {
+      const delta = DIRECTION_DELTA[agent.heldDirection];
+      if (delta) {
+        const target = { x: agent.position.x + delta.dx, y: agent.position.y + delta.dy };
+        const moveCmd = { type: "move" as const, target };
+        const ctx = { grid, agent, agents, settlements };
+        if (validateCommand(moveCmd, ctx)) {
+          executeCommand(moveCmd, ctx);
+        }
+      }
+      continue;
+    }
+
     // Phase 2: If idle, dequeue next command
     if (agent.state === "idle" && agent.plan.length > 0) {
       const cmd = agent.shiftPlan()!;
@@ -92,6 +113,7 @@ export function processTick(state: SimulationState): void {
           agent.state = "gathering";
           agent.currentCommandTicks = 0;
           agent.currentCommandTarget = GATHER_DURATION;
+          agent.gatherTile = { ...cmd.resourceTile };
           break;
         case "attack": {
           const target = agents.get(cmd.targetId);

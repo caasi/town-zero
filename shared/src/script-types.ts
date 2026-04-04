@@ -84,12 +84,14 @@ export interface DialogueTreeData {
   root: string;
   nodes: Record<string, DialogueNodeData>;
   triggers: TriggerRule[];
+  entryPoints?: Array<{ nodeId: string; condition: Expr }>;
 }
 
 // --- Scenario ---
 
 export interface NpcDefinition {
   id: string;
+  name: string;
   role: string;
   faction: string;
   position: Position;

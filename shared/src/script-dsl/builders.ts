@@ -70,6 +70,7 @@ interface DialogueBuilderApi {
   end(id: string): void;
   trigger(whenExpr: Expr, thenEffects: Effect[], opts: { targets: AgentRef[]; once?: boolean }): void;
   option(label: string | TextTemplate): OptionBuilder;
+  entry(nodeId: string, condition: ExprBuilder): void;
 }
 
 function createDialogueBuilder(
@@ -78,6 +79,7 @@ function createDialogueBuilder(
 ): { api: DialogueBuilderApi; build: () => DialogueTreeData } {
   const nodes: Record<string, DialogueNodeData> = {};
   const triggers: TriggerRule[] = [];
+  const entryPoints: Array<{ nodeId: string; condition: Expr }> = [];
   const nodeOrder: string[] = [];
   const optionBuilders = new Map<OptionBuilder, () => ChoiceOptionData>();
   let triggerIndex = 0;
@@ -149,6 +151,10 @@ function createDialogueBuilder(
       optionBuilders.set(builder, getData);
       return builder;
     },
+
+    entry(nodeId, condition) {
+      entryPoints.push({ nodeId, condition: condition.toExpr() });
+    },
   };
 
   function build(): DialogueTreeData {
@@ -162,7 +168,11 @@ function createDialogueBuilder(
       }
     }
     const root = nodeOrder[0];
-    return { id: dialogueId, root, nodes, triggers };
+    const tree: DialogueTreeData = { id: dialogueId, root, nodes, triggers };
+    if (entryPoints.length > 0) {
+      tree.entryPoints = entryPoints;
+    }
+    return tree;
   }
 
   return { api, build };
@@ -172,6 +182,7 @@ function createDialogueBuilder(
 
 interface ScenarioBuilderApi {
   npc(id: string, opts: {
+    name?: string;
     role: string;
     faction: string;
     position: { x: number; y: number };
@@ -197,6 +208,7 @@ export function scenario(id: string, fn: (s: ScenarioBuilderApi) => void): Scena
       npcDialogueMap.set(npcId, []);
       npcs.push({
         id: npcId,
+        name: opts.name ?? npcId,
         role: opts.role,
         faction: opts.faction,
         position: opts.position,

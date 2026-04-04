@@ -24,7 +24,7 @@ function makeWorld(): SimulationState {
     agents: new Map([["a1", agent]]),
     settlements: new Map([["v1", settlement]]),
     tick: 0,
-    nextMerchantId: 0,
+    nextMerchantId: 0, activeSessions: new Map(), dialogueTrees: new Map(),
   };
 }
 
@@ -37,15 +37,16 @@ describe("processTick", () => {
 
   it("executes agent move command from plan", () => {
     const world = makeWorld();
-    world.agents.get("a1")!.setPlan([{ type: "move", target: { x: 6, y: 5 } }]);
+    // Agent default facing is south, so move south to actually move (not just turn)
+    world.agents.get("a1")!.setPlan([{ type: "move", target: { x: 5, y: 6 } }]);
     processTick(world);
-    expect(world.agents.get("a1")!.position).toEqual({ x: 6, y: 5 });
+    expect(world.agents.get("a1")!.position).toEqual({ x: 5, y: 6 });
   });
 
-  it("starts gathering when gather command issued", () => {
+  it("starts gathering when gather command issued from adjacent tile", () => {
     const world = makeWorld();
     const agent = world.agents.get("a1")!;
-    agent.position = { x: 3, y: 3 };
+    agent.position = { x: 3, y: 2 };
     agent.setPlan([{ type: "gather", resourceTile: { x: 3, y: 3 } }]);
     processTick(world);
     expect(agent.state).toBe("gathering");
@@ -54,7 +55,7 @@ describe("processTick", () => {
   it("completes gathering after enough ticks", () => {
     const world = makeWorld();
     const agent = world.agents.get("a1")!;
-    agent.position = { x: 3, y: 3 };
+    agent.position = { x: 3, y: 2 };
     agent.setPlan([{ type: "gather", resourceTile: { x: 3, y: 3 } }]);
 
     for (let i = 0; i < GATHER_DURATION + 1; i++) {
@@ -75,24 +76,25 @@ describe("processTick", () => {
     expect(agent.hp).toBeLessThan(100);
   });
 
-  it("kills agents that starve to death", () => {
+  it("kills player agents that starve to death", () => {
     const world = makeWorld();
-    const agent = world.agents.get("a1")!;
-    agent.hp = 1;
-    agent.inventory.food = 0;
+    const player = new Agent({ id: "p1", position: { x: 5, y: 6 }, faction: "v1", role: "player", controller: "player" });
+    player.hp = 1;
+    world.agents.set("p1", player);
 
     for (let i = 0; i < FOOD_CONSUMPTION_INTERVAL * 20; i++) {
       processTick(world);
-      if (!agent.isAlive()) break;
+      if (!player.isAlive()) break;
     }
-    expect(agent.isAlive()).toBe(false);
+    expect(player.isAlive()).toBe(false);
   });
 
   it("completes combat after ATTACK_COOLDOWN_TICKS", () => {
     const world = makeWorld();
     const attacker = world.agents.get("a1")!;
     attacker.addToInventory("food", 100);
-    const target = new Agent({ id: "enemy", position: { x: 5, y: 6 }, faction: "den-1", role: "beast", controller: "bot" });
+    const targetHp = BASE_ATTACK_DAMAGE * ATTACK_COOLDOWN_TICKS + 100;
+    const target = new Agent({ id: "enemy", position: { x: 5, y: 6 }, faction: "den-1", role: "beast", controller: "bot", hp: targetHp });
     target.addToInventory("food", 100);
     world.agents.set("enemy", target);
 
@@ -106,7 +108,7 @@ describe("processTick", () => {
       processTick(world);
     }
     expect(attacker.state).toBe("idle");
-    expect(target.hp).toBe(100 - BASE_ATTACK_DAMAGE * ATTACK_COOLDOWN_TICKS);
+    expect(target.hp).toBe(100); // targetHp - ATTACK_COOLDOWN_TICKS * BASE_ATTACK_DAMAGE
   });
 
   it("returns attacker to idle when target dies mid-combat", () => {

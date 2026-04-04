@@ -41,13 +41,14 @@ pnpm run test
 
 **Unified ActionCommand:** All entities (players, LLM-driven NPCs, bots) produce the same `ActionCommand` type. The simulation loop does not distinguish command sources. This enables seamless player disconnect → bot takeover → reconnect.
 
-**Simulation flow (per tick at 1 tick/s):**
+**Simulation flow (per tick at 8 ticks/s = 125ms):**
 1. Process ongoing multi-tick actions (gathering, fighting)
+1.5. Held-direction movement (key-state model, one step per tick)
 2. Dequeue and execute next command from each agent's plan
 3. Bot controller decides for idle bot agents
-4. Production facilities convert raw materials → food/material
-5. Agents consume food from personal inventory (starvation → HP loss → death)
-6. Merchant spawning and movement
+4. Production facilities convert raw materials → food/material (counter-gated, ~10s)
+5. Agents consume food from personal inventory (counter-gated, ~30s)
+6. Merchant spawning and movement (counter-gated, ~120s)
 7. Vision update (MapMemory per agent)
 8. Memory merge between adjacent same-faction agents
 
@@ -67,6 +68,7 @@ pnpm run test
 - `server/src/polyfill.ts` provides `Symbol.metadata` — V8 hasn't implemented it yet, @colyseus/schema v4 needs it; imported as first line in `server/src/index.ts`
 - Use `@colyseus/core` directly, not the `colyseus` meta-package — the meta-package pulls in many sub-packages that cause duplicate `@colyseus/core` instances
 - Server simulation is authoritative; client only renders and sends commands
+- **Key-state movement:** Client sends `move:start`/`move:stop` messages (direction on keydown, stop on keyup). Server stores `agent.heldDirection` and processes one move step per tick in Phase 1.5. Client `update()` does local prediction at the same rate; no move commands are sent per-frame
 - MVP fog of war is client-side only (trusts client, no anti-cheat). Even so, client code must treat unknown tiles as truly unknown — prediction reads from fog snapshots (`fog.tileSource()`), never raw `state.tiles`
 - Player agents use `role: "player"` — `role` is a functional type tag (`"merchant"`, `"scout"`, etc.), not a display name
 - Client modules: `network.ts` (Colyseus connection), `renderer.ts` (Canvas 2D), `camera.ts` (viewport), `fog.ts` (fog of war), `input.ts` (WASD + action keys), `display.ts` (movement prediction + lerp), `main.ts` (game loop + HUD)
@@ -77,10 +79,14 @@ pnpm run test
 - Server runs on Node.js via tsx
 - Use pnpm, not bun — bun duplicates @colyseus/core instances causing matchmaker state isolation
 - Shared logic between server and client (e.g. `tilesInManhattanRadius` for vision shape) must live in `@town-zero/shared` — duplicating geometry/distance logic across packages causes shape mismatches
-- Client-side movement prediction (`display.ts`): `DisplayState` tracks predicted tile positions (`displayX/Y`) and lerped pixel positions (`renderX/Y`). `syncFromServer` only overrides local player when server position actually changes (via `lastServerPos` tracking) to preserve predictions between server ticks
-- Input uses held-key tracking (`keydown`/`keyup` Set + `update()` polling from game loop), not `keydown` repeat events — OS repeat has variable initial delay and rate
+- Client-side movement prediction (`display.ts`): `DisplayState` tracks predicted tile positions (`displayX/Y`), predicted facing, and lerped pixel positions (`renderX/Y`). `syncFromServer` only overrides local player when server position/facing actually changes (via `lastServerPos` tracking) to preserve predictions between server ticks
+- Input uses held-key tracking (`keydown`/`keyup` Set) for local prediction and key-state events (`move:start`/`move:stop`) for server movement — not `keydown` repeat events (OS repeat has variable initial delay and rate)
 - Fog memory uses a snapshot model (`TileSnapshot` = terrain + entities + timestamp). Fog level is derived: `predictedVisible` → visible, has snapshot → explored, else → unknown. No `level` field stored — add new tile properties to `TileSnapshot` and they're automatically captured
 - Unknown tiles render as eigengrau (`#16161d`), void outside map boundary renders as true black (`#000`)
+- Dialogue system: `talk` command is handled immediately in GameRoom (not through tick pipeline) via `session-manager.ts`. `dialogue:advance/choose/close` messages use the same session-manager API. Timeout is detected in `tickDialogues()` called from the tick loop. Client enters `dialogueMode` which intercepts W/S/E/Esc for dialogue navigation
+- `DialogueBuilderApi.entry()` adds conditional entry points to dialogue trees. `entryPoints` are evaluated in `startDialogue()` against NPC beliefs to select the starting node
+- **Turn-before-move:** `executeCommand` for `move` only updates `agent.facing` when the intended direction differs from current facing (no position change). A second move in the same direction actually moves. Client `DisplayState.predictMove` mirrors this logic. Interact (KeyE) checks only the tile directly in front of the player (predicted facing), not any adjacent tile
+- **Facing-based interaction:** interact (KeyE), gather (KeyG) check only the facing tile. Attack (KeyQ) currently checks any adjacent enemy but should be changed to facing-only in the future. Gather validation is adjacent (not same-tile); `agent.gatherTile` stores the target through the multi-tick action
 
 ## Known Debt
 
@@ -95,7 +101,8 @@ pnpm run test
 - [x] Handle player commands via `onMessage`
 - [x] Restore Canvas 2D client with renderer, input, fog of war, HUD
 - [ ] Wire LLM scheduler into GameRoom tick
-- [ ] Add facing direction to Agent (needed for dialogue target selection and future combat/animation)
+- [x] Add facing direction to Agent (needed for dialogue target selection and future combat/animation)
+- [x] Add NPC dialogue system (session manager, Farmer Reed scenario, GameRoom integration, client UI)
 - [ ] **Dialogue eDSL review:** `shared/package.json` subpath export points to `.ts` not `dist/`; `t()` missing `boolean` in type signature; add `not()` to `ExprBuilder`; add `DialogueTreeData.validate()` for build-time graph integrity checks (dangling refs, empty next, action cycles); deduplicate `toExpr()` helper across `expressions.ts` and `builders.ts`
 - [ ] **Phase 8 trigger execution:** only `set_fact` supported (others warn); `effect.target` ignored (uses `rule.targets` instead); global omniscience in belief aggregation violates no-global-omniscience principle; add early-exit when no facts changed
 - [ ] **Trigger registry wiring:** `setBelief()` and `mergeBeliefs()` don't call `recordChangedFact()` — triggers only fire from dialogue-session changes; `mergeBeliefs()` should return changed keys `Set<string>`; empty `extractFactKeys` deps means trigger never fires; `loadScenario()` doesn't assign `triggerRegistry` to `SimulationState`

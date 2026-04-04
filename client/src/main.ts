@@ -1,11 +1,12 @@
 // client/src/main.ts
-import { MERCHANT_TRADE_RATE, DEFAULT_VISION_RADIUS } from "@town-zero/shared";
+import { MERCHANT_TRADE_RATE, DEFAULT_VISION_RADIUS, TICK_RATE_MS } from "@town-zero/shared";
 import { NetworkClient } from "./network.js";
 import { FogManager } from "./fog.js";
 import { Camera } from "./camera.js";
 import { Renderer } from "./renderer.js";
-import { InputHandler, getKeyLabels, formatKeyHints } from "./input.js";
+import { InputHandler, getKeyLabels, formatKeyHints, formatDialogueKeyHints } from "./input.js";
 import { DisplayState } from "./display.js";
+import { DialogueUI } from "./dialogue-ui.js";
 import { TILE_SIZE } from "./constants.js";
 import type { GameState, ModalRequest } from "./types.js";
 
@@ -31,6 +32,9 @@ let gameState: GameState = "connecting";
 let input: InputHandler | null = null;
 let currentTradeTarget: string | null = null;
 let isConnecting = false;
+
+const dialogueUI = new DialogueUI("dialogue-overlay");
+let dialogueTimeoutAt: number | null = null;
 
 // Resize canvas to fill window
 function resizeCanvas(): void {
@@ -141,7 +145,7 @@ function handleModal(req: ModalRequest): void {
   if (req.type === "trade") {
     openTradeModal(req.merchantId);
   } else if (req.type === "dialogue") {
-    network.send({ type: "talk", targetId: req.targetId, optionId: "greet" });
+    network.send({ type: "talk", targetId: req.targetId });
   }
 }
 
@@ -162,11 +166,11 @@ function gameLoop(now: number): void {
   if (gameState === "playing") {
     // Sync display positions from server BEFORE input so predictions
     // aren't immediately overridden by an uninitialized lastServerPos.
-    const syncEntries: Array<[string, { x: number; y: number }]> = [];
+    const syncEntries: Array<[string, { x: number; y: number; facing: string }]> = [];
     const agentList: Array<{ id: string; x: number; y: number; role: string; faction: string }> = [];
     if (network.state?.agents) {
       network.state.agents.forEach((agent: any) => {
-        syncEntries.push([agent.id, { x: agent.x, y: agent.y }]);
+        syncEntries.push([agent.id, { x: agent.x, y: agent.y, facing: agent.facing }]);
         agentList.push({ id: agent.id, x: agent.x, y: agent.y, role: agent.role, faction: agent.faction });
       });
       displayState.syncFromServer(syncEntries);
@@ -175,6 +179,14 @@ function gameLoop(now: number): void {
     updateInputContext();
     input?.update();
     updateHUD();
+
+    // Dialogue timer
+    if (dialogueTimeoutAt !== null && network.state) {
+      const currentTick = network.state.tick ?? 0;
+      const remainingTicks = dialogueTimeoutAt - currentTick;
+      const remainingSeconds = remainingTicks * (TICK_RATE_MS / 1000);
+      dialogueUI.updateTimer(remainingSeconds);
+    }
 
     // Lerp all render positions
     displayState.updateRender(dt);
@@ -219,6 +231,14 @@ async function connect(): Promise<void> {
 
     input = new InputHandler((cmd) => network.send(cmd));
     input.setModalHandler(handleModal);
+    input.onMoveStart = (dir) => network.sendMoveStart(dir);
+    input.onMoveStop = () => network.sendMoveStop();
+    input.onDialogueAdvance = () => network.sendDialogueAdvance();
+    input.onDialogueChoose = (optionId) => network.sendDialogueChoose(optionId);
+    input.onDialogueClose = () => network.sendDialogueClose();
+    input.onDialogueMoveSelection = (delta) => dialogueUI.moveSelection(delta);
+    input.onDialogueGetSelectedId = () => dialogueUI.getSelectedOptionId();
+    input.onDialogueIsText = () => dialogueUI.isShowingText();
     displayState.setLocalPlayer(network.playerId);
     input.setPredictionContext(displayState, fog.tileSource());
 
@@ -227,6 +247,25 @@ async function connect(): Promise<void> {
       gameState = "dead";
       setOverlay("dead");
       input?.setEnabled(false);
+      dialogueUI.hide();
+      input?.exitDialogueMode();
+    });
+
+    // Dialogue wiring
+    network.onDialogueState((payload) => {
+      dialogueUI.show(payload);
+      dialogueTimeoutAt = payload.timeoutAt;
+      input?.enterDialogueMode();
+    });
+    network.onDialogueEnd(() => {
+      dialogueUI.hide();
+      dialogueTimeoutAt = null;
+      input?.exitDialogueMode();
+    });
+    network.onDialogueError(() => {
+      dialogueUI.hide();
+      dialogueTimeoutAt = null;
+      input?.exitDialogueMode();
     });
 
     gameState = "playing";
@@ -257,11 +296,11 @@ document.getElementById("retry-btn")!.addEventListener("click", () => {
 
 // Detect keyboard layout and update key hints
 const keyHintsEl = document.getElementById("key-hints");
-if (keyHintsEl) {
-  getKeyLabels().then((labels) => {
-    keyHintsEl.textContent = formatKeyHints(labels);
-  });
-}
+const dlgHintEl = document.querySelector(".dlg-hint");
+getKeyLabels().then((labels) => {
+  if (keyHintsEl) keyHintsEl.textContent = formatKeyHints(labels);
+  if (dlgHintEl) dlgHintEl.textContent = formatDialogueKeyHints(labels);
+});
 
 // Start
 requestAnimationFrame(gameLoop);
