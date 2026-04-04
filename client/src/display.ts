@@ -10,11 +10,12 @@ export interface AgentDisplay {
   displayY: number;
   renderX: number;
   renderY: number;
+  facing: string;
 }
 
 export class DisplayState {
   private displays = new Map<string, AgentDisplay>();
-  private lastServerPos = new Map<string, { x: number; y: number }>();
+  private lastServerPos = new Map<string, { x: number; y: number; facing: string }>();
   private localPlayerId: string | null = null;
 
   setLocalPlayer(id: string | null): void {
@@ -50,6 +51,27 @@ export class DisplayState {
     // Reject if agent is not idle
     if (agentState !== "idle") return false;
 
+    const existing = this.displays.get(this.localPlayerId);
+    const lastPos = this.lastServerPos.get(this.localPlayerId);
+    const originX = existing?.displayX ?? lastPos?.x ?? targetX;
+    const originY = existing?.displayY ?? lastPos?.y ?? targetY;
+    const display = this.getOrCreate(this.localPlayerId, originX, originY);
+
+    // Compute intended facing from move direction
+    const dx = targetX - originX;
+    const dy = targetY - originY;
+    let intendedFacing = display.facing;
+    if (dx > 0) intendedFacing = "east";
+    else if (dx < 0) intendedFacing = "west";
+    else if (dy > 0) intendedFacing = "south";
+    else if (dy < 0) intendedFacing = "north";
+
+    // Turn-before-move: if facing differs, only turn (no position change)
+    if (intendedFacing !== display.facing) {
+      display.facing = intendedFacing;
+      return true;
+    }
+
     // Check tile from fog snapshots (not raw server state)
     const tile = tiles.get(`${targetX},${targetY}`);
 
@@ -64,16 +86,6 @@ export class DisplayState {
       }
     }
 
-    // Apply prediction by updating the display target to the destination.
-    // If the local player does not yet have a display entry, initialize it
-    // from the best known current origin so the first predicted move lerps
-    // smoothly instead of snapping to the target.
-    // Unknown tiles are allowed optimistically — server validates.
-    const existing = this.displays.get(this.localPlayerId);
-    const lastPos = this.lastServerPos.get(this.localPlayerId);
-    const initialX = existing?.displayX ?? lastPos?.x ?? targetX;
-    const initialY = existing?.displayY ?? lastPos?.y ?? targetY;
-    const display = this.getOrCreate(this.localPlayerId, initialX, initialY);
     display.displayX = targetX;
     display.displayY = targetY;
     return true;
@@ -85,29 +97,32 @@ export class DisplayState {
    * For others: always updates display target.
    */
   syncFromServer(
-    agents: Iterable<[string, { x: number; y: number }]>,
+    agents: Iterable<[string, { x: number; y: number; facing: string }]>,
   ): void {
     const seen = new Set<string>();
 
     for (const [id, agent] of agents) {
       seen.add(id);
-      const display = this.getOrCreate(id, agent.x, agent.y);
+      const display = this.getOrCreate(id, agent.x, agent.y, agent.facing);
       const lastPos = this.lastServerPos.get(id);
 
       if (id === this.localPlayerId) {
-        // Only update display target when server position actually changes.
+        // Only update display when server state actually changes.
         // This preserves client-side predictions between server updates.
         if (!lastPos || lastPos.x !== agent.x || lastPos.y !== agent.y) {
           display.displayX = agent.x;
           display.displayY = agent.y;
         }
+        if (!lastPos || lastPos.facing !== agent.facing) {
+          display.facing = agent.facing;
+        }
       } else {
-        // For other agents, always track server position
         display.displayX = agent.x;
         display.displayY = agent.y;
+        display.facing = agent.facing;
       }
 
-      this.lastServerPos.set(id, { x: agent.x, y: agent.y });
+      this.lastServerPos.set(id, { x: agent.x, y: agent.y, facing: agent.facing });
     }
 
     // Remove displays for agents that no longer exist
@@ -148,7 +163,7 @@ export class DisplayState {
     this.localPlayerId = null;
   }
 
-  private getOrCreate(id: string, initialX: number, initialY: number): AgentDisplay {
+  private getOrCreate(id: string, initialX: number, initialY: number, facing = "south"): AgentDisplay {
     let display = this.displays.get(id);
     if (!display) {
       display = {
@@ -156,6 +171,7 @@ export class DisplayState {
         displayY: initialY,
         renderX: initialX * TILE_SIZE,
         renderY: initialY * TILE_SIZE,
+        facing,
       };
       this.displays.set(id, display);
     }

@@ -93,7 +93,7 @@ function updateInputContext(): void {
   }
 
   input.setPlayerInfo(
-    { x: player.x, y: player.y, faction: player.faction, facing: player.facing },
+    { x: player.x, y: player.y, faction: player.faction },
     nearby,
     settlementId,
     player.state,  // FSM state for prediction gating
@@ -166,11 +166,11 @@ function gameLoop(now: number): void {
   if (gameState === "playing") {
     // Sync display positions from server BEFORE input so predictions
     // aren't immediately overridden by an uninitialized lastServerPos.
-    const syncEntries: Array<[string, { x: number; y: number }]> = [];
+    const syncEntries: Array<[string, { x: number; y: number; facing: string }]> = [];
     const agentList: Array<{ id: string; x: number; y: number; role: string; faction: string }> = [];
     if (network.state?.agents) {
       network.state.agents.forEach((agent: any) => {
-        syncEntries.push([agent.id, { x: agent.x, y: agent.y }]);
+        syncEntries.push([agent.id, { x: agent.x, y: agent.y, facing: agent.facing }]);
         agentList.push({ id: agent.id, x: agent.x, y: agent.y, role: agent.role, faction: agent.faction });
       });
       displayState.syncFromServer(syncEntries);
