@@ -31,6 +31,11 @@ export function startDialogue(
   const target = state.agents.get(targetId);
   if (!player || !target) return { ok: false, error: "no_dialogue" };
 
+  // Prevent overlapping dialogue sessions for the same player
+  if (player.state === "talking" || player.talkingToNpcId !== null) {
+    return { ok: false, error: "busy" };
+  }
+
   // Adjacency check
   const dx = Math.abs(player.position.x - target.position.x);
   const dy = Math.abs(player.position.y - target.position.y);
@@ -79,10 +84,24 @@ export function startDialogue(
       beliefs,
       locals: new Map(),
       agentState: {
-        player: { get: () => 0 },
+        player: { get: (p: string) => {
+          if (p === "hp") return player.hp;
+          if (p === "id") return player.id;
+          if (p === "role") return player.role;
+          if (p === "faction") return player.faction;
+          if (p === "x") return player.position.x;
+          if (p === "y") return player.position.y;
+          const inv = player.inventory;
+          if (p in inv) return inv[p as keyof typeof inv];
+          return 0;
+        }},
         npc: { get: (p: string) => {
           if (p === "hp") return target.hp;
           if (p === "id") return target.id;
+          if (p === "role") return target.role;
+          if (p === "faction") return target.faction;
+          if (p === "x") return target.position.x;
+          if (p === "y") return target.position.y;
           const inv = target.inventory;
           if (p in inv) return inv[p as keyof typeof inv];
           return 0;
