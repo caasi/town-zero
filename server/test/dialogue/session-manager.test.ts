@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
+import { DIALOGUE_TIMEOUT_TICKS } from "@town-zero/shared";
 import { startDialogue, advanceDialogue, chooseDialogue, endDialogue, tickDialogues } from "../../src/dialogue/session-manager.js";
 import { Agent } from "../../src/simulation/agent.js";
 import { Grid } from "../../src/simulation/grid.js";
@@ -261,8 +262,8 @@ describe("session-manager", () => {
       expect(state.activeSessions.size).toBe(1);
       const session = state.activeSessions.get("test-npc")!;
       expect(session.lastInteractionTick).toBe(10);
-      state.tick = 10 + 30; // DIALOGUE_TIMEOUT_TICKS = 30
-      expect(state.tick - session.lastInteractionTick).toBe(30);
+      state.tick = 10 + DIALOGUE_TIMEOUT_TICKS;
+      expect(state.tick - session.lastInteractionTick).toBe(DIALOGUE_TIMEOUT_TICKS);
 
       const expired = tickDialogues(state);
       expect(expired).toHaveLength(1);
@@ -276,7 +277,7 @@ describe("session-manager", () => {
 
     it("does not timeout active sessions", () => {
       startDialogue("player-0", "test-npc", state);
-      state.tick = 10 + 15; // only 15 ticks, timeout is 30
+      state.tick = 10 + Math.floor(DIALOGUE_TIMEOUT_TICKS / 2); // half the timeout
 
       const expired = tickDialogues(state);
       expect(expired).toHaveLength(0);

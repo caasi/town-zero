@@ -41,9 +41,6 @@ function createTestRoom(): { room: GameRoom; state: WorldStateSchema } {
   room.setSimulationInterval = function (fn: () => void, _interval: number) {
     room._tickFn = fn;
   };
-  room.clock = {
-    setInterval(_fn: () => void, _interval: number) {},
-  };
   room.broadcast = function () {};
 
   // Call onCreate

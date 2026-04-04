@@ -41,13 +41,14 @@ pnpm run test
 
 **Unified ActionCommand:** All entities (players, LLM-driven NPCs, bots) produce the same `ActionCommand` type. The simulation loop does not distinguish command sources. This enables seamless player disconnect → bot takeover → reconnect.
 
-**Simulation flow (per tick at 1 tick/s):**
+**Simulation flow (per tick at 8 ticks/s = 125ms):**
 1. Process ongoing multi-tick actions (gathering, fighting)
+1.5. Held-direction movement (key-state model, one step per tick)
 2. Dequeue and execute next command from each agent's plan
 3. Bot controller decides for idle bot agents
-4. Production facilities convert raw materials → food/material
-5. Agents consume food from personal inventory (starvation → HP loss → death)
-6. Merchant spawning and movement
+4. Production facilities convert raw materials → food/material (counter-gated, ~10s)
+5. Agents consume food from personal inventory (counter-gated, ~30s)
+6. Merchant spawning and movement (counter-gated, ~120s)
 7. Vision update (MapMemory per agent)
 8. Memory merge between adjacent same-faction agents
 
@@ -67,7 +68,7 @@ pnpm run test
 - `server/src/polyfill.ts` provides `Symbol.metadata` — V8 hasn't implemented it yet, @colyseus/schema v4 needs it; imported as first line in `server/src/index.ts`
 - Use `@colyseus/core` directly, not the `colyseus` meta-package — the meta-package pulls in many sub-packages that cause duplicate `@colyseus/core` instances
 - Server simulation is authoritative; client only renders and sends commands
-- **Key-state movement:** Client sends `move:start`/`move:stop` messages (direction on keydown, stop on keyup). Server stores `agent.heldDirection` and processes one move step per `MOVEMENT_INTERVAL_MS` (120ms) in a fast loop independent of the 1/s simulation tick. Client `update()` does local prediction at the same 120ms rate; no move commands are sent per-frame
+- **Key-state movement:** Client sends `move:start`/`move:stop` messages (direction on keydown, stop on keyup). Server stores `agent.heldDirection` and processes one move step per tick in Phase 1.5. Client `update()` does local prediction at the same rate; no move commands are sent per-frame
 - MVP fog of war is client-side only (trusts client, no anti-cheat). Even so, client code must treat unknown tiles as truly unknown — prediction reads from fog snapshots (`fog.tileSource()`), never raw `state.tiles`
 - Player agents use `role: "player"` — `role` is a functional type tag (`"merchant"`, `"scout"`, etc.), not a display name
 - Client modules: `network.ts` (Colyseus connection), `renderer.ts` (Canvas 2D), `camera.ts` (viewport), `fog.ts` (fog of war), `input.ts` (WASD + action keys), `display.ts` (movement prediction + lerp), `main.ts` (game loop + HUD)

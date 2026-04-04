@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { MERCHANT_SPAWN_INTERVAL } from "@town-zero/shared";
 import { spawnMerchant, processMerchantTick, processTick } from "../../src/simulation/tick.js";
 import { Grid } from "../../src/simulation/grid.js";
 import { Settlement } from "../../src/simulation/settlement.js";
@@ -52,7 +53,7 @@ describe("processMerchantTick", () => {
 
   it("newly spawned merchant stays at x=0 on spawn tick", () => {
     const state = makeWorldWithRoad();
-    state.tick = 119; // MERCHANT_SPAWN_INTERVAL - 1, next processTick triggers spawn
+    state.tick = MERCHANT_SPAWN_INTERVAL - 1; // next processTick triggers spawn
     processTick(state);
     const merchant = Array.from(state.agents.values()).find((a) => a.role === "merchant")!;
     expect(merchant.position.x).toBe(0);

@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
+import { DIALOGUE_TIMEOUT_TICKS } from "@town-zero/shared";
 import { farmerReedScenario } from "../src/scenarios/farmer-reed.js";
 import { loadScenario } from "../src/simulation/scenario-loader.js";
 import { Grid } from "../src/simulation/grid.js";
@@ -109,13 +110,13 @@ describe("integration: Farmer Reed full flow", () => {
     expect(r.error).toBe("busy");
   });
 
-  it("timeout: no response for 30 ticks → session expired", () => {
+  it("timeout: no response within DIALOGUE_TIMEOUT_TICKS → session expired", () => {
     addPlayer(state, "player-0", reed.position.x, reed.position.y - 1);
 
     startDialogue("player-0", "farmer-reed", state);
     expect(state.activeSessions.size).toBe(1);
 
-    state.tick = 30;
+    state.tick = DIALOGUE_TIMEOUT_TICKS;
     const expired = tickDialogues(state);
     expect(expired).toHaveLength(1);
     expect(expired[0].reason).toBe("timeout");

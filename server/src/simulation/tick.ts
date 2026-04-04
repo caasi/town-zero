@@ -46,6 +46,11 @@ export function processMerchantTick(merchant: Agent, state: SimulationState): vo
   }
 }
 
+const DIRECTION_DELTA: Record<string, { dx: number; dy: number }> = {
+  north: { dx: 0, dy: -1 }, south: { dx: 0, dy: 1 },
+  east: { dx: 1, dy: 0 }, west: { dx: -1, dy: 0 },
+};
+
 export function processTick(state: SimulationState): void {
   state.tick++;
 
@@ -69,6 +74,20 @@ export function processTick(state: SimulationState): void {
         agent.currentCommandTicks = 0;
         agent.currentCommandTarget = 0;
         agent.currentTargetId = null;
+      }
+      continue;
+    }
+
+    // Phase 1.5: Held-direction movement (key-state model, one step per tick)
+    if (agent.state === "idle" && agent.heldDirection) {
+      const delta = DIRECTION_DELTA[agent.heldDirection];
+      if (delta) {
+        const target = { x: agent.position.x + delta.dx, y: agent.position.y + delta.dy };
+        const moveCmd = { type: "move" as const, target };
+        const ctx = { grid, agent, agents, settlements };
+        if (validateCommand(moveCmd, ctx)) {
+          executeCommand(moveCmd, ctx);
+        }
       }
       continue;
     }
@@ -224,34 +243,5 @@ export function processTick(state: SimulationState): void {
     }
 
     state.triggerRegistry.clearChangedFacts();
-  }
-}
-
-const DIRECTION_DELTA: Record<string, { dx: number; dy: number }> = {
-  north: { dx: 0, dy: -1 }, south: { dx: 0, dy: 1 },
-  east: { dx: 1, dy: 0 }, west: { dx: -1, dy: 0 },
-};
-
-/**
- * Process one movement step for all agents with a held direction.
- * Called from a fast interval in GameRoom, independent of the simulation tick.
- */
-export function processHeldMovement(state: SimulationState): void {
-  const { grid, agents, settlements } = state;
-
-  for (const [, agent] of agents) {
-    if (!agent.isAlive()) continue;
-    if (agent.state !== "idle" || !agent.heldDirection) continue;
-
-    const delta = DIRECTION_DELTA[agent.heldDirection];
-    if (!delta) continue;
-
-    const target = { x: agent.position.x + delta.dx, y: agent.position.y + delta.dy };
-    const moveCmd = { type: "move" as const, target };
-    const ctx = { grid, agent, agents, settlements };
-
-    if (validateCommand(moveCmd, ctx)) {
-      executeCommand(moveCmd, ctx);
-    }
   }
 }

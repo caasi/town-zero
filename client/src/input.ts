@@ -53,7 +53,7 @@ export function formatDialogueKeyHints(labels: Record<string, string>): string {
   return `${labels.KeyW}/${labels.KeyS}:Select  ${labels.KeyE}:Confirm  Esc:Close`;
 }
 
-const MOVE_THROTTLE_MS = 120;
+const MOVE_THROTTLE_MS = 125; // match server TICK_RATE_MS
 
 const MOVE_KEYS: Record<string, { dx: number; dy: number }> = {
   KeyW: { dx: 0, dy: -1 }, ArrowUp: { dx: 0, dy: -1 },
