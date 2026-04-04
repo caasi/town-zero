@@ -3,7 +3,7 @@ import { TICK_RATE_MS } from "@town-zero/shared";
 import { WorldStateSchema } from "./schemas/WorldStateSchema.js";
 import { generateMap } from "../map/generator.js";
 import { processTick, type SimulationState } from "../simulation/tick.js";
-import { syncToSchema, syncTiles } from "./sync.js";
+import { syncToSchema, syncTiles, syncAgent } from "./sync.js";
 import { isValidActionCommand } from "./validation.js";
 import { extractVisionForPlayer } from "./vision.js";
 import { Agent } from "../simulation/agent.js";
@@ -36,6 +36,15 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
       if (cmd.type === "talk") {
         const result = startDialogue(agentId, cmd.targetId, this.simState);
         if (result.ok) {
+          // Sync both agents immediately so facing changes reach clients
+          // before the next tick (startDialogue sets facing on both).
+          const playerAgent = this.simState.agents.get(agentId);
+          const npcAgent = this.simState.agents.get(cmd.targetId);
+          const playerSchema = this.state.agents.get(agentId);
+          const npcSchema = this.state.agents.get(cmd.targetId);
+          if (playerAgent && playerSchema) syncAgent(playerAgent, playerSchema);
+          if (npcAgent && npcSchema) syncAgent(npcAgent, npcSchema);
+
           if (result.ended) {
             client.send("dialogue:end", { reason: "completed" });
           } else {

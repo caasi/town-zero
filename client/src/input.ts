@@ -238,9 +238,11 @@ export class InputHandler {
         if (enemy) this.send({ type: "attack", targetId: enemy.id });
         break;
       }
-      case "KeyG":
-        this.send({ type: "gather", resourceTile: { x, y } });
+      case "KeyG": {
+        const gatherTile = this.getFacingTile();
+        if (gatherTile) this.send({ type: "gather", resourceTile: gatherTile });
         break;
+      }
       case "KeyT":
         if (this.currentSettlementId) {
           this.send({ type: "deposit", settlementId: this.currentSettlementId });

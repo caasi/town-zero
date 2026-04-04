@@ -94,6 +94,7 @@ export function processTick(state: SimulationState): void {
           agent.state = "gathering";
           agent.currentCommandTicks = 0;
           agent.currentCommandTarget = GATHER_DURATION;
+          agent.gatherTile = { ...cmd.resourceTile };
           break;
         case "attack": {
           const target = agents.get(cmd.targetId);

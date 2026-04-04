@@ -46,6 +46,7 @@ export class Agent {
   currentCommandTicks: number = 0;
   currentCommandTarget: number = 0;
   currentTargetId: string | null = null;
+  gatherTile: Position | null = null;
 
   // Dialogue lock state
   talkingToNpcId: string | null = null;     // player → which NPC am I talking to

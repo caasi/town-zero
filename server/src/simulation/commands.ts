@@ -31,7 +31,7 @@ export function validateCommand(cmd: ActionCommand, ctx: CommandContext): boolea
     case "gather": {
       const resource = grid.getResourceYield(cmd.resourceTile.x, cmd.resourceTile.y);
       if (!resource) return false;
-      if (agent.position.x !== cmd.resourceTile.x || agent.position.y !== cmd.resourceTile.y) return false;
+      if (!grid.isAdjacent(agent.position, cmd.resourceTile)) return false;
       return true;
     }
     case "deposit": {

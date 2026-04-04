@@ -42,11 +42,18 @@ describe("validateCommand", () => {
     expect(validateCommand(cmd, ctx)).toBe(false);
   });
 
-  it("accepts gather on resource tile when agent is there", () => {
+  it("accepts gather on adjacent resource tile", () => {
     const ctx = makeContext();
-    ctx.agent.position = { x: 3, y: 3 };
+    ctx.agent.position = { x: 3, y: 2 };
     const cmd: ActionCommand = { type: "gather", resourceTile: { x: 3, y: 3 } };
     expect(validateCommand(cmd, ctx)).toBe(true);
+  });
+
+  it("rejects gather on non-adjacent resource tile", () => {
+    const ctx = makeContext();
+    ctx.agent.position = { x: 5, y: 5 };
+    const cmd: ActionCommand = { type: "gather", resourceTile: { x: 3, y: 3 } };
+    expect(validateCommand(cmd, ctx)).toBe(false);
   });
 
   it("rejects deposit when not in settlement territory", () => {

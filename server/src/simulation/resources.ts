@@ -14,13 +14,15 @@ export function processGathering(agent: Agent, grid: Grid): void {
 
   agent.currentCommandTicks++;
   if (agent.currentCommandTicks >= agent.currentCommandTarget) {
-    const resource = grid.getResourceYield(agent.position.x, agent.position.y);
+    const tile = agent.gatherTile ?? agent.position;
+    const resource = grid.getResourceYield(tile.x, tile.y);
     if (resource) {
       agent.addToInventory(resource, 1);
     }
     agent.state = "idle";
     agent.currentCommandTicks = 0;
     agent.currentCommandTarget = 0;
+    agent.gatherTile = null;
   }
 }
 

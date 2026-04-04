@@ -43,10 +43,10 @@ describe("processTick", () => {
     expect(world.agents.get("a1")!.position).toEqual({ x: 5, y: 6 });
   });
 
-  it("starts gathering when gather command issued", () => {
+  it("starts gathering when gather command issued from adjacent tile", () => {
     const world = makeWorld();
     const agent = world.agents.get("a1")!;
-    agent.position = { x: 3, y: 3 };
+    agent.position = { x: 3, y: 2 };
     agent.setPlan([{ type: "gather", resourceTile: { x: 3, y: 3 } }]);
     processTick(world);
     expect(agent.state).toBe("gathering");
@@ -55,7 +55,7 @@ describe("processTick", () => {
   it("completes gathering after enough ticks", () => {
     const world = makeWorld();
     const agent = world.agents.get("a1")!;
-    agent.position = { x: 3, y: 3 };
+    agent.position = { x: 3, y: 2 };
     agent.setPlan([{ type: "gather", resourceTile: { x: 3, y: 3 } }]);
 
     for (let i = 0; i < GATHER_DURATION + 1; i++) {
