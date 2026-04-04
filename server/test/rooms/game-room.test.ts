@@ -2,6 +2,7 @@ import "../../src/polyfill.js";
 import "../../src/encoder-config.js";
 
 import { describe, it, expect, beforeEach } from "vitest";
+import { DIALOGUE_TIMEOUT_TICKS } from "@town-zero/shared";
 import { GameRoom } from "../../src/rooms/GameRoom.js";
 import type { WorldStateSchema } from "../../src/rooms/schemas/WorldStateSchema.js";
 
@@ -415,8 +416,8 @@ describe("GameRoom integration", () => {
       const { client } = setupDialogue(room);
       sendCommand(room, client, { type: "talk", targetId: "farmer-reed" });
 
-      // Fast-forward ticks past timeout
-      for (let i = 0; i < 31; i++) {
+      // Fast-forward ticks past timeout (DIALOGUE_TIMEOUT_TICKS + 1)
+      for (let i = 0; i <= DIALOGUE_TIMEOUT_TICKS; i++) {
         tick(room);
       }
 

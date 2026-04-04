@@ -188,6 +188,10 @@ export class InputHandler {
       );
       return;
     }
+
+    // No movement keys held — converge prediction to server position
+    // so interactions use the correct (server-authoritative) position.
+    this.displayState.snapLocalPlayer(this.playerAgent.x, this.playerAgent.y);
   }
 
   private handleKey(e: KeyboardEvent): void {

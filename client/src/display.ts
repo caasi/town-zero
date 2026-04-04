@@ -168,6 +168,19 @@ export class DisplayState {
     }
   }
 
+  /**
+   * Snap local player's display position to the given server position.
+   * Called when no movement keys are held, so prediction converges to
+   * server truth and interactions use the correct position.
+   */
+  snapLocalPlayer(serverX: number, serverY: number): void {
+    if (!this.localPlayerId) return;
+    const display = this.displays.get(this.localPlayerId);
+    if (!display) return;
+    display.displayX = serverX;
+    display.displayY = serverY;
+  }
+
   get(id: string): AgentDisplay | undefined {
     return this.displays.get(id);
   }

@@ -93,7 +93,8 @@ describe("processTick", () => {
     const world = makeWorld();
     const attacker = world.agents.get("a1")!;
     attacker.addToInventory("food", 100);
-    const target = new Agent({ id: "enemy", position: { x: 5, y: 6 }, faction: "den-1", role: "beast", controller: "bot" });
+    const targetHp = BASE_ATTACK_DAMAGE * ATTACK_COOLDOWN_TICKS + 100;
+    const target = new Agent({ id: "enemy", position: { x: 5, y: 6 }, faction: "den-1", role: "beast", controller: "bot", hp: targetHp });
     target.addToInventory("food", 100);
     world.agents.set("enemy", target);
 
@@ -107,7 +108,7 @@ describe("processTick", () => {
       processTick(world);
     }
     expect(attacker.state).toBe("idle");
-    expect(target.hp).toBe(100 - BASE_ATTACK_DAMAGE * ATTACK_COOLDOWN_TICKS);
+    expect(target.hp).toBe(100); // targetHp - ATTACK_COOLDOWN_TICKS * BASE_ATTACK_DAMAGE
   });
 
   it("returns attacker to idle when target dies mid-combat", () => {
