@@ -160,10 +160,12 @@ export class InputHandler {
       if (now - this.lastMoveTime < MOVE_THROTTLE_MS) return;
       this.lastMoveTime = now;
 
-      const origin = this.displayState?.getLocalPlayerPosition()
-        ?? { x: this.playerAgent.x, y: this.playerAgent.y };
-      const targetX = origin.x + move.dx;
-      const targetY = origin.y + move.dy;
+      // Use server position for target so the command is always adjacent
+      // to where the server thinks the agent is. setPlan replaces the plan
+      // each message, so only the last target before a tick survives —
+      // predicted-position targets drift too far for the server to accept.
+      const targetX = this.playerAgent.x + move.dx;
+      const targetY = this.playerAgent.y + move.dy;
 
       if (this.displayState && this.tiles) {
         const predicted = this.displayState.predictMove(
