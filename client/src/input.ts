@@ -21,11 +21,11 @@ interface NearbyEntity {
   hp: number;
 }
 
-const ACTION_CODES = ["KeyW", "KeyA", "KeyS", "KeyD", "KeyQ", "KeyE", "KeyG", "KeyT"] as const;
+const ACTION_CODES = ["KeyW", "KeyA", "KeyS", "KeyD", "KeyQ", "KeyE", "KeyT"] as const;
 
 const QWERTY_LABELS: Record<string, string> = {
   KeyW: "W", KeyA: "A", KeyS: "S", KeyD: "D",
-  KeyQ: "Q", KeyE: "E", KeyG: "G", KeyT: "T",
+  KeyQ: "Q", KeyE: "E", KeyT: "T",
 };
 
 export async function getKeyLabels(): Promise<Record<string, string>> {
@@ -46,7 +46,7 @@ export async function getKeyLabels(): Promise<Record<string, string>> {
 
 export function formatKeyHints(labels: Record<string, string>): string {
   const move = `${labels.KeyW}${labels.KeyA}${labels.KeyS}${labels.KeyD}`;
-  return `${move}:Move  ${labels.KeyE}:Interact  ${labels.KeyQ}:Attack  ${labels.KeyG}:Gather  ${labels.KeyT}:Deposit`;
+  return `${move}:Move  ${labels.KeyE}:Interact  ${labels.KeyQ}:Attack  ${labels.KeyT}:Deposit`;
 }
 
 export function formatDialogueKeyHints(labels: Record<string, string>): string {
@@ -238,11 +238,6 @@ export class InputHandler {
         if (enemy) this.send({ type: "attack", targetId: enemy.id });
         break;
       }
-      case "KeyG": {
-        const gatherTile = this.getFacingTile();
-        if (gatherTile) this.send({ type: "gather", resourceTile: gatherTile });
-        break;
-      }
       case "KeyT":
         if (this.currentSettlementId) {
           this.send({ type: "deposit", settlementId: this.currentSettlementId });
@@ -254,21 +249,32 @@ export class InputHandler {
     }
   }
 
-  private getFacingTile(): { x: number; y: number } | null {
-    if (!this.playerAgent) return null;
+  private getFacingDelta(): { dx: number; dy: number } | null {
     const facing = this.displayState?.getLocalPlayerFacing();
     if (!facing) return null;
     const FACING_DELTA: Record<string, { dx: number; dy: number }> = {
       north: { dx: 0, dy: -1 }, south: { dx: 0, dy: 1 },
       east: { dx: 1, dy: 0 }, west: { dx: -1, dy: 0 },
     };
-    const delta = FACING_DELTA[facing];
+    return FACING_DELTA[facing] ?? null;
+  }
+
+  /** Facing tile from predicted position — matches what the player sees. */
+  private getFacingTile(): { x: number; y: number } | null {
+    if (!this.playerAgent) return null;
+    const delta = this.getFacingDelta();
     if (!delta) return null;
-    // Use predicted position so facing tile matches what the player sees,
-    // not the potentially-stale server position.
     const origin = this.displayState?.getLocalPlayerPosition()
       ?? { x: this.playerAgent.x, y: this.playerAgent.y };
     return { x: origin.x + delta.dx, y: origin.y + delta.dy };
+  }
+
+  /** Facing tile from server position — for commands the server validates by position. */
+  private getServerFacingTile(): { x: number; y: number } | null {
+    if (!this.playerAgent) return null;
+    const delta = this.getFacingDelta();
+    if (!delta) return null;
+    return { x: this.playerAgent.x + delta.dx, y: this.playerAgent.y + delta.dy };
   }
 
   private handleInteract(): void {
@@ -299,7 +305,9 @@ export class InputHandler {
     }
 
     // 3. Gather from facing resource tile (bush)
-    this.send({ type: "gather", resourceTile: target });
+    // Use server position so the server's adjacency check agrees.
+    const serverTarget = this.getServerFacingTile();
+    if (serverTarget) this.send({ type: "gather", resourceTile: serverTarget });
   }
 
   private handleKeyUp(e: KeyboardEvent): void {
