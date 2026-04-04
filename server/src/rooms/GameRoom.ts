@@ -73,7 +73,16 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
       const agentId = this.sessionToAgent.get(client.sessionId);
       if (!agentId) return;
 
-      const result = advanceDialogue(agentId, this.simState);
+      let result: ReturnType<typeof advanceDialogue>;
+      try {
+        result = advanceDialogue(agentId, this.simState);
+      } catch (err) {
+        const agent = this.simState.agents.get(agentId);
+        if (agent?.talkingToNpcId) endDialogue(agent.talkingToNpcId, this.simState);
+        console.error(`[GameRoom] advanceDialogue threw for ${agentId}:`, err);
+        client.send("dialogue:end", { reason: "closed" });
+        return;
+      }
       if (result.ok) {
         if (result.ended) {
           client.send("dialogue:end", { reason: "completed" });
@@ -91,7 +100,16 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
 
       if (!data || typeof data !== "object" || !("optionId" in data) || typeof (data as any).optionId !== "string") return;
 
-      const result = chooseDialogue(agentId, (data as any).optionId, this.simState);
+      let result: ReturnType<typeof chooseDialogue>;
+      try {
+        result = chooseDialogue(agentId, (data as any).optionId, this.simState);
+      } catch (err) {
+        const agent = this.simState.agents.get(agentId);
+        if (agent?.talkingToNpcId) endDialogue(agent.talkingToNpcId, this.simState);
+        console.error(`[GameRoom] chooseDialogue threw for ${agentId}:`, err);
+        client.send("dialogue:end", { reason: "closed" });
+        return;
+      }
       if (result.ok) {
         if (result.ended) {
           client.send("dialogue:end", { reason: "completed" });
@@ -170,6 +188,10 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
 
     const agent = this.simState.agents.get(agentId);
     if (agent) {
+      // End any active dialogue before switching to bot control
+      if (agent.talkingToNpcId) {
+        endDialogue(agent.talkingToNpcId, this.simState);
+      }
       agent.controller = "bot";
     }
 
@@ -183,6 +205,18 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
     const expired = tickDialogues(this.simState);
     for (const { playerId, reason } of expired) {
       this.sendToAgent(playerId, "dialogue:end", { reason });
+    }
+
+    // Self-heal orphaned "talking" state: if an agent is marked as talking
+    // but has no active session, reset to idle.
+    for (const [, agent] of this.simState.agents) {
+      if (agent.talkingToNpcId && !this.simState.activeSessions.has(agent.talkingToNpcId)) {
+        agent.state = "idle";
+        agent.talkingToNpcId = null;
+      }
+      if (agent.currentTalkingTo && !this.simState.activeSessions.has(agent.id)) {
+        agent.currentTalkingTo = null;
+      }
     }
 
     syncToSchema(this.simState, this.state);
