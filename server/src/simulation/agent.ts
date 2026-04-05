@@ -53,10 +53,6 @@ export class Agent {
   moveQueue: PendingInput[] = [];
   lastProcessedInput: number = 0;
 
-  /** @deprecated — remove after moveQueue migration */
-  get heldDirection(): Facing | null { return null; }
-  set heldDirection(_: Facing | null) { /* no-op */ }
-
   // Dialogue lock state
   talkingToNpcId: string | null = null;     // player → which NPC am I talking to
   currentTalkingTo: string | null = null;   // NPC → which player is talking to me

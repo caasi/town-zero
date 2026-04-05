@@ -1,4 +1,4 @@
-import { GATHER_DURATION, ATTACK_COOLDOWN_TICKS, MERCHANT_SPAWN_INTERVAL } from "@town-zero/shared";
+import { GATHER_DURATION, ATTACK_COOLDOWN_TICKS, MERCHANT_SPAWN_INTERVAL, DIRECTION_DELTA } from "@town-zero/shared";
 import type { Fact, Value, DialogueTreeData } from "@town-zero/shared";
 import { Agent } from "./agent.js";
 import type { Grid } from "./grid.js";
@@ -46,10 +46,6 @@ export function processMerchantTick(merchant: Agent, state: SimulationState): vo
   }
 }
 
-const DIRECTION_DELTA: Record<string, { dx: number; dy: number }> = {
-  north: { dx: 0, dy: -1 }, south: { dx: 0, dy: 1 },
-  east: { dx: 1, dy: 0 }, west: { dx: -1, dy: 0 },
-};
 
 export function processTick(state: SimulationState): void {
   state.tick++;
@@ -78,9 +74,10 @@ export function processTick(state: SimulationState): void {
       continue;
     }
 
-    // Phase 1.5: Held-direction movement (key-state model, one step per tick)
-    if (agent.state === "idle" && agent.heldDirection) {
-      const delta = DIRECTION_DELTA[agent.heldDirection];
+    // Phase 1.5: Consume one move input from moveQueue (per-tick input model)
+    if (agent.state === "idle" && agent.moveQueue.length > 0) {
+      const input = agent.moveQueue.shift()!;
+      const delta = DIRECTION_DELTA[input.direction];
       if (delta) {
         const target = { x: agent.position.x + delta.dx, y: agent.position.y + delta.dy };
         const moveCmd = { type: "move" as const, target };
@@ -89,6 +86,7 @@ export function processTick(state: SimulationState): void {
           executeCommand(moveCmd, ctx);
         }
       }
+      agent.lastProcessedInput = input.seq;
       continue;
     }
 

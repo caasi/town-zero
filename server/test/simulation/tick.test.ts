@@ -111,6 +111,62 @@ describe("processTick", () => {
     expect(target.hp).toBe(100); // targetHp - ATTACK_COOLDOWN_TICKS * BASE_ATTACK_DAMAGE
   });
 
+  describe("Phase 1.5: moveQueue", () => {
+    it("consumes one move input per tick and advances lastProcessedInput", () => {
+      const world = makeWorld();
+      const agent = world.agents.get("a1")!;
+      agent.facing = "south";
+      agent.enqueueMoveInput({ seq: 1, direction: "south" });
+      processTick(world);
+      expect(agent.position).toEqual({ x: 5, y: 6 });
+      expect(agent.lastProcessedInput).toBe(1);
+    });
+
+    it("advances lastProcessedInput even when move is rejected (wall)", () => {
+      const world = makeWorld();
+      const agent = world.agents.get("a1")!;
+      world.grid.setTerrain(5, 4, "water");
+      agent.facing = "north";
+      agent.enqueueMoveInput({ seq: 1, direction: "north" });
+      processTick(world);
+      expect(agent.position).toEqual({ x: 5, y: 5 }); // didn't move
+      expect(agent.lastProcessedInput).toBe(1);         // but seq advanced
+    });
+
+    it("processes turn-before-move and advances lastProcessedInput", () => {
+      const world = makeWorld();
+      const agent = world.agents.get("a1")!;
+      agent.facing = "south";
+      agent.enqueueMoveInput({ seq: 1, direction: "east" });
+      processTick(world);
+      expect(agent.facing).toBe("east");
+      expect(agent.position).toEqual({ x: 5, y: 5 }); // turned only
+      expect(agent.lastProcessedInput).toBe(1);
+    });
+
+    it("does not consume moveQueue when agent is not idle", () => {
+      const world = makeWorld();
+      const agent = world.agents.get("a1")!;
+      agent.state = "gathering";
+      agent.enqueueMoveInput({ seq: 1, direction: "south" });
+      processTick(world);
+      expect(agent.moveQueue).toHaveLength(1); // not consumed
+      expect(agent.lastProcessedInput).toBe(0);
+    });
+
+    it("consumes one per tick, leaving rest in queue", () => {
+      const world = makeWorld();
+      const agent = world.agents.get("a1")!;
+      agent.facing = "south";
+      agent.enqueueMoveInput({ seq: 1, direction: "south" });
+      agent.enqueueMoveInput({ seq: 2, direction: "south" });
+      processTick(world);
+      expect(agent.moveQueue).toHaveLength(1);
+      expect(agent.moveQueue[0].seq).toBe(2);
+      expect(agent.lastProcessedInput).toBe(1);
+    });
+  });
+
   it("returns attacker to idle when target dies mid-combat", () => {
     const world = makeWorld();
     const attacker = world.agents.get("a1")!;
