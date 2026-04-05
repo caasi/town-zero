@@ -1,5 +1,5 @@
 // client/src/types.ts
-import type { TerrainType, EntitySnapshot, ActionCommand, ZoneType } from "@town-zero/shared";
+import type { TerrainType, EntitySnapshot, ZoneType } from "@town-zero/shared";
 
 export type FogLevel = "visible" | "explored" | "unknown";
 
@@ -33,7 +33,6 @@ export interface Viewport {
 export type GameState = "connecting" | "playing" | "dead" | "error";
 
 export type ModalRequest =
-  | { type: "trade"; merchantId: string }
-  | { type: "dialogue"; targetId: string };
+  | { type: "trade"; merchantId: string };
 
-export type { ActionCommand, TerrainType, EntitySnapshot };
+export type { TerrainType, EntitySnapshot };

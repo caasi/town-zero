@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { DisplayState } from "../src/display.js";
 import { TILE_SIZE } from "../src/constants.js";
-import type { PendingInput } from "@town-zero/shared";
+import type { InputFrame } from "@town-zero/shared";
 
 function makeTiles(entries: Record<string, { terrain: string }>) {
   return {
@@ -122,7 +122,7 @@ describe("DisplayState", () => {
       const tiles = makeTiles({ "0,0": { terrain: "plains" } });
       ds.setTileSource(tiles);
 
-      const pending: PendingInput[] = [];
+      const pending: InputFrame[] = [];
       const remaining = ds.reconcileFromServer("p1",
         { x: 3, y: 4, facing: "south", lastProcessedInput: 0, state: "idle" },
         pending,
@@ -142,7 +142,7 @@ describe("DisplayState", () => {
       });
       ds.setTileSource(tiles);
 
-      const pending: PendingInput[] = [
+      const pending: InputFrame[] = [
         { seq: 1, direction: "south" },
         { seq: 2, direction: "south" },
         { seq: 3, direction: "south" },
@@ -167,7 +167,7 @@ describe("DisplayState", () => {
       });
       ds.setTileSource(tiles);
 
-      const pending: PendingInput[] = [
+      const pending: InputFrame[] = [
         { seq: 1, direction: "east" }, // turn only (was facing south)
         { seq: 2, direction: "east" }, // actual move
       ];
@@ -189,7 +189,7 @@ describe("DisplayState", () => {
       });
       ds.setTileSource(tiles);
 
-      const pending: PendingInput[] = [
+      const pending: InputFrame[] = [
         { seq: 1, direction: "east" }, // turn
         { seq: 2, direction: "east" }, // would be rejected by replay (water)
       ];
@@ -209,7 +209,7 @@ describe("DisplayState", () => {
       const tiles = makeTiles({});
       ds.setTileSource(tiles);
 
-      const pending: PendingInput[] = [
+      const pending: InputFrame[] = [
         { seq: 1, direction: "south" },
         { seq: 2, direction: "south" },
       ];

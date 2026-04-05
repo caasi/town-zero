@@ -1,10 +1,8 @@
 // client/src/input.ts
-import type { ActionCommand, PendingInput, Facing } from "@town-zero/shared";
+import type { InputFrame, Facing } from "@town-zero/shared";
 import { PENDING_INPUT_CAP } from "@town-zero/shared";
 import type { ModalRequest } from "./types.js";
 import type { DisplayState } from "./display.js";
-
-export type SendFn = (cmd: ActionCommand) => void;
 
 interface AgentInfo {
   x: number;
@@ -71,7 +69,6 @@ const CODE_TO_DIRECTION: Record<string, Facing> = {
 };
 
 export class InputHandler {
-  private send: SendFn;
   private lastMoveTime = 0;
   private enabled = true;
   private onModal: ((req: ModalRequest) => void) | null = null;
@@ -91,11 +88,11 @@ export class InputHandler {
 
   // Movement reconciliation state
   inputSeq: number = 0;
-  pendingInputs: PendingInput[] = [];
+  pendingInputs: InputFrame[] = [];
 
-  // Network send callback for movement
-  onSendMove: ((direction: Facing, seq: number) => void) | null = null;
-  onSendMoveStop: ((seq: number) => void) | null = null;
+  // Network send callbacks
+  onSendInput: ((frame: InputFrame) => void) | null = null;
+  onSendInputStop: ((seq: number) => void) | null = null;
 
   // Dialogue mode
   private _dialogueMode = false;
@@ -110,13 +107,12 @@ export class InputHandler {
     const hadMovement = [...this.heldKeys].some((k) => k in MOVE_KEYS);
     this.heldKeys.clear();
     if (hadMovement) {
-      this.onSendMoveStop?.(this.inputSeq);
+      this.onSendInputStop?.(this.inputSeq);
       this.pendingInputs = [];
     }
   };
 
-  constructor(send: SendFn) {
-    this.send = send;
+  constructor() {
     this.handleKey = this.handleKey.bind(this);
     this.handleKeyUp = this.handleKeyUp.bind(this);
     window.addEventListener("keydown", this.handleKey);
@@ -162,7 +158,7 @@ export class InputHandler {
     const hadMovement = [...this.heldKeys].some((k) => k in MOVE_KEYS);
     this.heldKeys.clear();
     if (hadMovement) {
-      this.onSendMoveStop?.(this.inputSeq);
+      this.onSendInputStop?.(this.inputSeq);
       this.pendingInputs = [];
     }
   }
@@ -193,7 +189,8 @@ export class InputHandler {
       if (!direction) return;
 
       ++this.inputSeq;
-      this.onSendMove?.(direction, this.inputSeq);
+      const frame: InputFrame = { seq: this.inputSeq, direction };
+      this.onSendInput?.(frame);
 
       // Local prediction
       const origin = this.displayState.getLocalPlayerPosition()
@@ -208,7 +205,7 @@ export class InputHandler {
       // Always push regardless of predictMove result — the server may accept
       // moves the client rejects (different terrain knowledge). Reconciliation
       // handles correctness; gaps in the buffer cause desync.
-      this.pendingInputs.push({ seq: this.inputSeq, direction });
+      this.pendingInputs.push(frame);
 
       // Safety valve
       if (this.pendingInputs.length > PENDING_INPUT_CAP) {
@@ -276,12 +273,16 @@ export class InputHandler {
         const enemy = this.nearbyEntities.find(
           (e) => e.faction !== faction && e.hp > 0 && this.isAdjacent(x, y, e.x, e.y),
         );
-        if (enemy) this.send({ type: "attack", targetId: enemy.id });
+        if (enemy) {
+          ++this.inputSeq;
+          this.onSendInput?.({ seq: this.inputSeq, action: { type: "attack", targetId: enemy.id } });
+        }
         break;
       }
       case "KeyT":
         if (this.currentSettlementId) {
-          this.send({ type: "deposit", settlementId: this.currentSettlementId });
+          ++this.inputSeq;
+          this.onSendInput?.({ seq: this.inputSeq, action: { type: "deposit", settlementId: this.currentSettlementId } });
         }
         break;
       case "KeyE":
@@ -334,12 +335,16 @@ export class InputHandler {
         && atFacing(e),
     );
     if (npc) {
-      this.send({ type: "talk", targetId: npc.id });
+      ++this.inputSeq;
+      this.onSendInput?.({ seq: this.inputSeq, action: { type: "talk", targetId: npc.id } });
       return;
     }
 
     // 3. Gather from facing resource tile (bush)
-    if (target) this.send({ type: "gather", resourceTile: target });
+    if (target) {
+      ++this.inputSeq;
+      this.onSendInput?.({ seq: this.inputSeq, action: { type: "gather", resourceTile: target } });
+    }
   }
 
   private handleKeyUp(e: KeyboardEvent): void {
@@ -349,7 +354,7 @@ export class InputHandler {
     if (e.code in MOVE_KEYS) {
       const hasMovement = [...this.heldKeys].some((k) => k in MOVE_KEYS);
       if (!hasMovement) {
-        this.onSendMoveStop?.(this.inputSeq);
+        this.onSendInputStop?.(this.inputSeq);
         this.pendingInputs = [];
       }
     }
