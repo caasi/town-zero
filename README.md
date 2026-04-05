@@ -41,7 +41,7 @@ pnpm run test
 
 ## Current State
 
-**Working:** Full game loop running. Server simulation (186 tests) is wired into Colyseus GameRoom with state sync, player commands, vision updates, and death notifications. Canvas 2D client renders the world with fog of war, HUD, trade modal, and reconnection handling.
+**Working:** Full game loop running. Server simulation wired into Colyseus GameRoom with state sync, player commands, vision updates, death notifications, and NPC dialogue. Canvas 2D client renders the world with fog of war, client-side movement prediction (Gambetta reconciliation), HUD, trade modal, and reconnection handling. 439 tests across server and client.
 
 **Next:** Wire LLM scheduler into GameRoom tick for NPC decision-making.
 
@@ -62,9 +62,10 @@ Players join a 40x40 grid world containing a **village** and a **monster den**. 
 - **Agents** gather resources, deposit them at settlements, operate production facilities, trade with merchants, and fight enemies.
 - **Fog of war** limits each agent's vision to a Manhattan-distance radius. Agents must be adjacent to share map memory with allies.
 
-### Simulation Loop (1 tick/s)
+### Simulation Loop (8 ticks/s = 125ms)
 
 1. Process ongoing multi-tick actions (gathering, fighting)
+1.5. Consume one move input from agent's moveQueue (per-tick input model with Gambetta reconciliation)
 2. Dequeue and execute next command from each agent's plan
 3. Bot controller decides for idle bot agents
 4. Production facilities convert raw materials to food
@@ -78,7 +79,7 @@ Players join a 40x40 grid world containing a **village** and a **monster den**. 
 - **Monorepo:** pnpm workspaces (`shared/`, `server/`, `client/`)
 - **Server:** Colyseus 0.17 (`@colyseus/core` + `@colyseus/ws-transport` + `@colyseus/schema` v4)
 - **Client:** Canvas 2D renderer + @colyseus/sdk + Vite
-- **Testing:** Vitest (186 tests)
+- **Testing:** Vitest (439 tests)
 - **Language:** TypeScript (strict, ES2022)
 
 ## Project Structure
@@ -99,7 +100,8 @@ client/
     renderer.ts  # Canvas 2D renderer (terrain, entities, fog overlay)
     camera.ts    # Player-centered viewport with edge clamping
     fog.ts       # Three-tier fog of war (visible / explored / unknown)
-    input.ts     # WASD movement + action keys (Q/E/G/T)
+    input.ts     # WASD movement + action keys, per-tick input sequencing
+    display.ts   # Movement prediction, server reconciliation, lerped rendering
     types.ts     # Client-side type definitions
 docs/            # Design spec and implementation plan
 ```
