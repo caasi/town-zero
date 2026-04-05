@@ -94,7 +94,7 @@ export class InputHandler {
   pendingInputs: PendingInput[] = [];
 
   // Network send callback for movement
-  onSendMove: ((direction: string, seq: number) => void) | null = null;
+  onSendMove: ((direction: Facing, seq: number) => void) | null = null;
   onSendMoveStop: ((seq: number) => void) | null = null;
 
   // Dialogue mode
