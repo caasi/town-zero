@@ -88,7 +88,6 @@ export class DialogueSession {
 
     // Release locks on both agents
     this._npc.currentTalkingTo = null;
-    this._player.state = "idle";
     this._player.talkingToNpcId = null;
   }
 

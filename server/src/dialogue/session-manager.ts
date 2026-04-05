@@ -49,7 +49,7 @@ export function startDialogue(
   if (!player || !target) return { ok: false, error: "no_dialogue" };
 
   // Prevent overlapping dialogue sessions for the same player
-  if (player.state === "talking" || player.talkingToNpcId !== null) {
+  if (player.talkingToNpcId !== null) {
     return { ok: false, error: "busy" };
   }
 
@@ -151,8 +151,7 @@ export function startDialogue(
   });
 
   // Lock both agents and stop any held movement
-  player.state = "talking";
-  player.moveQueue = [];
+  player.inputQueue = [];
   player.talkingToNpcId = targetId;
   target.currentTalkingTo = playerId;
   state.activeSessions.set(targetId, session);
