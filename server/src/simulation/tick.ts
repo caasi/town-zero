@@ -77,6 +77,11 @@ export function processTick(state: SimulationState): void {
     // Phase 1.5: Consume one move input from moveQueue (per-tick input model)
     // Yield to plan commands — explicit actions (gather, attack, etc.) take priority
     if (agent.state === "idle" && agent.moveQueue.length > 0 && agent.plan.length === 0) {
+      // Drain stale inputs (defense-in-depth — ingress should already reject these)
+      while (agent.moveQueue.length > 0 && agent.moveQueue[0].seq <= agent.lastProcessedInput) {
+        agent.moveQueue.shift();
+      }
+      if (agent.moveQueue.length === 0) continue;
       const input = agent.moveQueue.shift()!;
       const delta = DIRECTION_DELTA[input.direction];
       if (delta) {
