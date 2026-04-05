@@ -80,12 +80,8 @@ export function processTick(state: SimulationState): TalkResult[] {
       s.populationIds.includes(agent.id),
     );
     if (settlement) {
-      const cmd = decideBotAction(agent, settlement);
-      // decideBotAction returns ActionCommand until Task 5 updates it.
-      // "move" commands are filtered out — FrameAction doesn't include "move".
-      if (cmd.type !== "move") {
-        agent.planBacklog = [{ seq: 0, action: cmd as any }];
-      }
+      const frames = decideBotAction(agent, settlement);
+      agent.planBacklog = frames;
     }
   }
 

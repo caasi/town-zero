@@ -1,36 +1,34 @@
-import type { ActionCommand, Position } from "@town-zero/shared";
+import type { InputFrame, ResourceType, Facing } from "@town-zero/shared";
 import type { Agent } from "../simulation/agent.js";
 import type { Settlement } from "../simulation/settlement.js";
 
-function moveToward(from: Position, to: Position): Position {
+function directionToward(from: { x: number; y: number }, to: { x: number; y: number }): Facing | null {
   const dx = Math.sign(to.x - from.x);
   const dy = Math.sign(to.y - from.y);
-  if (dx !== 0) return { x: from.x + dx, y: from.y };
-  if (dy !== 0) return { x: from.x, y: from.y + dy };
-  return from;
+  if (dx > 0) return "east";
+  if (dx < 0) return "west";
+  if (dy > 0) return "south";
+  if (dy < 0) return "north";
+  return null;
 }
 
-export function decideBotAction(agent: Agent, settlement: Settlement): ActionCommand {
+export function decideBotAction(agent: Agent, settlement: Settlement): InputFrame[] {
   const inTerritory = settlement.isInTerritory(agent.position);
 
   if (agent.inventory.food <= 0) {
     if (inTerritory && settlement.inventory.food > 0) {
-      return { type: "take", settlementId: settlement.id, resource: "food", amount: Math.min(3, settlement.inventory.food) };
+      return [{ seq: 0, action: { type: "take", settlementId: settlement.id, resource: "food" as ResourceType, amount: Math.min(3, settlement.inventory.food) } }];
     }
-    const target = moveToward(agent.position, settlement.territory[0]);
-    if (target.x !== agent.position.x || target.y !== agent.position.y) {
-      return { type: "move", target };
-    }
+    const dir = directionToward(agent.position, settlement.territory[0]);
+    if (dir) return [{ seq: 0, direction: dir }];
   }
 
   if (inTerritory && agent.inventory.food > 0) {
-    return { type: "idle" };
+    return [{ seq: 0, action: { type: "idle" } }];
   }
 
-  const target = moveToward(agent.position, settlement.territory[0]);
-  if (target.x !== agent.position.x || target.y !== agent.position.y) {
-    return { type: "move", target };
-  }
+  const dir = directionToward(agent.position, settlement.territory[0]);
+  if (dir) return [{ seq: 0, direction: dir }];
 
-  return { type: "idle" };
+  return [{ seq: 0, action: { type: "idle" } }];
 }
