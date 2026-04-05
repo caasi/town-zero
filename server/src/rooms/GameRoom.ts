@@ -79,6 +79,11 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
       const seq = (data as any).seq;
       if (!VALID_DIRECTIONS.has(dir)) return;
       if (!isValidSeq(seq)) return;
+      if (seq <= agent.lastProcessedInput) return;
+      const lastQueuedSeq = agent.moveQueue.length > 0
+        ? agent.moveQueue[agent.moveQueue.length - 1]!.seq
+        : -1;
+      if (seq <= lastQueuedSeq) return;
       agent.enqueueMoveInput({ seq, direction: dir as Facing });
     });
 
