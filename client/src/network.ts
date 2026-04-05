@@ -82,12 +82,12 @@ export class NetworkClient {
     this.room?.send("command", cmd);
   }
 
-  sendMoveStart(direction: string): void {
-    this.room?.send("move:start", { direction });
+  sendMove(direction: string, seq: number): void {
+    this.room?.send("move", { direction, seq });
   }
 
-  sendMoveStop(): void {
-    this.room?.send("move:stop");
+  sendMoveStop(seq: number): void {
+    this.room?.send("move:stop", { seq });
   }
 
   onVision(cb: (data: VisionData) => void): void {
