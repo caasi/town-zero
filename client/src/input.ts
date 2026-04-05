@@ -109,7 +109,10 @@ export class InputHandler {
   private handleBlur = (): void => {
     const hadMovement = [...this.heldKeys].some((k) => k in MOVE_KEYS);
     this.heldKeys.clear();
-    if (hadMovement) this.onSendMoveStop?.(this.inputSeq);
+    if (hadMovement) {
+      this.onSendMoveStop?.(this.inputSeq);
+      this.pendingInputs = [];
+    }
   };
 
   constructor(send: SendFn) {
@@ -158,7 +161,10 @@ export class InputHandler {
     this._dialogueMode = true;
     const hadMovement = [...this.heldKeys].some((k) => k in MOVE_KEYS);
     this.heldKeys.clear();
-    if (hadMovement) this.onSendMoveStop?.(this.inputSeq);
+    if (hadMovement) {
+      this.onSendMoveStop?.(this.inputSeq);
+      this.pendingInputs = [];
+    }
   }
 
   exitDialogueMode(): void {
@@ -339,6 +345,7 @@ export class InputHandler {
       const nextMove = [...this.heldKeys].find((k) => k in MOVE_KEYS);
       if (!nextMove) {
         this.onSendMoveStop?.(this.inputSeq);
+        this.pendingInputs = [];
       }
     }
   }
