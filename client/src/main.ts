@@ -165,7 +165,7 @@ function gameLoop(now: number): void {
 
   if (gameState === "playing") {
     // Sync display positions from server BEFORE input so predictions
-    // aren't immediately overridden by an uninitialized lastServerPos.
+    // aren't immediately overridden by an uninitialized state.
     const syncEntries: Array<[string, { x: number; y: number; facing: string }]> = [];
     const agentList: Array<{ id: string; x: number; y: number; role: string; faction: string }> = [];
     if (network.state?.agents) {
@@ -173,7 +173,26 @@ function gameLoop(now: number): void {
         syncEntries.push([agent.id, { x: agent.x, y: agent.y, facing: agent.facing }]);
         agentList.push({ id: agent.id, x: agent.x, y: agent.y, role: agent.role, faction: agent.faction });
       });
+      // Sync non-local agents
       displayState.syncFromServer(syncEntries);
+
+      // Reconcile local player
+      if (input && network.playerId) {
+        const localAgent = network.state.agents.get(network.playerId);
+        if (localAgent) {
+          input.pendingInputs = displayState.reconcileFromServer(
+            network.playerId,
+            {
+              x: localAgent.x,
+              y: localAgent.y,
+              facing: localAgent.facing,
+              lastProcessedInput: localAgent.lastProcessedInput,
+              state: localAgent.state,
+            },
+            input.pendingInputs,
+          );
+        }
+      }
     }
 
     updateInputContext();
@@ -231,8 +250,8 @@ async function connect(): Promise<void> {
 
     input = new InputHandler((cmd) => network.send(cmd));
     input.setModalHandler(handleModal);
-    input.onMoveStart = (dir) => network.sendMoveStart(dir);
-    input.onMoveStop = () => network.sendMoveStop();
+    input.onSendMove = (dir, seq) => network.sendMove(dir, seq);
+    input.onSendMoveStop = (seq) => network.sendMoveStop(seq);
     input.onDialogueAdvance = () => network.sendDialogueAdvance();
     input.onDialogueChoose = (optionId) => network.sendDialogueChoose(optionId);
     input.onDialogueClose = () => network.sendDialogueClose();
@@ -240,6 +259,7 @@ async function connect(): Promise<void> {
     input.onDialogueGetSelectedId = () => dialogueUI.getSelectedOptionId();
     input.onDialogueIsText = () => dialogueUI.isShowingText();
     displayState.setLocalPlayer(network.playerId);
+    displayState.setTileSource(fog.tileSource());
     input.setPredictionContext(displayState, fog.tileSource());
 
     network.onVision((vision) => fog.update(vision));
