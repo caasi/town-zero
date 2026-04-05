@@ -13,7 +13,7 @@ import { startDialogue, advanceDialogue, chooseDialogue, endDialogue, tickDialog
 const VALID_DIRECTIONS = new Set<string>(["north", "south", "east", "west"]);
 
 function isValidSeq(seq: unknown): seq is number {
-  return typeof seq === "number" && Number.isFinite(seq) && Number.isInteger(seq) && seq >= 0;
+  return typeof seq === "number" && Number.isSafeInteger(seq) && seq >= 0;
 }
 
 export class GameRoom extends Room<{ state: WorldStateSchema }> {
