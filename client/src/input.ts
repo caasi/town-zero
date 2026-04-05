@@ -175,17 +175,21 @@ export class InputHandler {
     if (!this.enabled || !this.playerAgent || this._dialogueMode) return;
     if (!this.displayState || !this.tiles) return;
 
-    // Find the first held movement key
-    for (const code of this.heldKeys) {
-      const move = MOVE_KEYS[code];
-      if (!move) continue;
+    // Use the most recently pressed movement key (last in Set insertion order)
+    const heldArray = [...this.heldKeys];
+    let activeCode: string | undefined;
+    for (let i = heldArray.length - 1; i >= 0; i--) {
+      if (heldArray[i] in MOVE_KEYS) { activeCode = heldArray[i]; break; }
+    }
+    if (activeCode) {
+      const move = MOVE_KEYS[activeCode]!;
 
       const now = Date.now();
       if (now - this.lastMoveTime < MOVE_THROTTLE_MS) return;
       this.lastMoveTime = now;
 
       // Determine direction and send per-tick move message
-      const direction = CODE_TO_DIRECTION[code];
+      const direction = CODE_TO_DIRECTION[activeCode];
       if (!direction) return;
 
       ++this.inputSeq;
@@ -253,8 +257,10 @@ export class InputHandler {
 
     // Track movement key presses and send direction to server.
     // preventDefault stops Arrow keys from scrolling the page.
+    // Delete+re-add so most recently pressed key is last in Set iteration order.
     if (code in MOVE_KEYS) {
       e.preventDefault();
+      this.heldKeys.delete(code);
       this.heldKeys.add(code);
       return;
     }
@@ -339,11 +345,10 @@ export class InputHandler {
   private handleKeyUp(e: KeyboardEvent): void {
     this.heldKeys.delete(e.code);
 
-    // When the released key was a movement key, check remaining held keys
+    // When the last movement key is released, send stop
     if (e.code in MOVE_KEYS) {
-      // Find another held movement key to switch to
-      const nextMove = [...this.heldKeys].find((k) => k in MOVE_KEYS);
-      if (!nextMove) {
+      const hasMovement = [...this.heldKeys].some((k) => k in MOVE_KEYS);
+      if (!hasMovement) {
         this.onSendMoveStop?.(this.inputSeq);
         this.pendingInputs = [];
       }
