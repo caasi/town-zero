@@ -42,6 +42,21 @@ export interface PendingInput {
   direction: Facing;
 }
 
+export type FrameAction =
+  | { type: "gather"; resourceTile: Position }
+  | { type: "attack"; targetId: string }
+  | { type: "deposit"; settlementId: string }
+  | { type: "take"; settlementId: string; resource: ResourceType; amount: number }
+  | { type: "trade"; targetId: string; offer: ResourceType; offerAmount: number; want: ResourceType; wantAmount: number }
+  | { type: "talk"; targetId: string }
+  | { type: "idle" };
+
+export interface InputFrame {
+  seq: number;
+  direction?: Facing;
+  action?: FrameAction;
+}
+
 /**
  * Returns all positions within Manhattan distance `radius` of `center`.
  * Used by both server vision and client fog prediction.

@@ -47,7 +47,7 @@ export const LLM_MIN_INTERVAL_MS = 10_000;  // 10 seconds for important NPCs
 export const LLM_MAX_INTERVAL_MS = 30_000;  // 30 seconds for common NPCs
 
 // --- Movement reconciliation ---
-export const MOVE_QUEUE_CAP = 3;       // server-side per-agent input buffer depth
+export const INPUT_QUEUE_CAP = 3;       // server-side per-agent input buffer depth
 export const PENDING_INPUT_CAP = 20;   // client-side pending input buffer safety valve
 
 export const DIRECTION_DELTA: Record<Facing, { dx: number; dy: number }> = {
