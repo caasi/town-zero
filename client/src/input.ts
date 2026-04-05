@@ -1,5 +1,5 @@
 // client/src/input.ts
-import type { ActionCommand, PendingInput } from "@town-zero/shared";
+import type { ActionCommand, PendingInput, Facing } from "@town-zero/shared";
 import { PENDING_INPUT_CAP } from "@town-zero/shared";
 import type { ModalRequest } from "./types.js";
 import type { DisplayState } from "./display.js";
@@ -63,7 +63,7 @@ const MOVE_KEYS: Record<string, { dx: number; dy: number }> = {
   KeyD: { dx: 1, dy: 0 },  ArrowRight: { dx: 1, dy: 0 },
 };
 
-const CODE_TO_DIRECTION: Record<string, string> = {
+const CODE_TO_DIRECTION: Record<string, Facing> = {
   KeyW: "north", ArrowUp: "north",
   KeyA: "west",  ArrowLeft: "west",
   KeyS: "south", ArrowDown: "south",
@@ -198,7 +198,7 @@ export class InputHandler {
       // Always push regardless of predictMove result — the server may accept
       // moves the client rejects (different terrain knowledge). Reconciliation
       // handles correctness; gaps in the buffer cause desync.
-      this.pendingInputs.push({ seq: this.inputSeq, direction: direction as any });
+      this.pendingInputs.push({ seq: this.inputSeq, direction });
 
       // Safety valve
       if (this.pendingInputs.length > PENDING_INPUT_CAP) {
