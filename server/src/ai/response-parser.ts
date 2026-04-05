@@ -1,18 +1,16 @@
-import type { ActionCommand } from "@town-zero/shared";
+import type { FrameAction } from "@town-zero/shared";
 
-const VALID_TYPES = new Set(["move", "gather", "attack", "deposit", "take", "talk", "trade", "idle"]);
+const VALID_TYPES = new Set(["gather", "attack", "deposit", "take", "talk", "trade", "idle"]);
 const VALID_RESOURCES = new Set(["food", "material", "currency"]);
 
 function isPosition(v: unknown): v is { x: number; y: number } {
   return typeof v === "object" && v !== null && typeof (v as any).x === "number" && typeof (v as any).y === "number";
 }
 
-function isValidCommand(cmd: any): boolean {
+function isValidAction(cmd: any): boolean {
   if (!cmd || typeof cmd.type !== "string" || !VALID_TYPES.has(cmd.type)) return false;
 
   switch (cmd.type) {
-    case "move":
-      return isPosition(cmd.target);
     case "gather":
       return isPosition(cmd.resourceTile);
     case "attack":
@@ -22,7 +20,7 @@ function isValidCommand(cmd: any): boolean {
     case "take":
       return typeof cmd.settlementId === "string" && VALID_RESOURCES.has(cmd.resource) && typeof cmd.amount === "number";
     case "talk":
-      return typeof cmd.targetId === "string" && typeof cmd.optionId === "string";
+      return typeof cmd.targetId === "string";
     case "trade":
       return typeof cmd.targetId === "string"
         && VALID_RESOURCES.has(cmd.offer) && typeof cmd.offerAmount === "number"
@@ -34,7 +32,7 @@ function isValidCommand(cmd: any): boolean {
   }
 }
 
-export function parseResponse(raw: string): ActionCommand[] {
+export function parseResponse(raw: string): FrameAction[] {
   const codeBlockMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
   const jsonStr = codeBlockMatch ? codeBlockMatch[1].trim() : raw.trim();
 
@@ -42,9 +40,9 @@ export function parseResponse(raw: string): ActionCommand[] {
     const parsed = JSON.parse(jsonStr);
     if (!Array.isArray(parsed)) return [{ type: "idle" }];
 
-    const commands = parsed.filter(isValidCommand) as ActionCommand[];
+    const actions = parsed.filter(isValidAction) as FrameAction[];
 
-    return commands.length > 0 ? commands : [{ type: "idle" }];
+    return actions.length > 0 ? actions : [{ type: "idle" }];
   } catch {
     return [{ type: "idle" }];
   }

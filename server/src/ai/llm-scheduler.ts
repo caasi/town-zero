@@ -41,7 +41,7 @@ export class LLMScheduler {
       const agent = agents.get(entry.agentId);
       if (!agent || !agent.isAlive()) continue;
       if (agent.controller !== "llm") continue;
-      if (agent.state !== "idle" || agent.plan.length > 0) continue;
+      if (agent.inputQueue.length > 0 || agent.planBacklog.length > 0) continue;
 
       const settlement = Array.from(settlements.values()).find((s) =>
         s.populationIds.includes(agent.id),
@@ -52,8 +52,8 @@ export class LLMScheduler {
 
       try {
         const response = await this.callFn(prompt);
-        const commands = parseResponse(response);
-        agent.setPlan(commands);
+        const actions = parseResponse(response);
+        agent.planBacklog = actions.map((a) => ({ seq: 0, action: a }));
         entry.lastCallTime = now;
       } catch (err) {
         entry.lastCallTime = now;

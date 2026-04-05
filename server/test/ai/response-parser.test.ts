@@ -3,10 +3,10 @@ import { parseResponse } from "../../src/ai/response-parser.js";
 
 describe("parseResponse", () => {
   it("parses valid JSON action array", () => {
-    const raw = '[{"type":"move","target":{"x":6,"y":5}},{"type":"idle"}]';
+    const raw = '[{"type":"gather","resourceTile":{"x":3,"y":3}},{"type":"idle"}]';
     const result = parseResponse(raw);
     expect(result).toHaveLength(2);
-    expect(result[0].type).toBe("move");
+    expect(result[0].type).toBe("gather");
     expect(result[1].type).toBe("idle");
   });
 
@@ -22,23 +22,17 @@ describe("parseResponse", () => {
   });
 
   it("filters out invalid command types", () => {
-    const raw = '[{"type":"move","target":{"x":1,"y":1}},{"type":"fly","destination":"moon"}]';
+    const raw = '[{"type":"gather","resourceTile":{"x":1,"y":1}},{"type":"fly","destination":"moon"}]';
     const result = parseResponse(raw);
     expect(result).toHaveLength(1);
-    expect(result[0].type).toBe("move");
+    expect(result[0].type).toBe("gather");
   });
 
-  it("filters out move without target", () => {
-    const raw = '[{"type":"move"},{"type":"idle"}]';
+  it("filters out move type (no longer valid)", () => {
+    const raw = '[{"type":"move","target":{"x":1,"y":1}},{"type":"idle"}]';
     const result = parseResponse(raw);
     expect(result).toHaveLength(1);
     expect(result[0].type).toBe("idle");
-  });
-
-  it("filters out move with non-object target", () => {
-    const raw = '[{"type":"move","target":"north"}]';
-    const result = parseResponse(raw);
-    expect(result).toEqual([{ type: "idle" }]);
   });
 
   it("filters out gather without resourceTile", () => {
@@ -78,10 +72,10 @@ describe("parseResponse", () => {
   });
 
   it("keeps well-formed commands and drops malformed ones", () => {
-    const raw = '[{"type":"move","target":{"x":1,"y":1}},{"type":"attack"},{"type":"idle"}]';
+    const raw = '[{"type":"gather","resourceTile":{"x":1,"y":1}},{"type":"attack"},{"type":"idle"}]';
     const result = parseResponse(raw);
     expect(result).toHaveLength(2);
-    expect(result[0].type).toBe("move");
+    expect(result[0].type).toBe("gather");
     expect(result[1].type).toBe("idle");
   });
 });
