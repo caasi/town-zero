@@ -12,6 +12,10 @@ import { startDialogue, advanceDialogue, chooseDialogue, endDialogue, tickDialog
 
 const VALID_DIRECTIONS = new Set<string>(["north", "south", "east", "west"]);
 
+function isValidSeq(seq: unknown): seq is number {
+  return typeof seq === "number" && Number.isSafeInteger(seq) && seq >= 0;
+}
+
 export class GameRoom extends Room<{ state: WorldStateSchema }> {
   private simState!: SimulationState;
   private sessionToAgent = new Map<string, string>();
@@ -63,8 +67,8 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
       agent.setPlan([cmd]);
     });
 
-    // Key-state movement: client sends direction on keydown/keyup
-    this.onMessage("move:start", (client: Client, data: unknown) => {
+    // Per-tick movement: client sends { direction, seq } each 125ms
+    this.onMessage("move", (client: Client, data: unknown) => {
       const agentId = this.sessionToAgent.get(client.sessionId);
       if (!agentId) return;
       const agent = this.simState.agents.get(agentId);
@@ -72,16 +76,27 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
       if (agent.state === "talking") return;
       if (typeof data !== "object" || data === null) return;
       const dir = (data as any).direction;
+      const seq = (data as any).seq;
       if (!VALID_DIRECTIONS.has(dir)) return;
-      agent.heldDirection = dir as Facing;
+      if (!isValidSeq(seq)) return;
+      if (seq <= agent.lastProcessedInput) return;
+      const lastQueuedSeq = agent.moveQueue.length > 0
+        ? agent.moveQueue[agent.moveQueue.length - 1]!.seq
+        : -1;
+      if (seq <= lastQueuedSeq) return;
+      agent.enqueueMoveInput({ seq, direction: dir as Facing });
     });
 
-    this.onMessage("move:stop", (client: Client) => {
+    this.onMessage("move:stop", (client: Client, data: unknown) => {
       const agentId = this.sessionToAgent.get(client.sessionId);
       if (!agentId) return;
       const agent = this.simState.agents.get(agentId);
       if (!agent) return;
-      agent.heldDirection = null;
+      agent.moveQueue = [];
+      const seq = typeof data === "object" && data !== null ? (data as any).seq : undefined;
+      if (isValidSeq(seq)) {
+        agent.lastProcessedInput = Math.max(agent.lastProcessedInput, seq);
+      }
     });
 
     this.onMessage("dialogue:advance", (client: Client) => {
@@ -170,6 +185,8 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
       controller: "player",
     });
     agent.addToInventory("food", 5);
+    agent.lastProcessedInput = 0;
+    agent.moveQueue = [];
 
     this.simState.agents.set(id, agent);
     village.populationIds.push(id);

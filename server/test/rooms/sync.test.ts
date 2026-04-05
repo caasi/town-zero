@@ -183,6 +183,16 @@ describe("syncToSchema", () => {
     syncToSchema(sim, state);
     expect(state.agents.get("a1")!.facing).toBe("east");
   });
+
+  it("syncs lastProcessedInput", () => {
+    const agent = makeAgent("a1");
+    agent.lastProcessedInput = 42;
+    const sim = makeSimState({ agents: new Map([["a1", agent]]) });
+    const state = new WorldStateSchema();
+
+    syncToSchema(sim, state);
+    expect(state.agents.get("a1")!.lastProcessedInput).toBe(42);
+  });
 });
 
 describe("syncTiles", () => {

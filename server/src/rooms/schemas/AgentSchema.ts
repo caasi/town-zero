@@ -12,6 +12,7 @@ export const AgentSchema = schema({
   controller: "string",
   facing: "string",
   currentTargetId: "string",
+  lastProcessedInput: "number",
   inventory: { map: "number" },
 }, "AgentSchema");
 

@@ -43,7 +43,7 @@ pnpm run test
 
 **Simulation flow (per tick at 8 ticks/s = 125ms):**
 1. Process ongoing multi-tick actions (gathering, fighting)
-1.5. Held-direction movement (key-state model, one step per tick)
+1.5. Consume one move input from agent's moveQueue (per-tick input model)
 2. Dequeue and execute next command from each agent's plan
 3. Bot controller decides for idle bot agents
 4. Production facilities convert raw materials → food/material (counter-gated, ~10s)
@@ -68,7 +68,7 @@ pnpm run test
 - `server/src/polyfill.ts` provides `Symbol.metadata` — V8 hasn't implemented it yet, @colyseus/schema v4 needs it; imported as first line in `server/src/index.ts`
 - Use `@colyseus/core` directly, not the `colyseus` meta-package — the meta-package pulls in many sub-packages that cause duplicate `@colyseus/core` instances
 - Server simulation is authoritative; client only renders and sends commands
-- **Key-state movement:** Client sends `move:start`/`move:stop` messages (direction on keydown, stop on keyup). Server stores `agent.heldDirection` and processes one move step per tick in Phase 1.5. Client `update()` does local prediction at the same rate; no move commands are sent per-frame
+- **Per-tick movement (Gambetta reconciliation):** Client sends `move` messages (with seq number) every 125ms while a key is held. Server consumes one from `agent.moveQueue` per tick, advancing `agent.lastProcessedInput`. Client reconciles by accepting server position as baseline, pruning acknowledged inputs, and replaying the rest. `move:stop` with seq flushes server queue and client buffer. No `heldDirection` — the key-state model was replaced
 - MVP fog of war is client-side only (trusts client, no anti-cheat). Even so, client code must treat unknown tiles as truly unknown — prediction reads from fog snapshots (`fog.tileSource()`), never raw `state.tiles`
 - Player agents use `role: "player"` — `role` is a functional type tag (`"merchant"`, `"scout"`, etc.), not a display name
 - Client modules: `network.ts` (Colyseus connection), `renderer.ts` (Canvas 2D), `camera.ts` (viewport), `fog.ts` (fog of war), `input.ts` (WASD + action keys), `display.ts` (movement prediction + lerp), `main.ts` (game loop + HUD)
@@ -79,8 +79,8 @@ pnpm run test
 - Server runs on Node.js via tsx
 - Use pnpm, not bun — bun duplicates @colyseus/core instances causing matchmaker state isolation
 - Shared logic between server and client (e.g. `tilesInManhattanRadius` for vision shape) must live in `@town-zero/shared` — duplicating geometry/distance logic across packages causes shape mismatches
-- Client-side movement prediction (`display.ts`): `DisplayState` tracks predicted tile positions (`displayX/Y`), predicted facing, and lerped pixel positions (`renderX/Y`). `syncFromServer` only overrides local player when server position/facing actually changes (via `lastServerPos` tracking) to preserve predictions between server ticks
-- Input uses held-key tracking (`keydown`/`keyup` Set) for local prediction and key-state events (`move:start`/`move:stop`) for server movement — not `keydown` repeat events (OS repeat has variable initial delay and rate)
+- Client-side movement prediction (`display.ts`): `DisplayState` tracks predicted tile positions (`displayX/Y`) and lerped pixel positions (`renderX/Y`). `reconcileFromServer` accepts server state as baseline, prunes acknowledged pending inputs by seq, and replays unacknowledged ones. `updateRender(dt)` lerps pixel positions toward display positions
+- Input uses held-key tracking (`keydown`/`keyup` Set) for local prediction and sends per-tick `move` messages (with seq number) from `update()` while keys are held — not `keydown` repeat events (OS repeat has variable initial delay and rate)
 - Fog memory uses a snapshot model (`TileSnapshot` = terrain + entities + timestamp). Fog level is derived: `predictedVisible` → visible, has snapshot → explored, else → unknown. No `level` field stored — add new tile properties to `TileSnapshot` and they're automatically captured
 - Unknown tiles render as eigengrau (`#16161d`), void outside map boundary renders as true black (`#000`)
 - Dialogue system: `talk` command is handled immediately in GameRoom (not through tick pipeline) via `session-manager.ts`. `dialogue:advance/choose/close` messages use the same session-manager API. Timeout is detected in `tickDialogues()` called from the tick loop. Client enters `dialogueMode` which intercepts W/S/E/Esc for dialogue navigation

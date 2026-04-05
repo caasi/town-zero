@@ -1,6 +1,6 @@
 // client/src/network.ts
 import { Client, Room } from "@colyseus/sdk";
-import type { ActionCommand, DialogueStatePayload } from "@town-zero/shared";
+import type { ActionCommand, DialogueStatePayload, Facing } from "@town-zero/shared";
 import type { VisionData } from "./types.js";
 
 export class NetworkClient {
@@ -82,12 +82,12 @@ export class NetworkClient {
     this.room?.send("command", cmd);
   }
 
-  sendMoveStart(direction: string): void {
-    this.room?.send("move:start", { direction });
+  sendMove(direction: Facing, seq: number): void {
+    this.room?.send("move", { direction, seq });
   }
 
-  sendMoveStop(): void {
-    this.room?.send("move:stop");
+  sendMoveStop(seq: number): void {
+    this.room?.send("move:stop", { seq });
   }
 
   onVision(cb: (data: VisionData) => void): void {

@@ -111,6 +111,96 @@ describe("processTick", () => {
     expect(target.hp).toBe(100); // targetHp - ATTACK_COOLDOWN_TICKS * BASE_ATTACK_DAMAGE
   });
 
+  describe("Phase 1.5: moveQueue", () => {
+    it("consumes one move input per tick and advances lastProcessedInput", () => {
+      const world = makeWorld();
+      const agent = world.agents.get("a1")!;
+      agent.facing = "south";
+      agent.enqueueMoveInput({ seq: 1, direction: "south" });
+      processTick(world);
+      expect(agent.position).toEqual({ x: 5, y: 6 });
+      expect(agent.lastProcessedInput).toBe(1);
+    });
+
+    it("advances lastProcessedInput even when move is rejected (wall)", () => {
+      const world = makeWorld();
+      const agent = world.agents.get("a1")!;
+      world.grid.setTerrain(5, 4, "water");
+      agent.facing = "north";
+      agent.enqueueMoveInput({ seq: 1, direction: "north" });
+      processTick(world);
+      expect(agent.position).toEqual({ x: 5, y: 5 }); // didn't move
+      expect(agent.lastProcessedInput).toBe(1);         // but seq advanced
+    });
+
+    it("processes turn-before-move and advances lastProcessedInput", () => {
+      const world = makeWorld();
+      const agent = world.agents.get("a1")!;
+      agent.facing = "south";
+      agent.enqueueMoveInput({ seq: 1, direction: "east" });
+      processTick(world);
+      expect(agent.facing).toBe("east");
+      expect(agent.position).toEqual({ x: 5, y: 5 }); // turned only
+      expect(agent.lastProcessedInput).toBe(1);
+    });
+
+    it("does not consume moveQueue when agent is not idle", () => {
+      const world = makeWorld();
+      const agent = world.agents.get("a1")!;
+      agent.state = "gathering";
+      agent.enqueueMoveInput({ seq: 1, direction: "south" });
+      processTick(world);
+      expect(agent.moveQueue).toHaveLength(1); // not consumed
+      expect(agent.lastProcessedInput).toBe(0);
+    });
+
+    it("yields to plan commands — gather executes despite queued moves", () => {
+      const world = makeWorld();
+      const agent = world.agents.get("a1")!;
+      agent.facing = "south";
+      agent.position = { x: 3, y: 2 }; // adjacent to resource at (3,3)
+      agent.enqueueMoveInput({ seq: 1, direction: "south" });
+      agent.setPlan([{ type: "gather", resourceTile: { x: 3, y: 3 } }]);
+      processTick(world);
+      expect(agent.state).toBe("gathering"); // plan command executed, not move
+      expect(agent.moveQueue).toHaveLength(0); // cleared
+    });
+
+    it("advances lastProcessedInput when plan command discards moveQueue", () => {
+      const world = makeWorld();
+      const agent = world.agents.get("a1")!;
+      agent.facing = "south";
+      agent.enqueueMoveInput({ seq: 3, direction: "south" });
+      agent.enqueueMoveInput({ seq: 5, direction: "south" });
+      agent.setPlan([{ type: "idle" }]);
+      processTick(world);
+      expect(agent.moveQueue).toHaveLength(0);
+      expect(agent.lastProcessedInput).toBe(5); // max seq from discarded queue
+    });
+
+    it("never decreases lastProcessedInput (monotonic)", () => {
+      const world = makeWorld();
+      const agent = world.agents.get("a1")!;
+      agent.facing = "south";
+      agent.lastProcessedInput = 10;
+      agent.enqueueMoveInput({ seq: 5, direction: "south" }); // stale seq
+      processTick(world);
+      expect(agent.lastProcessedInput).toBe(10); // not decreased
+    });
+
+    it("consumes one per tick, leaving rest in queue", () => {
+      const world = makeWorld();
+      const agent = world.agents.get("a1")!;
+      agent.facing = "south";
+      agent.enqueueMoveInput({ seq: 1, direction: "south" });
+      agent.enqueueMoveInput({ seq: 2, direction: "south" });
+      processTick(world);
+      expect(agent.moveQueue).toHaveLength(1);
+      expect(agent.moveQueue[0].seq).toBe(2);
+      expect(agent.lastProcessedInput).toBe(1);
+    });
+  });
+
   it("returns attacker to idle when target dies mid-combat", () => {
     const world = makeWorld();
     const attacker = world.agents.get("a1")!;

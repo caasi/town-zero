@@ -37,6 +37,11 @@ export interface Position {
 
 export type Facing = "north" | "south" | "east" | "west";
 
+export interface PendingInput {
+  seq: number;
+  direction: Facing;
+}
+
 /**
  * Returns all positions within Manhattan distance `radius` of `center`.
  * Used by both server vision and client fog prediction.

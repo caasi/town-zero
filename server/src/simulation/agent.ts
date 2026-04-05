@@ -11,8 +11,9 @@ import type {
   Facing,
   Fact,
   DialogueProgressEntry,
+  PendingInput,
 } from "@town-zero/shared";
-import { emptyResourceStore, DEFAULT_MAX_HP } from "@town-zero/shared";
+import { emptyResourceStore, DEFAULT_MAX_HP, MOVE_QUEUE_CAP } from "@town-zero/shared";
 
 interface AgentInit {
   id: string;
@@ -48,8 +49,9 @@ export class Agent {
   currentTargetId: string | null = null;
   gatherTile: Position | null = null;
 
-  // Held-direction for continuous movement (key-state model)
-  heldDirection: Facing | null = null;
+  // Per-tick movement input queue (Gambetta reconciliation model)
+  moveQueue: PendingInput[] = [];
+  lastProcessedInput: number = 0;
 
   // Dialogue lock state
   talkingToNpcId: string | null = null;     // player → which NPC am I talking to
@@ -103,6 +105,13 @@ export class Agent {
 
   clearPlan(): void {
     this.plan = [];
+  }
+
+  enqueueMoveInput(input: PendingInput): void {
+    this.moveQueue.push(input);
+    while (this.moveQueue.length > MOVE_QUEUE_CAP) {
+      this.moveQueue.shift();
+    }
   }
 
   shiftPlan(): ActionCommand | undefined {

@@ -1,14 +1,10 @@
 // client/src/display.ts
-import { TERRAIN_MOVE_COST } from "@town-zero/shared";
-import type { TerrainType } from "@town-zero/shared";
+import { TERRAIN_MOVE_COST, DIRECTION_DELTA } from "@town-zero/shared";
+import type { TerrainType, PendingInput } from "@town-zero/shared";
 import { TILE_SIZE } from "./constants.js";
+
 const BASE_LERP_FACTOR = 0.5;
 const BASE_FRAME_MS = 16.67; // 60fps baseline
-
-// Only snap local player to server when prediction drifts beyond this
-// Manhattan distance. Small differences are normal (prediction runs
-// slightly ahead of server patches) and shouldn't cause visual jitter.
-const MAX_DESYNC_TILES = 2;
 
 export interface AgentDisplay {
   displayX: number;
@@ -18,21 +14,29 @@ export interface AgentDisplay {
   facing: string;
 }
 
+type TileSource = { get(key: string): { terrain: string } | undefined };
+
+interface ServerAgent {
+  x: number;
+  y: number;
+  facing: string;
+  lastProcessedInput: number;
+  state: string;
+}
+
 export class DisplayState {
   private displays = new Map<string, AgentDisplay>();
-  private lastServerPos = new Map<string, { x: number; y: number; facing: string }>();
   private localPlayerId: string | null = null;
+  private tileSource: TileSource | null = null;
 
   setLocalPlayer(id: string | null): void {
     this.localPlayerId = id;
   }
 
-  /**
-   * Returns the local player's current predicted position (displayX/Y),
-   * or null if no local player or no display entry exists.
-   * Used by InputHandler to compute the next move target from the
-   * predicted position rather than the stale server position.
-   */
+  setTileSource(tiles: TileSource): void {
+    this.tileSource = tiles;
+  }
+
   getLocalPlayerPosition(): { x: number; y: number } | null {
     if (!this.localPlayerId) return null;
     const display = this.displays.get(this.localPlayerId);
@@ -49,27 +53,22 @@ export class DisplayState {
 
   /**
    * Attempt client-side predicted move for the local player.
-   * Returns true if prediction was applied (caller should send command).
-   * Returns false if move is invalid (caller should not send command).
+   * Returns true if prediction was applied, false if invalid.
    */
   predictMove(
     targetX: number,
     targetY: number,
     agentState: string,
-    tiles: { get(key: string): { terrain: string } | undefined },
+    tiles: TileSource,
   ): boolean {
     if (!this.localPlayerId) return false;
-
-    // Reject if agent is not idle
     if (agentState !== "idle") return false;
 
     const existing = this.displays.get(this.localPlayerId);
-    const lastPos = this.lastServerPos.get(this.localPlayerId);
-    const originX = existing?.displayX ?? lastPos?.x ?? targetX;
-    const originY = existing?.displayY ?? lastPos?.y ?? targetY;
+    const originX = existing?.displayX ?? targetX;
+    const originY = existing?.displayY ?? targetY;
     const display = this.getOrCreate(this.localPlayerId, originX, originY);
 
-    // Compute intended facing from move direction
     const dx = targetX - originX;
     const dy = targetY - originY;
     let intendedFacing = display.facing;
@@ -84,13 +83,7 @@ export class DisplayState {
       return true;
     }
 
-    // Check tile from fog snapshots (not raw server state)
     const tile = tiles.get(`${targetX},${targetY}`);
-
-    // Reject only if terrain is known-impassable (water).
-    // Mountains have finite move cost and are passable. Out-of-bounds and
-    // unknown tiles are allowed optimistically — the server is authoritative
-    // and will reject invalid moves, snapping the client back via sync.
     if (tile) {
       const terrain = tile.terrain as TerrainType;
       if (terrain in TERRAIN_MOVE_COST && TERRAIN_MOVE_COST[terrain] === Infinity) {
@@ -104,9 +97,55 @@ export class DisplayState {
   }
 
   /**
-   * Called when server state arrives. Updates display targets for all agents.
-   * For the local player: only updates if server disagrees with prediction.
-   * For others: always updates display target.
+   * Gambetta reconciliation for the local player.
+   * 1. Accept server state as authoritative baseline
+   * 2. Prune acknowledged inputs (seq <= lastProcessedInput)
+   * 3. Replay remaining inputs from baseline
+   * Returns the pruned pending input array.
+   */
+  reconcileFromServer(
+    id: string,
+    server: ServerAgent,
+    pendingInputs: PendingInput[],
+  ): PendingInput[] {
+    const display = this.getOrCreate(id, server.x, server.y, server.facing);
+
+    // Non-idle: clear all predictions, snap to server
+    if (server.state !== "idle") {
+      display.displayX = server.x;
+      display.displayY = server.y;
+      display.facing = server.facing;
+      return [];
+    }
+
+    // Prune acknowledged inputs
+    const remaining = pendingInputs.filter((p) => p.seq > server.lastProcessedInput);
+
+    // Reset to server baseline before replay
+    display.displayX = server.x;
+    display.displayY = server.y;
+    display.facing = server.facing;
+
+    // Replay unacknowledged inputs
+    const tiles = this.tileSource;
+    if (tiles) {
+      for (const input of remaining) {
+        const delta = DIRECTION_DELTA[input.direction];
+        if (!delta) continue;
+        const targetX = display.displayX + delta.dx;
+        const targetY = display.displayY + delta.dy;
+        // Inline turn-before-move + terrain check (same logic as predictMove)
+        this.replayOne(display, targetX, targetY, input.direction, tiles);
+      }
+    }
+
+    return remaining;
+  }
+
+  /**
+   * Update display state from server for all agents.
+   * Local player uses reconciliation (called separately via reconcileFromServer).
+   * Other agents: always set to server position.
    */
   syncFromServer(
     agents: Iterable<[string, { x: number; y: number; facing: string }]>,
@@ -115,44 +154,20 @@ export class DisplayState {
 
     for (const [id, agent] of agents) {
       seen.add(id);
+      if (id === this.localPlayerId) continue; // handled by reconcileFromServer
       const display = this.getOrCreate(id, agent.x, agent.y, agent.facing);
-      const lastPos = this.lastServerPos.get(id);
-
-      if (id === this.localPlayerId) {
-        // Trust client prediction for small differences — only snap when
-        // prediction has drifted significantly (wall collision, server
-        // rejection, teleport, etc.).
-        const dist = Math.abs(display.displayX - agent.x)
-                   + Math.abs(display.displayY - agent.y);
-        if (!lastPos || dist > MAX_DESYNC_TILES) {
-          display.displayX = agent.x;
-          display.displayY = agent.y;
-        }
-        if (!lastPos || lastPos.facing !== agent.facing) {
-          display.facing = agent.facing;
-        }
-      } else {
-        display.displayX = agent.x;
-        display.displayY = agent.y;
-        display.facing = agent.facing;
-      }
-
-      this.lastServerPos.set(id, { x: agent.x, y: agent.y, facing: agent.facing });
+      display.displayX = agent.x;
+      display.displayY = agent.y;
+      display.facing = agent.facing;
     }
 
-    // Remove displays for agents that no longer exist
     for (const id of this.displays.keys()) {
       if (!seen.has(id)) {
         this.displays.delete(id);
-        this.lastServerPos.delete(id);
       }
     }
   }
 
-  /**
-   * Called every animation frame. Lerps renderX/Y toward displayX/Y.
-   * dt = milliseconds since last frame.
-   */
   updateRender(dt: number): void {
     const factor = 1 - Math.pow(1 - BASE_LERP_FACTOR, dt / BASE_FRAME_MS);
 
@@ -161,24 +176,9 @@ export class DisplayState {
       const targetY = display.displayY * TILE_SIZE;
       display.renderX += (targetX - display.renderX) * factor;
       display.renderY += (targetY - display.renderY) * factor;
-
-      // Snap when close enough to avoid endless sub-pixel lerping
       if (Math.abs(display.renderX - targetX) < 0.5) display.renderX = targetX;
       if (Math.abs(display.renderY - targetY) < 0.5) display.renderY = targetY;
     }
-  }
-
-  /**
-   * Snap local player's display position to the given server position.
-   * Called when no movement keys are held, so prediction converges to
-   * server truth and interactions use the correct position.
-   */
-  snapLocalPlayer(serverX: number, serverY: number): void {
-    if (!this.localPlayerId) return;
-    const display = this.displays.get(this.localPlayerId);
-    if (!display) return;
-    display.displayX = serverX;
-    display.displayY = serverY;
   }
 
   get(id: string): AgentDisplay | undefined {
@@ -187,8 +187,33 @@ export class DisplayState {
 
   clear(): void {
     this.displays.clear();
-    this.lastServerPos.clear();
     this.localPlayerId = null;
+    this.tileSource = null;
+  }
+
+  private replayOne(
+    display: AgentDisplay,
+    targetX: number,
+    targetY: number,
+    direction: string,
+    tiles: TileSource,
+  ): void {
+    // Turn-before-move
+    if (direction !== display.facing) {
+      display.facing = direction;
+      return;
+    }
+
+    const tile = tiles.get(`${targetX},${targetY}`);
+    if (tile) {
+      const terrain = tile.terrain as TerrainType;
+      if (terrain in TERRAIN_MOVE_COST && TERRAIN_MOVE_COST[terrain] === Infinity) {
+        return;
+      }
+    }
+
+    display.displayX = targetX;
+    display.displayY = targetY;
   }
 
   private getOrCreate(id: string, initialX: number, initialY: number, facing = "south"): AgentDisplay {
