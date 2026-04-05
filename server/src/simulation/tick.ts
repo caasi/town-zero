@@ -87,7 +87,7 @@ export function processTick(state: SimulationState): void {
           executeCommand(moveCmd, ctx);
         }
       }
-      agent.lastProcessedInput = input.seq;
+      agent.lastProcessedInput = Math.max(agent.lastProcessedInput, input.seq);
       continue;
     }
 

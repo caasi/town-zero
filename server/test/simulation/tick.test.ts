@@ -166,6 +166,16 @@ describe("processTick", () => {
       expect(agent.moveQueue).toHaveLength(0); // cleared
     });
 
+    it("never decreases lastProcessedInput (monotonic)", () => {
+      const world = makeWorld();
+      const agent = world.agents.get("a1")!;
+      agent.facing = "south";
+      agent.lastProcessedInput = 10;
+      agent.enqueueMoveInput({ seq: 5, direction: "south" }); // stale seq
+      processTick(world);
+      expect(agent.lastProcessedInput).toBe(10); // not decreased
+    });
+
     it("consumes one per tick, leaving rest in queue", () => {
       const world = makeWorld();
       const agent = world.agents.get("a1")!;
