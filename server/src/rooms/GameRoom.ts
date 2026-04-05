@@ -12,6 +12,10 @@ import { startDialogue, advanceDialogue, chooseDialogue, endDialogue, tickDialog
 
 const VALID_DIRECTIONS = new Set<string>(["north", "south", "east", "west"]);
 
+function isValidSeq(seq: unknown): seq is number {
+  return typeof seq === "number" && Number.isFinite(seq) && Number.isInteger(seq) && seq >= 0;
+}
+
 export class GameRoom extends Room<{ state: WorldStateSchema }> {
   private simState!: SimulationState;
   private sessionToAgent = new Map<string, string>();
@@ -74,7 +78,7 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
       const dir = (data as any).direction;
       const seq = (data as any).seq;
       if (!VALID_DIRECTIONS.has(dir)) return;
-      if (typeof seq !== "number") return;
+      if (!isValidSeq(seq)) return;
       agent.enqueueMoveInput({ seq, direction: dir as Facing });
     });
 
@@ -85,8 +89,8 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
       if (!agent) return;
       agent.moveQueue = [];
       const seq = typeof data === "object" && data !== null ? (data as any).seq : undefined;
-      if (typeof seq === "number") {
-        agent.lastProcessedInput = seq;
+      if (isValidSeq(seq)) {
+        agent.lastProcessedInput = Math.max(agent.lastProcessedInput, seq);
       }
     });
 
