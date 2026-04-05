@@ -75,7 +75,8 @@ export function processTick(state: SimulationState): void {
     }
 
     // Phase 1.5: Consume one move input from moveQueue (per-tick input model)
-    if (agent.state === "idle" && agent.moveQueue.length > 0) {
+    // Yield to plan commands — explicit actions (gather, attack, etc.) take priority
+    if (agent.state === "idle" && agent.moveQueue.length > 0 && agent.plan.length === 0) {
       const input = agent.moveQueue.shift()!;
       const delta = DIRECTION_DELTA[input.direction];
       if (delta) {
@@ -92,6 +93,8 @@ export function processTick(state: SimulationState): void {
 
     // Phase 2: If idle, dequeue next command
     if (agent.state === "idle" && agent.plan.length > 0) {
+      // Clear stale move inputs — plan commands take priority
+      agent.moveQueue = [];
       const cmd = agent.shiftPlan()!;
       const ctx = { grid, agent, agents, settlements };
 

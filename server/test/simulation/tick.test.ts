@@ -154,6 +154,18 @@ describe("processTick", () => {
       expect(agent.lastProcessedInput).toBe(0);
     });
 
+    it("yields to plan commands — gather executes despite queued moves", () => {
+      const world = makeWorld();
+      const agent = world.agents.get("a1")!;
+      agent.facing = "south";
+      agent.position = { x: 3, y: 2 }; // adjacent to resource at (3,3)
+      agent.enqueueMoveInput({ seq: 1, direction: "south" });
+      agent.setPlan([{ type: "gather", resourceTile: { x: 3, y: 3 } }]);
+      processTick(world);
+      expect(agent.state).toBe("gathering"); // plan command executed, not move
+      expect(agent.moveQueue).toHaveLength(0); // cleared
+    });
+
     it("consumes one per tick, leaving rest in queue", () => {
       const world = makeWorld();
       const agent = world.agents.get("a1")!;
