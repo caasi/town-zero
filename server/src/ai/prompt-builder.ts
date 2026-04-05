@@ -54,8 +54,8 @@ export function buildPrompt(
   }
 
   lines.push("");
-  lines.push("Available actions: move, gather, deposit, take, attack, trade, idle");
-  lines.push('Respond with a JSON array of ActionCommand objects. Example: [{"type":"move","target":{"x":6,"y":5}},{"type":"gather","resourceTile":{"x":6,"y":5}}]');
+  lines.push("Available actions: gather, deposit, take, attack, trade, talk, idle");
+  lines.push('Respond with a JSON array of FrameAction objects. Example: [{"type":"gather","resourceTile":{"x":6,"y":5}},{"type":"idle"}]');
 
   return lines.join("\n");
 }

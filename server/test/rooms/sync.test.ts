@@ -50,7 +50,6 @@ describe("syncToSchema", () => {
     expect(schema!.faction).toBe("village-1");
     expect(schema!.role).toBe("farmer");
     expect(schema!.controller).toBe("bot");
-    expect(schema!.currentTargetId).toBe("");
     expect(schema!.inventory.get("food")).toBe(5);
     expect(schema!.inventory.get("material")).toBe(2);
     expect(schema!.inventory.get("currency")).toBe(0);
@@ -149,12 +148,12 @@ describe("syncToSchema", () => {
 
   it("syncs agent state transitions", () => {
     const agent = makeAgent("a1");
-    agent.state = "gathering";
+    agent.state = "dead";
     const sim = makeSimState({ agents: new Map([["a1", agent]]) });
     const state = new WorldStateSchema();
 
     syncToSchema(sim, state);
-    expect(state.agents.get("a1")!.state).toBe("gathering");
+    expect(state.agents.get("a1")!.state).toBe("dead");
 
     agent.state = "idle";
     syncToSchema(sim, state);

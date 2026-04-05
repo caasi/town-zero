@@ -4,6 +4,7 @@ import type { Agent } from "./agent.js";
 import type { Grid } from "./grid.js";
 import type { Settlement } from "./settlement.js";
 import type { DialogueSession } from "../dialogue/dialogue-session.js";
+import { startDialogue } from "../dialogue/session-manager.js";
 
 export interface TalkResult {
   agentId: string;
@@ -125,7 +126,6 @@ function executeAction(action: NonNullable<InputFrame["action"]>, ctx: FrameCont
       // Dialogue is initiated via startDialogue in the full context.
       // When simState is available, call startDialogue and collect the result.
       if (ctx.simState && ctx.talkResults) {
-        const { startDialogue } = require("../dialogue/session-manager.js") as typeof import("../dialogue/session-manager.js");
         const talkTarget = agents.get(action.targetId);
         if (!talkTarget || !talkTarget.isAlive()) return;
         if (!grid.isAdjacent(agent.position, talkTarget.position)) return;

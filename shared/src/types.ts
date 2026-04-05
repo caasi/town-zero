@@ -75,15 +75,7 @@ export function tilesInManhattanRadius(center: Position, radius: number): Positi
 
 // --- FSM ---
 
-export type FSMState =
-  | "idle"
-  | "moving"
-  | "gathering"
-  | "fighting"
-  | "operating" // operating a production facility
-  | "trading"
-  | "talking"
-  | "dead";
+export type FSMState = "idle" | "dead";
 
 // --- ActionCommand ---
 
