@@ -1,3 +1,5 @@
+import type { Facing } from "./types.js";
+
 // --- World ---
 export const GRID_WIDTH = 40;
 export const GRID_HEIGHT = 40;
@@ -48,7 +50,7 @@ export const LLM_MAX_INTERVAL_MS = 30_000;  // 30 seconds for common NPCs
 export const MOVE_QUEUE_CAP = 3;       // server-side per-agent input buffer depth
 export const PENDING_INPUT_CAP = 20;   // client-side pending input buffer safety valve
 
-export const DIRECTION_DELTA: Record<string, { dx: number; dy: number }> = {
+export const DIRECTION_DELTA: Record<Facing, { dx: number; dy: number }> = {
   north: { dx: 0, dy: -1 }, south: { dx: 0, dy: 1 },
   east: { dx: 1, dy: 0 }, west: { dx: -1, dy: 0 },
 };
