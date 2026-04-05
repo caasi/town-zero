@@ -112,4 +112,22 @@ describe("Agent", () => {
     const agent = makeAgent({ facing: "north" });
     expect(agent.facing).toBe("north");
   });
+
+  describe("moveQueue", () => {
+    it("initialises with empty moveQueue and lastProcessedInput 0", () => {
+      const agent = makeAgent();
+      expect(agent.moveQueue).toEqual([]);
+      expect(agent.lastProcessedInput).toBe(0);
+    });
+
+    it("caps moveQueue at MOVE_QUEUE_CAP, dropping oldest", () => {
+      const agent = makeAgent();
+      agent.enqueueMoveInput({ seq: 1, direction: "north" });
+      agent.enqueueMoveInput({ seq: 2, direction: "east" });
+      agent.enqueueMoveInput({ seq: 3, direction: "south" });
+      agent.enqueueMoveInput({ seq: 4, direction: "west" }); // overflow
+      expect(agent.moveQueue).toHaveLength(3);
+      expect(agent.moveQueue[0].seq).toBe(2); // oldest (seq=1) dropped
+    });
+  });
 });
