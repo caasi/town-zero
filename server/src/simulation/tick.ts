@@ -93,8 +93,15 @@ export function processTick(state: SimulationState): void {
 
     // Phase 2: If idle, dequeue next command
     if (agent.state === "idle" && agent.plan.length > 0) {
-      // Clear stale move inputs — plan commands take priority
-      agent.moveQueue = [];
+      // Clear stale move inputs — plan commands take priority.
+      // Advance lastProcessedInput so discarded inputs are acknowledged
+      // and won't be replayed forever by the client.
+      if (agent.moveQueue.length > 0) {
+        for (const input of agent.moveQueue) {
+          agent.lastProcessedInput = Math.max(agent.lastProcessedInput, input.seq);
+        }
+        agent.moveQueue = [];
+      }
       const cmd = agent.shiftPlan()!;
       const ctx = { grid, agent, agents, settlements };
 

@@ -166,6 +166,18 @@ describe("processTick", () => {
       expect(agent.moveQueue).toHaveLength(0); // cleared
     });
 
+    it("advances lastProcessedInput when plan command discards moveQueue", () => {
+      const world = makeWorld();
+      const agent = world.agents.get("a1")!;
+      agent.facing = "south";
+      agent.enqueueMoveInput({ seq: 3, direction: "south" });
+      agent.enqueueMoveInput({ seq: 5, direction: "south" });
+      agent.setPlan([{ type: "idle" }]);
+      processTick(world);
+      expect(agent.moveQueue).toHaveLength(0);
+      expect(agent.lastProcessedInput).toBe(5); // max seq from discarded queue
+    });
+
     it("never decreases lastProcessedInput (monotonic)", () => {
       const world = makeWorld();
       const agent = world.agents.get("a1")!;
