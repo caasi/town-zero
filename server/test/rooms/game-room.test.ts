@@ -471,6 +471,23 @@ describe("GameRoom integration", () => {
       expect(simAgent.lastProcessedInput).toBe(3);
     });
 
+    it("flushes inputQueue even when seq is invalid", () => {
+      const client = mockClient("session-1");
+      joinClient(room, client, { name: "BadFlush" });
+      tick(room);
+
+      const agentId = client.messages.find((m: any) => m.type === "joined")?.data.agentId;
+      const simAgent = room.simState.agents.get(agentId!);
+
+      sendInput(room, client, { seq: 1, direction: "south" });
+      sendInput(room, client, { seq: 2, direction: "south" });
+      expect(simAgent.inputQueue.length).toBeGreaterThan(0);
+
+      // Send input:stop with invalid seq — queue should still be flushed
+      sendMessage(room, client, "input:stop", { seq: NaN });
+      expect(simAgent.inputQueue).toEqual([]);
+    });
+
     it("flushes inputQueue on input:stop", () => {
       const client = mockClient("session-1");
       joinClient(room, client, { name: "Flusher" });
