@@ -414,6 +414,29 @@ describe("GameRoom integration", () => {
       expect(simAgent.position.x).toBe(origX);
     });
 
+    it("sends dialogue:error when startDialogue fails", () => {
+      // First player starts dialogue with Reed
+      const { client: client1 } = setupDialogue(room);
+      sendInput(room, client1, { seq: 1, action: { type: "talk", targetId: "farmer-reed" } });
+      tick(room);
+
+      // Second player tries to talk to Reed (who is busy)
+      const client2 = mockClient("session-dlg2");
+      joinClient(room, client2, { name: "Talker2" });
+      tick(room);
+      const agentId2 = client2.messages.find((m: any) => m.type === "joined")?.data.agentId;
+      const simAgent2 = room.simState.agents.get(agentId2!);
+      simAgent2.position = { x: 9, y: 18 };
+      simAgent2.facing = "south";
+
+      sendInput(room, client2, { seq: 1, action: { type: "talk", targetId: "farmer-reed" } });
+      tick(room);
+
+      const errMsgs = client2.messages.filter((m: any) => m.type === "dialogue:error");
+      expect(errMsgs).toHaveLength(1);
+      expect(errMsgs[0].data.error).toBe("busy");
+    });
+
     it("timeout sends dialogue:end", () => {
       const { client } = setupDialogue(room);
       sendInput(room, client, { seq: 1, action: { type: "talk", targetId: "farmer-reed" } });

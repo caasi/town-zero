@@ -176,6 +176,8 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
         } else {
           this.sendToAgent(agentId, "dialogue:state", (result as any).payload);
         }
+      } else {
+        this.sendToAgent(agentId, "dialogue:error", { error: result.error });
       }
     }
 
