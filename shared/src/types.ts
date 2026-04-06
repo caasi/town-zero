@@ -77,18 +77,6 @@ export function tilesInManhattanRadius(center: Position, radius: number): Positi
 
 export type FSMState = "idle" | "dead";
 
-// --- ActionCommand ---
-
-export type ActionCommand =
-  | { type: "move"; target: Position }
-  | { type: "gather"; resourceTile: Position }
-  | { type: "attack"; targetId: string }
-  | { type: "deposit"; settlementId: string }
-  | { type: "take"; settlementId: string; resource: ResourceType; amount: number }
-  | { type: "talk"; targetId: string }
-  | { type: "trade"; targetId: string; offer: ResourceType; offerAmount: number; want: ResourceType; wantAmount: number }
-  | { type: "idle" };
-
 // --- Settlement ---
 
 export type SettlementType = "village" | "den";
