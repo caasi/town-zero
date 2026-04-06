@@ -93,8 +93,13 @@ export class Agent {
   }
 
   enqueueInput(frame: InputFrame): void {
-    // Player frame (seq > 0) flushes bot frames and planBacklog
+    // Player frame (seq > 0): reject stale/duplicate, then flush bot frames
     if (frame.seq > 0) {
+      if (frame.seq <= this.lastProcessedInput) return;
+      const lastQueued = this.inputQueue.length > 0
+        ? this.inputQueue[this.inputQueue.length - 1].seq
+        : 0;
+      if (lastQueued > 0 && frame.seq <= lastQueued) return;
       this.inputQueue = this.inputQueue.filter((f) => f.seq > 0);
       this.planBacklog = [];
     }

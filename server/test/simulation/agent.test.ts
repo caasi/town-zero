@@ -94,6 +94,30 @@ describe("Agent", () => {
       expect(agent.inputQueue).toEqual([{ seq: 1, direction: "south" }]);
       expect(agent.planBacklog).toEqual([]);
     });
+
+    it("rejects player frame with seq <= lastProcessedInput (stale)", () => {
+      const agent = makeAgent();
+      agent.lastProcessedInput = 5;
+      agent.enqueueInput({ seq: 5, direction: "north" });
+      expect(agent.inputQueue).toEqual([]);
+      agent.enqueueInput({ seq: 3, direction: "north" });
+      expect(agent.inputQueue).toEqual([]);
+    });
+
+    it("rejects duplicate seq (seq <= last queued seq)", () => {
+      const agent = makeAgent();
+      agent.enqueueInput({ seq: 1, direction: "north" });
+      agent.enqueueInput({ seq: 1, direction: "east" }); // duplicate
+      expect(agent.inputQueue).toHaveLength(1);
+      expect(agent.inputQueue[0].direction).toBe("north");
+    });
+
+    it("accepts bot frame (seq=0) regardless of lastProcessedInput", () => {
+      const agent = makeAgent();
+      agent.lastProcessedInput = 100;
+      agent.enqueueInput({ seq: 0, action: { type: "idle" } });
+      expect(agent.inputQueue).toHaveLength(1);
+    });
   });
 
   it("records tile in map memory", () => {
