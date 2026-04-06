@@ -38,8 +38,9 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
       const agent = this.simState.agents.get(agentId);
       if (!agent) return;
       const seq = typeof data === "object" && data !== null ? (data as any).seq : undefined;
-      if (typeof seq === "number") {
-        agent.lastProcessedInput = seq;
+      if (typeof seq === "number" && Number.isSafeInteger(seq) && seq >= 0) {
+        agent.lastProcessedInput = Math.max(agent.lastProcessedInput, seq);
+        agent.inputQueue = [];
       }
     });
 
