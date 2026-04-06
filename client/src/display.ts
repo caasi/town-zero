@@ -126,11 +126,12 @@ export class DisplayState {
     display.displayY = server.y;
     display.facing = server.facing;
 
-    // Replay unacknowledged inputs (only direction frames affect position)
+    // Replay unacknowledged inputs that would move on the server.
+    // If an action is present, the server gives it priority over direction.
     const tiles = this.tileSource;
     if (tiles) {
       for (const input of remaining) {
-        if (!input.direction) continue;
+        if (input.action || !input.direction) continue;
         const delta = DIRECTION_DELTA[input.direction];
         if (!delta) continue;
         const targetX = display.displayX + delta.dx;

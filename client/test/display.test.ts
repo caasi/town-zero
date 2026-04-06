@@ -158,6 +158,28 @@ describe("DisplayState", () => {
       expect(ds.get("p1")!.displayY).toBe(6); // moved 2 tiles south
     });
 
+    it("skips replay for frames with action even if direction is also present", () => {
+      const ds = new DisplayState();
+      ds.setLocalPlayer("p1");
+      const tiles = makeTiles({
+        "3,4": { terrain: "plains" },
+        "3,5": { terrain: "plains" },
+      });
+      ds.setTileSource(tiles);
+
+      // Frame has both direction and action — server executes action, ignores direction
+      const pending: InputFrame[] = [
+        { seq: 1, direction: "south", action: { type: "idle" } },
+      ];
+      const remaining = ds.reconcileFromServer("p1",
+        { x: 3, y: 4, facing: "south", lastProcessedInput: 0, state: "idle" },
+        pending,
+      );
+      expect(remaining).toHaveLength(1);
+      // Should NOT have replayed the direction — position stays at server baseline
+      expect(ds.get("p1")!.displayY).toBe(4);
+    });
+
     it("replays turn-before-move correctly", () => {
       const ds = new DisplayState();
       ds.setLocalPlayer("p1");
