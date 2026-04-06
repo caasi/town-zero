@@ -275,14 +275,18 @@ export class InputHandler {
         );
         if (enemy) {
           ++this.inputSeq;
-          this.onSendInput?.({ seq: this.inputSeq, action: { type: "attack", targetId: enemy.id } });
+          const frame: InputFrame = { seq: this.inputSeq, action: { type: "attack", targetId: enemy.id } };
+          this.onSendInput?.(frame);
+          this.pendingInputs.push(frame);
         }
         break;
       }
       case "KeyT":
         if (this.currentSettlementId) {
           ++this.inputSeq;
-          this.onSendInput?.({ seq: this.inputSeq, action: { type: "deposit", settlementId: this.currentSettlementId } });
+          const frame: InputFrame = { seq: this.inputSeq, action: { type: "deposit", settlementId: this.currentSettlementId } };
+          this.onSendInput?.(frame);
+          this.pendingInputs.push(frame);
         }
         break;
       case "KeyE":
@@ -336,14 +340,18 @@ export class InputHandler {
     );
     if (npc) {
       ++this.inputSeq;
-      this.onSendInput?.({ seq: this.inputSeq, action: { type: "talk", targetId: npc.id } });
+      const frame: InputFrame = { seq: this.inputSeq, action: { type: "talk", targetId: npc.id } };
+      this.onSendInput?.(frame);
+      this.pendingInputs.push(frame);
       return;
     }
 
     // 3. Gather from facing resource tile (bush)
     if (target) {
       ++this.inputSeq;
-      this.onSendInput?.({ seq: this.inputSeq, action: { type: "gather", resourceTile: target } });
+      const frame: InputFrame = { seq: this.inputSeq, action: { type: "gather", resourceTile: target } };
+      this.onSendInput?.(frame);
+      this.pendingInputs.push(frame);
     }
   }
 

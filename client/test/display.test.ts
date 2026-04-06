@@ -203,6 +203,34 @@ describe("DisplayState", () => {
       expect(ds.get("p1")!.facing).toBe("east");
     });
 
+    it("action frames in pending buffer preserve seq continuity for pruning", () => {
+      const ds = new DisplayState();
+      ds.setLocalPlayer("p1");
+      const tiles = makeTiles({
+        "3,4": { terrain: "plains" },
+        "3,5": { terrain: "plains" },
+        "3,6": { terrain: "plains" },
+      });
+      ds.setTileSource(tiles);
+
+      // seq 1: move south, seq 2: action (attack), seq 3: move south
+      // Action frame must be in buffer so pruning doesn't discard seq 1
+      const pending: InputFrame[] = [
+        { seq: 1, direction: "south" },
+        { seq: 2, action: { type: "attack", targetId: "e1" } },
+        { seq: 3, direction: "south" },
+      ];
+      // Server acknowledges through seq 2 (the action)
+      const remaining = ds.reconcileFromServer("p1",
+        { x: 3, y: 4, facing: "south", lastProcessedInput: 2, state: "idle" },
+        pending,
+      );
+      // Only seq 3 should remain — replay it from baseline (3,4) facing south
+      expect(remaining).toHaveLength(1);
+      expect(remaining[0].seq).toBe(3);
+      expect(ds.get("p1")!.displayY).toBe(5); // replayed 1 move south
+    });
+
     it("clears pending when agent state is not idle", () => {
       const ds = new DisplayState();
       ds.setLocalPlayer("p1");
