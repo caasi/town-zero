@@ -39,7 +39,7 @@ function isValidAction(action: unknown): boolean {
 export function isValidInputFrame(data: unknown): data is InputFrame {
   if (typeof data !== "object" || data === null) return false;
   const d = data as Record<string, unknown>;
-  if (typeof d.seq !== "number" || !Number.isInteger(d.seq) || d.seq < 0) return false;
+  if (typeof d.seq !== "number" || !Number.isSafeInteger(d.seq) || d.seq < 0) return false;
 
   const hasDirection = d.direction !== undefined;
   const hasAction = d.action !== undefined;

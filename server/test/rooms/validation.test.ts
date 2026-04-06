@@ -85,4 +85,8 @@ describe("isValidInputFrame", () => {
   it("rejects gather with non-integer coordinates", () => {
     expect(isValidInputFrame({ seq: 1, action: { type: "gather", resourceTile: { x: 2.7, y: 1 } } })).toBe(false);
   });
+
+  it("rejects seq above Number.MAX_SAFE_INTEGER", () => {
+    expect(isValidInputFrame({ seq: Number.MAX_SAFE_INTEGER + 1, direction: "north" })).toBe(false);
+  });
 });
