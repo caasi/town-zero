@@ -41,7 +41,7 @@ pnpm run test
 
 ## Current State
 
-**Working:** Full game loop running. Server simulation wired into Colyseus GameRoom with state sync, player commands, vision updates, death notifications, and NPC dialogue. Canvas 2D client renders the world with fog of war, client-side movement prediction (Gambetta reconciliation), HUD, trade modal, and reconnection handling. 439 tests across server and client.
+**Working:** Full game loop running. Server simulation wired into Colyseus GameRoom with state sync, player commands, vision updates, death notifications, and NPC dialogue. Canvas 2D client renders the world with fog of war, client-side movement prediction (Gambetta reconciliation), HUD, trade modal, and reconnection handling. 434 tests across server and client.
 
 **Next:** Wire LLM scheduler into GameRoom tick for NPC decision-making.
 
@@ -64,31 +64,29 @@ Players join a 40x40 grid world containing a **village** and a **monster den**. 
 
 ### Simulation Loop (8 ticks/s = 125ms)
 
-1. Process ongoing multi-tick actions (gathering, fighting)
-1.5. Consume one move input from agent's moveQueue (per-tick input model with Gambetta reconciliation)
-2. Dequeue and execute next command from each agent's plan
-3. Bot controller decides for idle bot agents
-4. Production facilities convert raw materials to food
-5. Agents consume food (starvation causes HP loss and death)
-6. Merchant spawning and movement
-7. Vision update (per-agent MapMemory)
-8. Memory merge between adjacent same-faction agents
+1. Consume one InputFrame per alive agent from `inputQueue` (player) or `planBacklog` (bot/LLM); execute via `executeFrame` (direction → turn-before-move, action → instant effect)
+2. Bot controller decides for idle bot agents → fills `planBacklog`
+3. Production facilities convert raw materials to food
+4. Agents consume food (starvation causes HP loss and death)
+5. Merchant spawning and movement
+6. Vision update (per-agent MapMemory)
+7. Memory merge between adjacent same-faction agents
 
 ## Tech Stack
 
 - **Monorepo:** pnpm workspaces (`shared/`, `server/`, `client/`)
 - **Server:** Colyseus 0.17 (`@colyseus/core` + `@colyseus/ws-transport` + `@colyseus/schema` v4)
 - **Client:** Canvas 2D renderer + @colyseus/sdk + Vite
-- **Testing:** Vitest (439 tests)
+- **Testing:** Vitest (434 tests)
 - **Language:** TypeScript (strict, ES2022)
 
 ## Project Structure
 
 ```
-shared/          # Types, constants, ActionCommand definitions
+shared/          # Types, constants, InputFrame definitions
 server/
   src/
-    simulation/  # Grid, Agent, Settlement, Commands, Resources, Combat, Vision, Tick
+    simulation/  # Grid, Agent, Settlement, ExecuteFrame, Resources, Vision, Tick
     ai/          # LLM prompt builder, response parser, scheduler, bot controller
     dialogue/    # Dialogue tree engine, LLM gate, tree data
     map/         # Map generator
