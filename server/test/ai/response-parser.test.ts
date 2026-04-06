@@ -71,6 +71,24 @@ describe("parseResponse", () => {
     expect(result).toEqual([{ type: "idle" }]);
   });
 
+  it("filters out gather with non-integer coordinates", () => {
+    const raw = '[{"type":"gather","resourceTile":{"x":1.5,"y":2}}]';
+    const result = parseResponse(raw);
+    expect(result).toEqual([{ type: "idle" }]);
+  });
+
+  it("filters out take with non-integer amount", () => {
+    const raw = '[{"type":"take","settlementId":"v1","resource":"food","amount":1.5}]';
+    const result = parseResponse(raw);
+    expect(result).toEqual([{ type: "idle" }]);
+  });
+
+  it("filters out trade with non-integer amounts", () => {
+    const raw = '[{"type":"trade","targetId":"a2","offer":"food","offerAmount":0.5,"want":"material","wantAmount":1}]';
+    const result = parseResponse(raw);
+    expect(result).toEqual([{ type: "idle" }]);
+  });
+
   it("keeps well-formed commands and drops malformed ones", () => {
     const raw = '[{"type":"gather","resourceTile":{"x":1,"y":1}},{"type":"attack"},{"type":"idle"}]';
     const result = parseResponse(raw);

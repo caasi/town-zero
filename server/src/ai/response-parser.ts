@@ -4,7 +4,14 @@ const VALID_TYPES = new Set(["gather", "attack", "deposit", "take", "talk", "tra
 const VALID_RESOURCES = new Set(["food", "material", "currency"]);
 
 function isPosition(v: unknown): v is { x: number; y: number } {
-  return typeof v === "object" && v !== null && typeof (v as any).x === "number" && typeof (v as any).y === "number";
+  if (typeof v !== "object" || v === null) return false;
+  const { x, y } = v as Record<string, unknown>;
+  return typeof x === "number" && Number.isSafeInteger(x)
+    && typeof y === "number" && Number.isSafeInteger(y);
+}
+
+function isPositiveInteger(v: unknown): v is number {
+  return typeof v === "number" && Number.isFinite(v) && v > 0 && Number.isInteger(v);
 }
 
 function isValidAction(cmd: any): boolean {
@@ -18,13 +25,13 @@ function isValidAction(cmd: any): boolean {
     case "deposit":
       return typeof cmd.settlementId === "string";
     case "take":
-      return typeof cmd.settlementId === "string" && VALID_RESOURCES.has(cmd.resource) && typeof cmd.amount === "number";
+      return typeof cmd.settlementId === "string" && VALID_RESOURCES.has(cmd.resource) && isPositiveInteger(cmd.amount);
     case "talk":
       return typeof cmd.targetId === "string";
     case "trade":
       return typeof cmd.targetId === "string"
-        && VALID_RESOURCES.has(cmd.offer) && typeof cmd.offerAmount === "number"
-        && VALID_RESOURCES.has(cmd.want) && typeof cmd.wantAmount === "number";
+        && VALID_RESOURCES.has(cmd.offer) && isPositiveInteger(cmd.offerAmount)
+        && VALID_RESOURCES.has(cmd.want) && isPositiveInteger(cmd.wantAmount);
     case "idle":
       return true;
     default:
