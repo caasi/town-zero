@@ -20,7 +20,8 @@ describe("Agent", () => {
     expect(agent.maxHp).toBe(100);
     expect(agent.state).toBe("idle");
     expect(agent.inventory).toEqual({ food: 0, material: 0, currency: 0 });
-    expect(agent.plan).toEqual([]);
+    expect(agent.inputQueue).toEqual([]);
+    expect(agent.planBacklog).toEqual([]);
   });
 
   it("sets maxHp to DEFAULT_MAX_HP even when constructed with lower hp", () => {
@@ -67,25 +68,56 @@ describe("Agent", () => {
     expect(agent.state).toBe("dead");
   });
 
-  it("sets and clears plan", () => {
-    const agent = makeAgent();
-    agent.setPlan([{ type: "move", target: { x: 6, y: 5 } }, { type: "idle" }]);
-    expect(agent.plan).toHaveLength(2);
-    agent.clearPlan();
-    expect(agent.plan).toHaveLength(0);
-  });
+  describe("inputQueue", () => {
+    it("initialises with empty inputQueue, planBacklog, and lastProcessedInput 0", () => {
+      const agent = makeAgent();
+      expect(agent.inputQueue).toEqual([]);
+      expect(agent.planBacklog).toEqual([]);
+      expect(agent.lastProcessedInput).toBe(0);
+    });
 
-  it("shifts next command from plan", () => {
-    const agent = makeAgent();
-    agent.setPlan([{ type: "move", target: { x: 6, y: 5 } }, { type: "idle" }]);
-    const cmd = agent.shiftPlan();
-    expect(cmd?.type).toBe("move");
-    expect(agent.plan).toHaveLength(1);
-  });
+    it("caps inputQueue at INPUT_QUEUE_CAP, dropping oldest", () => {
+      const agent = makeAgent();
+      agent.enqueueInput({ seq: 1, direction: "north" });
+      agent.enqueueInput({ seq: 2, direction: "east" });
+      agent.enqueueInput({ seq: 3, direction: "south" });
+      agent.enqueueInput({ seq: 4, direction: "west" }); // overflow
+      expect(agent.inputQueue).toHaveLength(3);
+      expect(agent.inputQueue[0].seq).toBe(2); // oldest (seq=1) dropped
+    });
 
-  it("returns undefined when plan is empty", () => {
-    const agent = makeAgent();
-    expect(agent.shiftPlan()).toBeUndefined();
+    it("player frame (seq > 0) flushes seq=0 frames and clears planBacklog", () => {
+      const agent = makeAgent();
+      agent.planBacklog = [{ seq: 0, action: { type: "idle" } }];
+      agent.inputQueue.push({ seq: 0, action: { type: "idle" } });
+      agent.enqueueInput({ seq: 1, direction: "south" });
+      expect(agent.inputQueue).toEqual([{ seq: 1, direction: "south" }]);
+      expect(agent.planBacklog).toEqual([]);
+    });
+
+    it("rejects player frame with seq <= lastProcessedInput (stale)", () => {
+      const agent = makeAgent();
+      agent.lastProcessedInput = 5;
+      agent.enqueueInput({ seq: 5, direction: "north" });
+      expect(agent.inputQueue).toEqual([]);
+      agent.enqueueInput({ seq: 3, direction: "north" });
+      expect(agent.inputQueue).toEqual([]);
+    });
+
+    it("rejects duplicate seq (seq <= last queued seq)", () => {
+      const agent = makeAgent();
+      agent.enqueueInput({ seq: 1, direction: "north" });
+      agent.enqueueInput({ seq: 1, direction: "east" }); // duplicate
+      expect(agent.inputQueue).toHaveLength(1);
+      expect(agent.inputQueue[0].direction).toBe("north");
+    });
+
+    it("accepts bot frame (seq=0) regardless of lastProcessedInput", () => {
+      const agent = makeAgent();
+      agent.lastProcessedInput = 100;
+      agent.enqueueInput({ seq: 0, action: { type: "idle" } });
+      expect(agent.inputQueue).toHaveLength(1);
+    });
   });
 
   it("records tile in map memory", () => {
@@ -113,21 +145,4 @@ describe("Agent", () => {
     expect(agent.facing).toBe("north");
   });
 
-  describe("moveQueue", () => {
-    it("initialises with empty moveQueue and lastProcessedInput 0", () => {
-      const agent = makeAgent();
-      expect(agent.moveQueue).toEqual([]);
-      expect(agent.lastProcessedInput).toBe(0);
-    });
-
-    it("caps moveQueue at MOVE_QUEUE_CAP, dropping oldest", () => {
-      const agent = makeAgent();
-      agent.enqueueMoveInput({ seq: 1, direction: "north" });
-      agent.enqueueMoveInput({ seq: 2, direction: "east" });
-      agent.enqueueMoveInput({ seq: 3, direction: "south" });
-      agent.enqueueMoveInput({ seq: 4, direction: "west" }); // overflow
-      expect(agent.moveQueue).toHaveLength(3);
-      expect(agent.moveQueue[0].seq).toBe(2); // oldest (seq=1) dropped
-    });
-  });
 });

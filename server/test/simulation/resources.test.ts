@@ -1,37 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { processGathering, processProduction, processConsumption } from "../../src/simulation/resources.js";
+import { processProduction, processConsumption } from "../../src/simulation/resources.js";
 import { Agent } from "../../src/simulation/agent.js";
-import { Grid } from "../../src/simulation/grid.js";
 import { Settlement } from "../../src/simulation/settlement.js";
-import { GATHER_DURATION, FOOD_CONSUMPTION_INTERVAL, STARVATION_DAMAGE, PRODUCTION_INPUT_COST, PRODUCTION_OUTPUT, PRODUCTION_CYCLE_TICKS } from "@town-zero/shared";
-
-describe("processGathering", () => {
-  it("increments gather progress each tick", () => {
-    const grid = new Grid(10, 10);
-    grid.setResourceYield(3, 3, "food");
-    const agent = new Agent({ id: "a1", position: { x: 3, y: 3 }, faction: "v1", role: "farmer", controller: "llm" });
-    agent.state = "gathering";
-    agent.currentCommandTicks = 0;
-    agent.currentCommandTarget = GATHER_DURATION;
-
-    processGathering(agent, grid);
-    expect(agent.currentCommandTicks).toBe(1);
-    expect(agent.state).toBe("gathering");
-  });
-
-  it("completes gathering and adds resource to inventory", () => {
-    const grid = new Grid(10, 10);
-    grid.setResourceYield(3, 3, "food");
-    const agent = new Agent({ id: "a1", position: { x: 3, y: 3 }, faction: "v1", role: "farmer", controller: "llm" });
-    agent.state = "gathering";
-    agent.currentCommandTicks = GATHER_DURATION - 1;
-    agent.currentCommandTarget = GATHER_DURATION;
-
-    processGathering(agent, grid);
-    expect(agent.inventory.food).toBe(1);
-    expect(agent.state).toBe("idle");
-  });
-});
+import { FOOD_CONSUMPTION_INTERVAL, STARVATION_DAMAGE, PRODUCTION_INPUT_COST, PRODUCTION_OUTPUT, PRODUCTION_CYCLE_TICKS } from "@town-zero/shared";
 
 describe("processProduction", () => {
   it("produces output when operator present and materials available", () => {
@@ -61,7 +32,7 @@ describe("processProduction", () => {
     settlement.addStructure({ id: "p1", type: "production", position: { x: 0, y: 0 }, operatorId: "a1" });
 
     const agents = new Map([["a1", new Agent({ id: "a1", position: { x: 0, y: 0 }, faction: "v1", role: "farmer", controller: "llm" })]]);
-    agents.get("a1")!.state = "operating";
+    // Operator just needs to be alive — state doesn't matter for production
 
     processProduction(settlement, agents, PRODUCTION_CYCLE_TICKS);
     expect(settlement.inventory.food).toBe(0);

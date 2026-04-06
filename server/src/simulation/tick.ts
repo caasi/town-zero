@@ -1,11 +1,10 @@
-import { GATHER_DURATION, ATTACK_COOLDOWN_TICKS, MERCHANT_SPAWN_INTERVAL, DIRECTION_DELTA } from "@town-zero/shared";
-import type { Fact, Value, DialogueTreeData } from "@town-zero/shared";
+import { MERCHANT_SPAWN_INTERVAL } from "@town-zero/shared";
+import type { Fact, Value, InputFrame, DialogueTreeData } from "@town-zero/shared";
 import { Agent } from "./agent.js";
 import type { Grid } from "./grid.js";
 import type { Settlement } from "./settlement.js";
-import { validateCommand, executeCommand } from "./commands.js";
-import { processGathering, processProduction, processConsumption } from "./resources.js";
-import { processCombat } from "./combat.js";
+import { executeFrame, type TalkResult } from "./execute-frame.js";
+import { processProduction, processConsumption } from "./resources.js";
 import { updateVision, mergeAdjacentMemories } from "./vision.js";
 import { decideBotAction } from "../ai/bot-controller.js";
 import { TriggerRegistry } from "../dialogue/trigger-registry.js";
@@ -47,116 +46,42 @@ export function processMerchantTick(merchant: Agent, state: SimulationState): vo
 }
 
 
-export function processTick(state: SimulationState): void {
+export function processTick(state: SimulationState): TalkResult[] {
   state.tick++;
 
   const { grid, agents, settlements, tick } = state;
+  const talkResults: TalkResult[] = [];
 
-  // Phase 1: Process ongoing actions (gathering, fighting)
+  // Phase 1: Consume one InputFrame per alive agent
   for (const [, agent] of agents) {
     if (!agent.isAlive()) continue;
 
-    if (agent.state === "gathering") {
-      processGathering(agent, grid);
-      continue;
+    let frame: InputFrame | undefined;
+
+    if (agent.inputQueue.length > 0) {
+      frame = agent.inputQueue.shift()!;
+    } else if (agent.planBacklog.length > 0) {
+      frame = agent.planBacklog.shift()!;
     }
 
-    if (agent.state === "fighting") {
-      const target = agent.currentTargetId ? agents.get(agent.currentTargetId) : undefined;
-      if (target && target.isAlive()) {
-        processCombat(agent, target);
-      } else {
-        agent.state = "idle";
-        agent.currentCommandTicks = 0;
-        agent.currentCommandTarget = 0;
-        agent.currentTargetId = null;
-      }
-      continue;
-    }
-
-    // Phase 1.5: Consume one move input from moveQueue (per-tick input model)
-    // Yield to plan commands — explicit actions (gather, attack, etc.) take priority
-    if (agent.state === "idle" && agent.moveQueue.length > 0 && agent.plan.length === 0) {
-      // Drain stale inputs (defense-in-depth — ingress should already reject these)
-      while (agent.moveQueue.length > 0 && agent.moveQueue[0].seq <= agent.lastProcessedInput) {
-        agent.moveQueue.shift();
-      }
-      if (agent.moveQueue.length === 0) continue;
-      const input = agent.moveQueue.shift()!;
-      const delta = DIRECTION_DELTA[input.direction];
-      if (delta) {
-        const target = { x: agent.position.x + delta.dx, y: agent.position.y + delta.dy };
-        const moveCmd = { type: "move" as const, target };
-        const ctx = { grid, agent, agents, settlements };
-        if (validateCommand(moveCmd, ctx)) {
-          executeCommand(moveCmd, ctx);
-        }
-      }
-      agent.lastProcessedInput = Math.max(agent.lastProcessedInput, input.seq);
-      continue;
-    }
-
-    // Phase 2: If idle, dequeue next command
-    if (agent.state === "idle" && agent.plan.length > 0) {
-      // Clear stale move inputs — plan commands take priority.
-      // Advance lastProcessedInput so discarded inputs are acknowledged
-      // and won't be replayed forever by the client.
-      if (agent.moveQueue.length > 0) {
-        for (const input of agent.moveQueue) {
-          agent.lastProcessedInput = Math.max(agent.lastProcessedInput, input.seq);
-        }
-        agent.moveQueue = [];
-      }
-      const cmd = agent.shiftPlan()!;
-      const ctx = { grid, agent, agents, settlements };
-
-      if (!validateCommand(cmd, ctx)) {
-        continue;
-      }
-
-      switch (cmd.type) {
-        case "move":
-        case "deposit":
-        case "take":
-        case "trade":
-        case "idle":
-          executeCommand(cmd, ctx);
-          break;
-        case "gather":
-          agent.state = "gathering";
-          agent.currentCommandTicks = 0;
-          agent.currentCommandTarget = GATHER_DURATION;
-          agent.gatherTile = { ...cmd.resourceTile };
-          break;
-        case "attack": {
-          const target = agents.get(cmd.targetId);
-          if (target && target.isAlive()) {
-            agent.state = "fighting";
-            agent.currentCommandTicks = 0;
-            agent.currentCommandTarget = ATTACK_COOLDOWN_TICKS;
-            agent.currentTargetId = cmd.targetId;
-            processCombat(agent, target);
-          }
-          break;
-        }
-        case "talk":
-          break;
-      }
+    if (frame) {
+      const ctx = { grid, agent, agents, settlements, activeSessions: state.activeSessions, simState: state, talkResults };
+      executeFrame(frame, ctx);
     }
   }
 
-  // Phase 2.5: Bot controller for idle bot agents
+  // Phase 2: Bot controller for idle bot agents
   for (const [, agent] of agents) {
     if (!agent.isAlive() || agent.controller !== "bot") continue;
-    if (agent.state !== "idle" || agent.plan.length > 0) continue;
-    if (agent.role === "merchant") continue; // merchants have their own logic
+    if (agent.inputQueue.length > 0 || agent.planBacklog.length > 0) continue;
+    if (agent.role === "merchant") continue;
 
     const settlement = Array.from(settlements.values()).find((s) =>
       s.populationIds.includes(agent.id),
     );
     if (settlement) {
-      const cmd = decideBotAction(agent, settlement);
-      agent.setPlan([cmd]);
+      const frames = decideBotAction(agent, settlement);
+      agent.planBacklog = frames;
     }
   }
 
@@ -257,4 +182,6 @@ export function processTick(state: SimulationState): void {
 
     state.triggerRegistry.clearChangedFacts();
   }
+
+  return talkResults;
 }

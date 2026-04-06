@@ -36,8 +36,8 @@ describe("buildPrompt", () => {
   it("lists available actions", () => {
     const agent = new Agent({ id: "a1", position: { x: 5, y: 5 }, faction: "village-1", role: "farmer", controller: "llm" });
     const prompt = buildPrompt(agent, { food: 10, material: 5, currency: 2 }, 0);
-    expect(prompt).toContain("move");
     expect(prompt).toContain("gather");
+    expect(prompt).toContain("attack");
   });
 
   it("clamps ticksAgo to zero when currentTick < timestamp", () => {

@@ -85,7 +85,6 @@ describe("session-manager", () => {
 
       const player = state.agents.get("player-0")!;
       const npc = state.agents.get("test-npc")!;
-      expect(player.state).toBe("talking");
       expect(player.talkingToNpcId).toBe("test-npc");
       expect(npc.currentTalkingTo).toBe("player-0");
       expect(state.activeSessions.has("test-npc")).toBe(true);

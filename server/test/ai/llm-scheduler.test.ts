@@ -19,8 +19,7 @@ describe("LLMScheduler", () => {
     const { agent, agents, settlements } = makeTestContext();
 
     scheduler.register("a1");
-    agent.state = "gathering"; // busy, empty plan
-    agent.plan = [];
+    agent.inputQueue.push({ seq: 0, action: { type: "idle" } }); // busy
 
     await scheduler.update(agents, settlements, 1000, 10);
     expect(callFn).not.toHaveBeenCalled();
@@ -32,8 +31,7 @@ describe("LLMScheduler", () => {
     const { agent, agents, settlements } = makeTestContext();
 
     scheduler.register("a1");
-    agent.state = "idle";
-    agent.plan = [{ type: "idle" }]; // already has a plan
+    agent.planBacklog = [{ seq: 0, action: { type: "idle" } }]; // already has a plan
 
     await scheduler.update(agents, settlements, 1000, 10);
     expect(callFn).not.toHaveBeenCalled();
@@ -45,8 +43,7 @@ describe("LLMScheduler", () => {
     const { agent, agents, settlements } = makeTestContext();
 
     scheduler.register("a1");
-    agent.state = "idle";
-    agent.plan = [];
+    // agent is idle with empty queues
 
     await scheduler.update(agents, settlements, 1000, 10);
     expect(callFn).toHaveBeenCalledOnce();
@@ -58,8 +55,7 @@ describe("LLMScheduler", () => {
     const { agent, agents, settlements } = makeTestContext();
 
     scheduler.register("a1");
-    agent.state = "idle";
-    agent.plan = [];
+    // agent is idle with empty queues
 
     await scheduler.update(agents, settlements, 10000, 10);
     expect(callFn).toHaveBeenCalledOnce();

@@ -62,12 +62,10 @@ describe("AgentSchema", () => {
     a.maxHp = 100;
     a.state = "idle";
     a.controller = "player";
-    a.currentTargetId = "";
 
     expect(a.id).toBe("agent-1");
     expect(a.hp).toBe(100);
     expect(a.state).toBe("idle");
-    expect(a.currentTargetId).toBe("");
   });
 
   it("supports inventory as MapSchema", () => {

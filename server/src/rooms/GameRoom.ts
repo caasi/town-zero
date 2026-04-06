@@ -1,20 +1,13 @@
 import { Room, Client } from "@colyseus/core";
 import { TICK_RATE_MS } from "@town-zero/shared";
-import type { Facing } from "@town-zero/shared";
 import { WorldStateSchema } from "./schemas/WorldStateSchema.js";
 import { generateMap } from "../map/generator.js";
 import { processTick, type SimulationState } from "../simulation/tick.js";
 import { syncToSchema, syncTiles, syncAgent } from "./sync.js";
-import { isValidActionCommand } from "./validation.js";
+import { isValidInputFrame } from "./validation.js";
 import { extractVisionForPlayer } from "./vision.js";
 import { Agent } from "../simulation/agent.js";
-import { startDialogue, advanceDialogue, chooseDialogue, endDialogue, tickDialogues } from "../dialogue/session-manager.js";
-
-const VALID_DIRECTIONS = new Set<string>(["north", "south", "east", "west"]);
-
-function isValidSeq(seq: unknown): seq is number {
-  return typeof seq === "number" && Number.isSafeInteger(seq) && seq >= 0;
-}
+import { advanceDialogue, chooseDialogue, endDialogue, tickDialogues } from "../dialogue/session-manager.js";
 
 export class GameRoom extends Room<{ state: WorldStateSchema }> {
   private simState!: SimulationState;
@@ -30,71 +23,24 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
     syncTiles(this.simState.grid, this.state, this.simState.settlements);
     syncToSchema(this.simState, this.state);
 
-    this.onMessage("command", (client: Client, cmd: unknown) => {
-      const agentId = this.sessionToAgent.get(client.sessionId);
-      if (!agentId) return;
-
-      const agent = this.simState.agents.get(agentId);
-      if (!agent || !agent.isAlive()) return;
-
-      if (!isValidActionCommand(cmd)) return;
-
-      // Handle talk command immediately (not through tick pipeline)
-      if (cmd.type === "talk") {
-        const result = startDialogue(agentId, cmd.targetId, this.simState);
-        if (result.ok) {
-          // Sync both agents immediately so facing changes reach clients
-          // before the next tick (startDialogue sets facing on both).
-          const playerAgent = this.simState.agents.get(agentId);
-          const npcAgent = this.simState.agents.get(cmd.targetId);
-          const playerSchema = this.state.agents.get(agentId);
-          const npcSchema = this.state.agents.get(cmd.targetId);
-          if (playerAgent && playerSchema) syncAgent(playerAgent, playerSchema);
-          if (npcAgent && npcSchema) syncAgent(npcAgent, npcSchema);
-
-          if (result.ended) {
-            client.send("dialogue:end", { reason: "completed" });
-          } else {
-            client.send("dialogue:state", result.payload);
-          }
-        } else {
-          client.send("dialogue:error", { error: result.error });
-        }
-        return;
-      }
-
-      if (agent.state === "talking") return;
-      agent.setPlan([cmd]);
-    });
-
-    // Per-tick movement: client sends { direction, seq } each 125ms
-    this.onMessage("move", (client: Client, data: unknown) => {
+    this.onMessage("input", (client: Client, data: unknown) => {
       const agentId = this.sessionToAgent.get(client.sessionId);
       if (!agentId) return;
       const agent = this.simState.agents.get(agentId);
       if (!agent || !agent.isAlive()) return;
-      if (agent.state === "talking") return;
-      if (typeof data !== "object" || data === null) return;
-      const dir = (data as any).direction;
-      const seq = (data as any).seq;
-      if (!VALID_DIRECTIONS.has(dir)) return;
-      if (!isValidSeq(seq)) return;
-      if (seq <= agent.lastProcessedInput) return;
-      const lastQueuedSeq = agent.moveQueue.length > 0
-        ? agent.moveQueue[agent.moveQueue.length - 1]!.seq
-        : -1;
-      if (seq <= lastQueuedSeq) return;
-      agent.enqueueMoveInput({ seq, direction: dir as Facing });
+      if (!isValidInputFrame(data)) return;
+      if (data.seq < 1) return;
+      agent.enqueueInput(data);
     });
 
-    this.onMessage("move:stop", (client: Client, data: unknown) => {
+    this.onMessage("input:stop", (client: Client, data: unknown) => {
       const agentId = this.sessionToAgent.get(client.sessionId);
       if (!agentId) return;
       const agent = this.simState.agents.get(agentId);
       if (!agent) return;
-      agent.moveQueue = [];
+      agent.inputQueue = [];
       const seq = typeof data === "object" && data !== null ? (data as any).seq : undefined;
-      if (isValidSeq(seq)) {
+      if (typeof seq === "number" && Number.isSafeInteger(seq) && seq >= 0) {
         agent.lastProcessedInput = Math.max(agent.lastProcessedInput, seq);
       }
     });
@@ -186,7 +132,8 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
     });
     agent.addToInventory("food", 5);
     agent.lastProcessedInput = 0;
-    agent.moveQueue = [];
+    agent.inputQueue = [];
+    agent.planBacklog = [];
 
     this.simState.agents.set(id, agent);
     village.populationIds.push(id);
@@ -213,7 +160,27 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
   }
 
   private tick() {
-    processTick(this.simState);
+    const talkResults = processTick(this.simState);
+
+    // Send dialogue messages for talk actions executed this tick
+    for (const { agentId, targetId, result } of talkResults) {
+      if (result.ok) {
+        const playerAgent = this.simState.agents.get(agentId);
+        const npcAgent = this.simState.agents.get(targetId);
+        const playerSchema = this.state.agents.get(agentId);
+        const npcSchema = this.state.agents.get(targetId);
+        if (playerAgent && playerSchema) syncAgent(playerAgent, playerSchema);
+        if (npcAgent && npcSchema) syncAgent(npcAgent, npcSchema);
+
+        if ((result as any).ended) {
+          this.sendToAgent(agentId, "dialogue:end", { reason: "completed" });
+        } else {
+          this.sendToAgent(agentId, "dialogue:state", (result as any).payload);
+        }
+      } else {
+        this.sendToAgent(agentId, "dialogue:error", { error: result.error });
+      }
+    }
 
     const expired = tickDialogues(this.simState);
     for (const { playerId, reason } of expired) {

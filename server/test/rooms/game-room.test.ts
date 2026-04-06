@@ -60,9 +60,9 @@ function leaveClient(room: any, client: any) {
   room.clients._items.delete(client.sessionId);
 }
 
-function sendCommand(room: any, client: any, cmd: unknown) {
-  const handler = room._messageHandlers.get("command");
-  if (handler) handler(client, cmd);
+function sendInput(room: any, client: any, frame: unknown) {
+  const handler = room._messageHandlers.get("input");
+  if (handler) handler(client, frame);
 }
 
 function sendMessage(room: any, client: any, type: string, data?: unknown) {
@@ -116,7 +116,7 @@ describe("GameRoom integration", () => {
     expect(playerAgent.role).toBe("player");
   });
 
-  it("player sends move command and position updates", () => {
+  it("player sends input frame and position updates", () => {
     const client = mockClient("session-1");
     joinClient(room, client, { name: "Mover" });
     tick(room);
@@ -126,13 +126,12 @@ describe("GameRoom integration", () => {
       if (agent.controller === "player") playerAgent = agent;
     });
     const origX = playerAgent.x;
-    const origY = playerAgent.y;
 
-    // First move in a new direction only turns (turn-before-move);
-    // second move in same direction actually moves.
-    sendCommand(room, client, { type: "move", target: { x: origX + 1, y: origY } });
+    // First input in a new direction only turns (turn-before-move);
+    // second input in same direction actually moves.
+    sendInput(room, client, { seq: 1, direction: "east" });
     tick(room);
-    sendCommand(room, client, { type: "move", target: { x: origX + 1, y: origY } });
+    sendInput(room, client, { seq: 2, direction: "east" });
     tick(room);
 
     state.agents.forEach((agent: any) => {
@@ -203,25 +202,38 @@ describe("GameRoom integration", () => {
     expect(village.inventory.get("food")).toBeGreaterThanOrEqual(0);
   });
 
-  it("invalid command is ignored without crash", () => {
+  it("invalid input is ignored without crash", () => {
     const client = mockClient("session-1");
     joinClient(room, client, { name: "BadCmd" });
     tick(room);
 
-    sendCommand(room, client, { type: "fly", destination: "moon" });
+    sendInput(room, client, { seq: 1, action: { type: "fly" } });
     tick(room);
 
     expect(state.tick).toBeGreaterThan(0);
   });
 
-  it("malformed command (bad shape) is ignored", () => {
+  it("rejects seq=0 from client (reserved for bot/planBacklog)", () => {
+    const client = mockClient("session-1");
+    joinClient(room, client, { name: "Spoofer" });
+    tick(room);
+
+    const agentId = client.messages.find((m: any) => m.type === "joined")?.data.agentId;
+    const simAgent = room.simState.agents.get(agentId!);
+
+    // Client sends seq=0 — should be silently rejected
+    sendInput(room, client, { seq: 0, direction: "south" });
+    expect(simAgent.inputQueue).toEqual([]);
+  });
+
+  it("malformed input (bad shape) is ignored", () => {
     const client = mockClient("session-1");
     joinClient(room, client, { name: "BadShape" });
     tick(room);
 
-    sendCommand(room, client, "not an object");
-    sendCommand(room, client, null);
-    sendCommand(room, client, { type: "move" }); // missing target
+    sendInput(room, client, "not an object");
+    sendInput(room, client, null);
+    sendInput(room, client, { seq: -1, direction: "north" }); // invalid seq
     tick(room);
 
     expect(state.tick).toBeGreaterThan(0);
@@ -274,7 +286,7 @@ describe("GameRoom integration", () => {
     tick(room);
 
     // Try to move after death — should be silently ignored
-    sendCommand(room, client, { type: "move", target: { x: origX + 5, y: 5 } });
+    sendInput(room, client, { seq: 1, direction: "east" });
     tick(room);
 
     expect(state.agents.get(agentId!)!.hp).toBe(0);
@@ -340,21 +352,23 @@ describe("GameRoom integration", () => {
     it("talk command creates session and sends dialogue:state", () => {
       const { client, agentId } = setupDialogue(room);
 
-      sendCommand(room, client, { type: "talk", targetId: "farmer-reed" });
+      sendInput(room, client, { seq: 1, action: { type: "talk", targetId: "farmer-reed" } });
+      tick(room);
 
       const dlgMsgs = client.messages.filter((m: any) => m.type === "dialogue:state");
       expect(dlgMsgs).toHaveLength(1);
       expect(dlgMsgs[0].data.npcId).toBe("farmer-reed");
       expect(dlgMsgs[0].data.nodeType).toBe("text");
 
-      // Player should be in talking state
+      // Player should have dialogue lock
       const simAgent = room.simState.agents.get(agentId!);
-      expect(simAgent.state).toBe("talking");
+      expect(simAgent.talkingToNpcId).toBe("farmer-reed");
     });
 
     it("dialogue:advance sends updated state", () => {
       const { client } = setupDialogue(room);
-      sendCommand(room, client, { type: "talk", targetId: "farmer-reed" });
+      sendInput(room, client, { seq: 1, action: { type: "talk", targetId: "farmer-reed" } });
+      tick(room);
 
       sendMessage(room, client, "dialogue:advance");
 
@@ -365,7 +379,8 @@ describe("GameRoom integration", () => {
 
     it("dialogue:choose sends updated state", () => {
       const { client } = setupDialogue(room);
-      sendCommand(room, client, { type: "talk", targetId: "farmer-reed" });
+      sendInput(room, client, { seq: 1, action: { type: "talk", targetId: "farmer-reed" } });
+      tick(room);
       sendMessage(room, client, "dialogue:advance"); // → choice
 
       const choiceMsgs = client.messages.filter((m: any) => m.type === "dialogue:state");
@@ -384,7 +399,8 @@ describe("GameRoom integration", () => {
 
     it("dialogue:close sends dialogue:end", () => {
       const { client, agentId } = setupDialogue(room);
-      sendCommand(room, client, { type: "talk", targetId: "farmer-reed" });
+      sendInput(room, client, { seq: 1, action: { type: "talk", targetId: "farmer-reed" } });
+      tick(room);
 
       sendMessage(room, client, "dialogue:close");
 
@@ -396,25 +412,48 @@ describe("GameRoom integration", () => {
       expect(simAgent.state).toBe("idle");
     });
 
-    it("player in talking state rejects movement commands", () => {
+    it("player in dialogue rejects movement input", () => {
       const { client, agentId } = setupDialogue(room);
-      sendCommand(room, client, { type: "talk", targetId: "farmer-reed" });
+      sendInput(room, client, { seq: 1, action: { type: "talk", targetId: "farmer-reed" } });
+      tick(room);
 
       const simAgent = room.simState.agents.get(agentId!);
       const origX = simAgent.position.x;
-      const origY = simAgent.position.y;
 
-      // Try to move while talking
-      sendCommand(room, client, { type: "move", target: { x: origX + 1, y: origY } });
+      // Try to move while in dialogue — executeFrame rejects due to dialogue lock
+      sendInput(room, client, { seq: 2, direction: "east" });
       tick(room);
 
-      // Should not have moved — agent.state is "talking" so idle check fails
       expect(simAgent.position.x).toBe(origX);
+    });
+
+    it("sends dialogue:error when startDialogue fails", () => {
+      // First player starts dialogue with Reed
+      const { client: client1 } = setupDialogue(room);
+      sendInput(room, client1, { seq: 1, action: { type: "talk", targetId: "farmer-reed" } });
+      tick(room);
+
+      // Second player tries to talk to Reed (who is busy)
+      const client2 = mockClient("session-dlg2");
+      joinClient(room, client2, { name: "Talker2" });
+      tick(room);
+      const agentId2 = client2.messages.find((m: any) => m.type === "joined")?.data.agentId;
+      const simAgent2 = room.simState.agents.get(agentId2!);
+      simAgent2.position = { x: 9, y: 18 };
+      simAgent2.facing = "south";
+
+      sendInput(room, client2, { seq: 1, action: { type: "talk", targetId: "farmer-reed" } });
+      tick(room);
+
+      const errMsgs = client2.messages.filter((m: any) => m.type === "dialogue:error");
+      expect(errMsgs).toHaveLength(1);
+      expect(errMsgs[0].data.error).toBe("busy");
     });
 
     it("timeout sends dialogue:end", () => {
       const { client } = setupDialogue(room);
-      sendCommand(room, client, { type: "talk", targetId: "farmer-reed" });
+      sendInput(room, client, { seq: 1, action: { type: "talk", targetId: "farmer-reed" } });
+      tick(room);
 
       // Fast-forward ticks past timeout (DIALOGUE_TIMEOUT_TICKS + 1)
       for (let i = 0; i <= DIALOGUE_TIMEOUT_TICKS; i++) {
@@ -424,6 +463,84 @@ describe("GameRoom integration", () => {
       const endMsgs = client.messages.filter((m: any) => m.type === "dialogue:end");
       expect(endMsgs).toHaveLength(1);
       expect(endMsgs[0].data.reason).toBe("timeout");
+    });
+  });
+
+  describe("input:stop handler", () => {
+    it("uses Math.max — does not roll back lastProcessedInput", () => {
+      const client = mockClient("session-1");
+      joinClient(room, client, { name: "Stopper" });
+      tick(room);
+
+      const agentId = client.messages.find((m: any) => m.type === "joined")?.data.agentId;
+      const simAgent = room.simState.agents.get(agentId!);
+
+      // Advance lastProcessedInput via normal input
+      sendInput(room, client, { seq: 10, direction: "south" });
+      tick(room);
+      expect(simAgent.lastProcessedInput).toBe(10);
+
+      // Send input:stop with a LOWER seq — should NOT roll back
+      sendMessage(room, client, "input:stop", { seq: 5 });
+      expect(simAgent.lastProcessedInput).toBe(10);
+    });
+
+    it("rejects NaN, Infinity, and negative seq", () => {
+      const client = mockClient("session-1");
+      joinClient(room, client, { name: "BadStop" });
+      tick(room);
+
+      const agentId = client.messages.find((m: any) => m.type === "joined")?.data.agentId;
+      const simAgent = room.simState.agents.get(agentId!);
+
+      sendInput(room, client, { seq: 3, direction: "south" });
+      tick(room);
+      expect(simAgent.lastProcessedInput).toBe(3);
+
+      sendMessage(room, client, "input:stop", { seq: NaN });
+      expect(simAgent.lastProcessedInput).toBe(3);
+
+      sendMessage(room, client, "input:stop", { seq: Infinity });
+      expect(simAgent.lastProcessedInput).toBe(3);
+
+      sendMessage(room, client, "input:stop", { seq: -1 });
+      expect(simAgent.lastProcessedInput).toBe(3);
+    });
+
+    it("flushes inputQueue even when seq is invalid", () => {
+      const client = mockClient("session-1");
+      joinClient(room, client, { name: "BadFlush" });
+      tick(room);
+
+      const agentId = client.messages.find((m: any) => m.type === "joined")?.data.agentId;
+      const simAgent = room.simState.agents.get(agentId!);
+
+      sendInput(room, client, { seq: 1, direction: "south" });
+      sendInput(room, client, { seq: 2, direction: "south" });
+      expect(simAgent.inputQueue.length).toBeGreaterThan(0);
+
+      // Send input:stop with invalid seq — queue should still be flushed
+      sendMessage(room, client, "input:stop", { seq: NaN });
+      expect(simAgent.inputQueue).toEqual([]);
+    });
+
+    it("flushes inputQueue on input:stop", () => {
+      const client = mockClient("session-1");
+      joinClient(room, client, { name: "Flusher" });
+      tick(room);
+
+      const agentId = client.messages.find((m: any) => m.type === "joined")?.data.agentId;
+      const simAgent = room.simState.agents.get(agentId!);
+
+      // Enqueue multiple inputs without ticking
+      sendInput(room, client, { seq: 1, direction: "south" });
+      sendInput(room, client, { seq: 2, direction: "south" });
+      sendInput(room, client, { seq: 3, direction: "south" });
+      expect(simAgent.inputQueue.length).toBeGreaterThan(0);
+
+      // input:stop should flush the queue
+      sendMessage(room, client, "input:stop", { seq: 3 });
+      expect(simAgent.inputQueue).toEqual([]);
     });
   });
 
@@ -439,7 +556,7 @@ describe("GameRoom integration", () => {
     expect(attackerId).toBeDefined();
     expect(defenderId).toBeDefined();
 
-    sendCommand(room, client1, { type: "attack", targetId: defenderId });
+    sendInput(room, client1, { seq: 1, action: { type: "attack", targetId: defenderId } });
     tick(room);
     tick(room);
 

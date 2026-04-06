@@ -1,6 +1,6 @@
 // client/src/display.ts
 import { TERRAIN_MOVE_COST, DIRECTION_DELTA } from "@town-zero/shared";
-import type { TerrainType, PendingInput } from "@town-zero/shared";
+import type { TerrainType, InputFrame } from "@town-zero/shared";
 import { TILE_SIZE } from "./constants.js";
 
 const BASE_LERP_FACTOR = 0.5;
@@ -106,8 +106,8 @@ export class DisplayState {
   reconcileFromServer(
     id: string,
     server: ServerAgent,
-    pendingInputs: PendingInput[],
-  ): PendingInput[] {
+    pendingInputs: InputFrame[],
+  ): InputFrame[] {
     const display = this.getOrCreate(id, server.x, server.y, server.facing);
 
     // Non-idle: clear all predictions, snap to server
@@ -126,10 +126,12 @@ export class DisplayState {
     display.displayY = server.y;
     display.facing = server.facing;
 
-    // Replay unacknowledged inputs
+    // Replay unacknowledged inputs that would move on the server.
+    // If an action is present, the server gives it priority over direction.
     const tiles = this.tileSource;
     if (tiles) {
       for (const input of remaining) {
+        if (input.action || !input.direction) continue;
         const delta = DIRECTION_DELTA[input.direction];
         if (!delta) continue;
         const targetX = display.displayX + delta.dx;

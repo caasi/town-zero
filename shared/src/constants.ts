@@ -14,7 +14,6 @@ export const DEFAULT_MAX_HP = 100;
 export const FOOD_CONSUMPTION_INTERVAL = 240; // ticks between food consumption (~30s)
 export const STARVATION_DAMAGE = 10;          // HP lost per interval when starving
 export const DEFAULT_INVENTORY_CAPACITY = 20;
-export const GATHER_DURATION = 40;            // ticks to complete gathering (~5s)
 
 // --- Settlement ---
 export const HOUSING_POPULATION_CAP = 4;      // population per housing structure
@@ -32,7 +31,6 @@ export enum ZoneType {
 
 // --- Combat ---
 export const BASE_ATTACK_DAMAGE = 20;
-export const ATTACK_COOLDOWN_TICKS = 24;      // ticks between attacks (~3s)
 
 // --- Merchant ---
 export const MERCHANT_SPAWN_INTERVAL = 960;   // ticks between merchant spawns (~120s)
@@ -47,7 +45,7 @@ export const LLM_MIN_INTERVAL_MS = 10_000;  // 10 seconds for important NPCs
 export const LLM_MAX_INTERVAL_MS = 30_000;  // 30 seconds for common NPCs
 
 // --- Movement reconciliation ---
-export const MOVE_QUEUE_CAP = 3;       // server-side per-agent input buffer depth
+export const INPUT_QUEUE_CAP = 3;       // server-side per-agent input buffer depth
 export const PENDING_INPUT_CAP = 20;   // client-side pending input buffer safety valve
 
 export const DIRECTION_DELTA: Record<Facing, { dx: number; dy: number }> = {

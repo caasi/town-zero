@@ -114,22 +114,30 @@ function closeTradeModal(): void {
 }
 
 document.getElementById("sell-food-btn")!.addEventListener("click", () => {
-  if (currentTradeTarget) {
-    network.send({
-      type: "trade", targetId: currentTradeTarget,
-      offer: "food", offerAmount: MERCHANT_TRADE_RATE,
-      want: "currency", wantAmount: 1,
+  if (currentTradeTarget && input) {
+    ++input.inputSeq;
+    network.sendInput({
+      seq: input.inputSeq,
+      action: {
+        type: "trade", targetId: currentTradeTarget,
+        offer: "food", offerAmount: MERCHANT_TRADE_RATE,
+        want: "currency", wantAmount: 1,
+      },
     });
     closeTradeModal();
   }
 });
 
 document.getElementById("sell-material-btn")!.addEventListener("click", () => {
-  if (currentTradeTarget) {
-    network.send({
-      type: "trade", targetId: currentTradeTarget,
-      offer: "material", offerAmount: MERCHANT_TRADE_RATE,
-      want: "currency", wantAmount: 1,
+  if (currentTradeTarget && input) {
+    ++input.inputSeq;
+    network.sendInput({
+      seq: input.inputSeq,
+      action: {
+        type: "trade", targetId: currentTradeTarget,
+        offer: "material", offerAmount: MERCHANT_TRADE_RATE,
+        want: "currency", wantAmount: 1,
+      },
     });
     closeTradeModal();
   }
@@ -144,8 +152,6 @@ window.addEventListener("keydown", (e) => {
 function handleModal(req: ModalRequest): void {
   if (req.type === "trade") {
     openTradeModal(req.merchantId);
-  } else if (req.type === "dialogue") {
-    network.send({ type: "talk", targetId: req.targetId });
   }
 }
 
@@ -248,10 +254,10 @@ async function connect(): Promise<void> {
       camera.setGridSize(state.width, state.height);
     }
 
-    input = new InputHandler((cmd) => network.send(cmd));
+    input = new InputHandler();
     input.setModalHandler(handleModal);
-    input.onSendMove = (dir, seq) => network.sendMove(dir, seq);
-    input.onSendMoveStop = (seq) => network.sendMoveStop(seq);
+    input.onSendInput = (frame) => network.sendInput(frame);
+    input.onSendInputStop = (seq) => network.sendInputStop(seq);
     input.onDialogueAdvance = () => network.sendDialogueAdvance();
     input.onDialogueChoose = (optionId) => network.sendDialogueChoose(optionId);
     input.onDialogueClose = () => network.sendDialogueClose();

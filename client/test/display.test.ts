@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { DisplayState } from "../src/display.js";
 import { TILE_SIZE } from "../src/constants.js";
-import type { PendingInput } from "@town-zero/shared";
+import type { InputFrame } from "@town-zero/shared";
 
 function makeTiles(entries: Record<string, { terrain: string }>) {
   return {
@@ -122,7 +122,7 @@ describe("DisplayState", () => {
       const tiles = makeTiles({ "0,0": { terrain: "plains" } });
       ds.setTileSource(tiles);
 
-      const pending: PendingInput[] = [];
+      const pending: InputFrame[] = [];
       const remaining = ds.reconcileFromServer("p1",
         { x: 3, y: 4, facing: "south", lastProcessedInput: 0, state: "idle" },
         pending,
@@ -142,7 +142,7 @@ describe("DisplayState", () => {
       });
       ds.setTileSource(tiles);
 
-      const pending: PendingInput[] = [
+      const pending: InputFrame[] = [
         { seq: 1, direction: "south" },
         { seq: 2, direction: "south" },
         { seq: 3, direction: "south" },
@@ -158,6 +158,28 @@ describe("DisplayState", () => {
       expect(ds.get("p1")!.displayY).toBe(6); // moved 2 tiles south
     });
 
+    it("skips replay for frames with action even if direction is also present", () => {
+      const ds = new DisplayState();
+      ds.setLocalPlayer("p1");
+      const tiles = makeTiles({
+        "3,4": { terrain: "plains" },
+        "3,5": { terrain: "plains" },
+      });
+      ds.setTileSource(tiles);
+
+      // Frame has both direction and action — server executes action, ignores direction
+      const pending: InputFrame[] = [
+        { seq: 1, direction: "south", action: { type: "idle" } },
+      ];
+      const remaining = ds.reconcileFromServer("p1",
+        { x: 3, y: 4, facing: "south", lastProcessedInput: 0, state: "idle" },
+        pending,
+      );
+      expect(remaining).toHaveLength(1);
+      // Should NOT have replayed the direction — position stays at server baseline
+      expect(ds.get("p1")!.displayY).toBe(4);
+    });
+
     it("replays turn-before-move correctly", () => {
       const ds = new DisplayState();
       ds.setLocalPlayer("p1");
@@ -167,7 +189,7 @@ describe("DisplayState", () => {
       });
       ds.setTileSource(tiles);
 
-      const pending: PendingInput[] = [
+      const pending: InputFrame[] = [
         { seq: 1, direction: "east" }, // turn only (was facing south)
         { seq: 2, direction: "east" }, // actual move
       ];
@@ -189,7 +211,7 @@ describe("DisplayState", () => {
       });
       ds.setTileSource(tiles);
 
-      const pending: PendingInput[] = [
+      const pending: InputFrame[] = [
         { seq: 1, direction: "east" }, // turn
         { seq: 2, direction: "east" }, // would be rejected by replay (water)
       ];
@@ -203,13 +225,41 @@ describe("DisplayState", () => {
       expect(ds.get("p1")!.facing).toBe("east");
     });
 
+    it("action frames in pending buffer preserve seq continuity for pruning", () => {
+      const ds = new DisplayState();
+      ds.setLocalPlayer("p1");
+      const tiles = makeTiles({
+        "3,4": { terrain: "plains" },
+        "3,5": { terrain: "plains" },
+        "3,6": { terrain: "plains" },
+      });
+      ds.setTileSource(tiles);
+
+      // seq 1: move south, seq 2: action (attack), seq 3: move south
+      // Action frame must be in buffer so pruning doesn't discard seq 1
+      const pending: InputFrame[] = [
+        { seq: 1, direction: "south" },
+        { seq: 2, action: { type: "attack", targetId: "e1" } },
+        { seq: 3, direction: "south" },
+      ];
+      // Server acknowledges through seq 2 (the action)
+      const remaining = ds.reconcileFromServer("p1",
+        { x: 3, y: 4, facing: "south", lastProcessedInput: 2, state: "idle" },
+        pending,
+      );
+      // Only seq 3 should remain — replay it from baseline (3,4) facing south
+      expect(remaining).toHaveLength(1);
+      expect(remaining[0].seq).toBe(3);
+      expect(ds.get("p1")!.displayY).toBe(5); // replayed 1 move south
+    });
+
     it("clears pending when agent state is not idle", () => {
       const ds = new DisplayState();
       ds.setLocalPlayer("p1");
       const tiles = makeTiles({});
       ds.setTileSource(tiles);
 
-      const pending: PendingInput[] = [
+      const pending: InputFrame[] = [
         { seq: 1, direction: "south" },
         { seq: 2, direction: "south" },
       ];

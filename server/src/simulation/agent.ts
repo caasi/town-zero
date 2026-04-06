@@ -3,7 +3,6 @@ import type {
   ResourceType,
   ResourceStore,
   FSMState,
-  ActionCommand,
   ControllerType,
   EntitySnapshot,
   TileMemory,
@@ -11,9 +10,9 @@ import type {
   Facing,
   Fact,
   DialogueProgressEntry,
-  PendingInput,
+  InputFrame,
 } from "@town-zero/shared";
-import { emptyResourceStore, DEFAULT_MAX_HP, MOVE_QUEUE_CAP } from "@town-zero/shared";
+import { emptyResourceStore, DEFAULT_MAX_HP, INPUT_QUEUE_CAP } from "@town-zero/shared";
 
 interface AgentInit {
   id: string;
@@ -37,21 +36,15 @@ export class Agent {
   maxHp: number;
   inventory: ResourceStore;
   state: FSMState;
-  plan: ActionCommand[];
   controller: ControllerType;
   private mapMemory: Map<string, TileMemory>;
   private beliefs: Map<string, Fact> = new Map();
   private dialogueProgress: Map<string, DialogueProgressEntry> = new Map();
 
-  // FSM execution state
-  currentCommandTicks: number = 0;
-  currentCommandTarget: number = 0;
-  currentTargetId: string | null = null;
-  gatherTile: Position | null = null;
-
-  // Per-tick movement input queue (Gambetta reconciliation model)
-  moveQueue: PendingInput[] = [];
+  // Unified input queue (Gambetta reconciliation model)
+  inputQueue: InputFrame[] = [];
   lastProcessedInput: number = 0;
+  planBacklog: InputFrame[] = [];
 
   // Dialogue lock state
   talkingToNpcId: string | null = null;     // player → which NPC am I talking to
@@ -68,7 +61,6 @@ export class Agent {
     this.maxHp = DEFAULT_MAX_HP;
     this.inventory = emptyResourceStore();
     this.state = "idle";
-    this.plan = [];
     this.controller = init.controller;
     this.mapMemory = new Map();
   }
@@ -91,7 +83,8 @@ export class Agent {
     this.hp = Math.max(0, this.hp - damage);
     if (this.hp <= 0) {
       this.state = "dead";
-      this.plan = [];
+      this.inputQueue = [];
+      this.planBacklog = [];
     }
   }
 
@@ -99,23 +92,21 @@ export class Agent {
     return this.hp > 0;
   }
 
-  setPlan(commands: ActionCommand[]): void {
-    this.plan = [...commands];
-  }
-
-  clearPlan(): void {
-    this.plan = [];
-  }
-
-  enqueueMoveInput(input: PendingInput): void {
-    this.moveQueue.push(input);
-    while (this.moveQueue.length > MOVE_QUEUE_CAP) {
-      this.moveQueue.shift();
+  enqueueInput(frame: InputFrame): void {
+    // Player frame (seq > 0): reject stale/duplicate, then flush bot frames
+    if (frame.seq > 0) {
+      if (frame.seq <= this.lastProcessedInput) return;
+      const lastQueued = this.inputQueue.length > 0
+        ? this.inputQueue[this.inputQueue.length - 1].seq
+        : 0;
+      if (lastQueued > 0 && frame.seq <= lastQueued) return;
+      this.inputQueue = this.inputQueue.filter((f) => f.seq > 0);
+      this.planBacklog = [];
     }
-  }
-
-  shiftPlan(): ActionCommand | undefined {
-    return this.plan.shift();
+    this.inputQueue.push(frame);
+    while (this.inputQueue.length > INPUT_QUEUE_CAP) {
+      this.inputQueue.shift();
+    }
   }
 
   // --- MapMemory ---
