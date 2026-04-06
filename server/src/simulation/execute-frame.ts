@@ -25,8 +25,8 @@ export interface FrameContext {
 export function executeFrame(frame: InputFrame, ctx: FrameContext): void {
   const { grid, agent } = ctx;
 
-  // Dialogue lock: reject all input while in dialogue
-  if (agent.talkingToNpcId) {
+  // Dialogue lock: reject all input while in dialogue (player or NPC side)
+  if (agent.talkingToNpcId || agent.currentTalkingTo) {
     if (frame.seq > 0) agent.lastProcessedInput = Math.max(agent.lastProcessedInput, frame.seq);
     return;
   }

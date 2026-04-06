@@ -253,5 +253,14 @@ describe("executeFrame", () => {
       executeFrame(frame, ctx);
       expect(ctx.agent.position).toEqual({ x: 5, y: 5 }); // should still block
     });
+
+    it("rejects frames for NPC when currentTalkingTo is set", () => {
+      const ctx = makeCtx();
+      // NPC is the target of an active dialogue
+      ctx.agent.currentTalkingTo = "player-1";
+      const frame: InputFrame = { seq: 0, direction: "south" };
+      executeFrame(frame, ctx);
+      expect(ctx.agent.position).toEqual({ x: 5, y: 5 }); // NPC should not move
+    });
   });
 });
