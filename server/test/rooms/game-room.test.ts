@@ -213,6 +213,19 @@ describe("GameRoom integration", () => {
     expect(state.tick).toBeGreaterThan(0);
   });
 
+  it("rejects seq=0 from client (reserved for bot/planBacklog)", () => {
+    const client = mockClient("session-1");
+    joinClient(room, client, { name: "Spoofer" });
+    tick(room);
+
+    const agentId = client.messages.find((m: any) => m.type === "joined")?.data.agentId;
+    const simAgent = room.simState.agents.get(agentId!);
+
+    // Client sends seq=0 — should be silently rejected
+    sendInput(room, client, { seq: 0, direction: "south" });
+    expect(simAgent.inputQueue).toEqual([]);
+  });
+
   it("malformed input (bad shape) is ignored", () => {
     const client = mockClient("session-1");
     joinClient(room, client, { name: "BadShape" });

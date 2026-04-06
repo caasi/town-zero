@@ -29,6 +29,7 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
       const agent = this.simState.agents.get(agentId);
       if (!agent || !agent.isAlive()) return;
       if (!isValidInputFrame(data)) return;
+      if (data.seq < 1) return;
       agent.enqueueInput(data);
     });
 
