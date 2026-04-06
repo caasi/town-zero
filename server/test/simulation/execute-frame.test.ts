@@ -75,6 +75,17 @@ describe("executeFrame", () => {
       expect(ctx.agent.inventory.food).toBe(0);
     });
 
+    it("rejects gather when adjacent but not on facing tile", () => {
+      const ctx = makeCtx();
+      // Agent at (3,2) facing south → facing tile is (3,3). Resource at (4,2) is adjacent but not facing.
+      ctx.agent.position = { x: 3, y: 2 };
+      ctx.agent.facing = "south";
+      ctx.grid.setResourceYield(2, 2, "food"); // west of agent — adjacent but not facing
+      const frame: InputFrame = { seq: 1, action: { type: "gather", resourceTile: { x: 2, y: 2 } } };
+      executeFrame(frame, ctx);
+      expect(ctx.agent.inventory.food).toBe(0);
+    });
+
     it("rejects gather on tile without resource", () => {
       const ctx = makeCtx();
       ctx.agent.position = { x: 5, y: 5 };
@@ -159,6 +170,21 @@ describe("executeFrame", () => {
     });
   });
 
+  describe("talk action", () => {
+    it("rejects talk when target is adjacent but not on facing tile", () => {
+      const ctx = makeCtx();
+      ctx.agent.position = { x: 5, y: 5 };
+      ctx.agent.facing = "south"; // facing tile is (5,6)
+      const npc = new Agent({ id: "npc-1", position: { x: 4, y: 5 }, faction: "v1", role: "farmer", controller: "llm" });
+      ctx.agents.set("npc-1", npc);
+      ctx.simState = {} as any;
+      ctx.talkResults = [];
+      const frame: InputFrame = { seq: 1, action: { type: "talk", targetId: "npc-1" } };
+      executeFrame(frame, ctx);
+      expect(ctx.talkResults).toHaveLength(0);
+    });
+  });
+
   describe("action priority over direction", () => {
     it("ignores direction when action is present", () => {
       const ctx = makeCtx();
@@ -187,6 +213,24 @@ describe("executeFrame", () => {
       executeFrame(frame, ctx);
       expect(ctx.agent.lastProcessedInput).toBe(3);
     });
+
+    it("uses Math.max — does not decrease lastProcessedInput for lower seq", () => {
+      const ctx = makeCtx();
+      ctx.agent.lastProcessedInput = 10;
+      const frame: InputFrame = { seq: 5, direction: "south" };
+      executeFrame(frame, ctx);
+      expect(ctx.agent.lastProcessedInput).toBe(10);
+    });
+
+    it("uses Math.max in dialogue lock path", () => {
+      const ctx = makeCtx();
+      ctx.activeSessions.set("npc-1", { playerId: "a1" } as any);
+      ctx.agent.talkingToNpcId = "npc-1";
+      ctx.agent.lastProcessedInput = 10;
+      const frame: InputFrame = { seq: 5, direction: "south" };
+      executeFrame(frame, ctx);
+      expect(ctx.agent.lastProcessedInput).toBe(10);
+    });
   });
 
   describe("dialogue lock", () => {
@@ -198,6 +242,16 @@ describe("executeFrame", () => {
       const frame: InputFrame = { seq: 1, direction: "south" };
       executeFrame(frame, ctx);
       expect(ctx.agent.position).toEqual({ x: 5, y: 5 }); // didn't move
+    });
+
+    it("rejects frames when talkingToNpcId is set even if session already cleaned up", () => {
+      const ctx = makeCtx();
+      // talkingToNpcId set but no matching session (race: session expired between tick phases)
+      ctx.agent.talkingToNpcId = "npc-1";
+      // activeSessions is empty — session was already removed
+      const frame: InputFrame = { seq: 1, direction: "south" };
+      executeFrame(frame, ctx);
+      expect(ctx.agent.position).toEqual({ x: 5, y: 5 }); // should still block
     });
   });
 });
