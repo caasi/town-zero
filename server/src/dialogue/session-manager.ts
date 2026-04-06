@@ -150,8 +150,10 @@ export function startDialogue(
     triggerRegistry: state.triggerRegistry,
   });
 
-  // Lock both agents and stop any held movement
+  // Lock both agents and stop any queued actions
   player.inputQueue = [];
+  target.inputQueue = [];
+  target.planBacklog = [];
   player.talkingToNpcId = targetId;
   target.currentTalkingTo = playerId;
   state.activeSessions.set(targetId, session);
