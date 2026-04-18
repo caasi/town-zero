@@ -58,6 +58,8 @@
 3. **Do not invoke `startDialogue` speculatively from the dispatcher.** It mutates facing and locks agents. Use the pure predicate. Only call `startDialogue` *after* rule 2 commits.
 4. **All commits go on a feature branch** (`feat/combat-as-interaction`). User rule: implementation commits never go to `main` directly.
 5. **TDD throughout.** Write failing tests, verify red, implement minimum, verify green, commit. Use `@superpowers:test-driven-development`.
+6. **`setBubble` signature deviates from spec §2.2.** Spec reads `setBubble(text, durationTicks)`. Plan uses `setBubble(text, durationTicks, currentTick)`. The extra argument removes the need for `setBubble` to read a shared tick clock (which Agent does not own today) and keeps the method side-effect-free relative to time. Callers pass `state.tick` explicitly. This is a deliberate refinement, not a plan/spec drift.
+7. **Why disconnect-time ledger purge matters (Task 12).** `GameRoom.onLeave` does *not* remove the player's Agent — it flips `controller` to `"bot"` so the ex-player's body becomes an NPC. The Task-9 proximity loop guards on `controller === "player"` and will skip these bot-ified bodies. Without the Task-12 purge, their `playerId` keys remain in every NPC's `proximityLedger` forever, growing unboundedly across reconnects. The cleanup is not optional.
 
 Before starting Task 1, create the branch:
 
@@ -189,7 +191,7 @@ describe("hasMatchingDialogueEntry", () => {
     expect(hasMatchingDialogueEntry(player, npc, state)).toBe(false);
   });
 
-  it("returns true when tree has only a root and no entryPoints (same-faction path still yields root match)", () => {
+  it("returns false for entry-less trees (rule 2 fall-through)", () => {
     // Per spec §1.2 entry-less fallback: entry-less trees do NOT match rule 2;
     // rule 4 for same-faction → noop; rule 3 for cross-faction → attack.
     // The predicate therefore returns false for entry-less trees.
@@ -234,7 +236,7 @@ import type { Agent } from "./agent.js";
 import type { SimulationState } from "./tick.js";
 import { checkCondition, type EvalContext } from "../dialogue/evaluator.js";
 
-function findTreeIdForNpc(npcId: string, state: SimulationState): string | null {
+export function findTreeIdForNpc(npcId: string, state: SimulationState): string | null {
   for (const [id] of state.dialogueTrees) {
     if (id.startsWith(npcId)) return id;
   }
@@ -298,16 +300,21 @@ export function hasMatchingDialogueEntry(player: Agent, npc: Agent, state: Simul
 
 - [ ] **Step 4: Refactor `startDialogue` to use the helper**
 
-In `server/src/dialogue/session-manager.ts`, replace the inline entry-point evaluation block (currently at lines 98-138) with:
+In `server/src/dialogue/session-manager.ts`, replace both the inline tree-id lookup loop (~lines 65-82) and the inline entry-point evaluation block (~lines 98-138) with calls to the new helpers:
 
 ```ts
-import { resolveDialogueEntryNode } from "../simulation/dialogue-entry-predicate.js";
+import { findTreeIdForNpc, resolveDialogueEntryNode } from "../simulation/dialogue-entry-predicate.js";
 
-// ... inside startDialogue, after the tree is fetched:
+// Replace the tree lookup:
+const treeId = findTreeIdForNpc(targetId, state);
+if (!treeId) return { ok: false, error: "no_dialogue" };
+const tree = state.dialogueTrees.get(treeId)!;
+
+// ... after auto-face:
 const entryNodeId = resolveDialogueEntryNode(player, target, state) ?? tree.root;
 ```
 
-Remove the local `checkCondition` import and `EvalContext` construction — the helper owns them now. Leave the auto-face behaviour untouched (it is not part of entry-point evaluation).
+Remove the local `checkCondition` import and `EvalContext` construction — the helper owns them now. Leave the auto-face behaviour untouched (it is not part of entry-point evaluation). Exporting `findTreeIdForNpc` from the predicate module lets both call sites share one implementation instead of maintaining the convention matching in two places.
 
 - [ ] **Step 5: Run predicate + session-manager tests; verify green**
 
@@ -841,8 +848,15 @@ describe("processTick — bubble upkeep", () => {
 In `processTick` after `updateVision`:
 
 ```ts
+import { DEFAULT_VISION_RADIUS, SCOUT_VISION_RADIUS } from "@town-zero/shared";
+
 // Phase 6b: Bubble upkeep (expiry + proximity triggers)
 for (const [, agent] of agents) {
+  // Dead NPCs do not emit bubbles or re-fire proximity greetings.
+  // Ledger state on dead agents is harmless (the Map is released with the agent),
+  // and clearing bubbleText is redundant with the takeDamage cleanup paths.
+  if (!agent.isAlive()) continue;
+
   // Expiry
   if (agent.bubbleText !== null && tick >= agent.bubbleExpiresAt) {
     agent.setBubble("", 0, tick);
@@ -851,13 +865,13 @@ for (const [, agent] of agents) {
   // Proximity trigger
   if (!agent.proximityBubble) continue;
   const cfg = agent.proximityBubble;
+  const radius = agent.role === "scout" ? SCOUT_VISION_RADIUS : DEFAULT_VISION_RADIUS;
   for (const [, other] of agents) {
     if (other.controller !== "player") continue;
     if (!other.isAlive()) continue;
-    // In vision iff the NPC sees the player this tick (use Manhattan radius)
     const dx = Math.abs(other.position.x - agent.position.x);
     const dy = Math.abs(other.position.y - agent.position.y);
-    if (dx + dy > (agent.role === "scout" ? 8 : 5)) continue;
+    if (dx + dy > radius) continue;
 
     const last = agent.getLastProximityTrigger(other.id);
     if (last !== undefined && tick - last < cfg.cooldownTicks) continue;
@@ -869,7 +883,16 @@ for (const [, agent] of agents) {
 }
 ```
 
-Reuse `tilesInManhattanRadius` or the numeric constants from `@town-zero/shared` if they exist; otherwise keep the inline Manhattan distance. Do *not* duplicate the full `getTilesInRadius` iteration — we only need a "within radius?" check.
+Use the existing `DEFAULT_VISION_RADIUS` / `SCOUT_VISION_RADIUS` constants from `shared/src/constants.ts` rather than inline magic numbers. Do *not* duplicate the full `getTilesInRadius` iteration — we only need a "within radius?" check via Manhattan distance.
+
+Add a test to Step 1 covering the dead-NPC case:
+
+```ts
+it("does not fire proximity bubble for a dead NPC", () => {
+  // NPC with proximityBubble; kill the NPC (hp → 0); player spawns in range;
+  // processTick; expect NPC.bubbleText remains null.
+});
+```
 
 - [ ] **Step 4: Run tests; verify green**
 
