@@ -1,5 +1,6 @@
 import { TERRAIN_MOVE_COST, DIRECTION_DELTA, BASE_ATTACK_DAMAGE } from "@town-zero/shared";
 import type { InputFrame, ResourceType, Facing, Position } from "@town-zero/shared";
+import { dispatchInteract } from "./dispatch-interact.js";
 import type { Agent } from "./agent.js";
 import type { Grid } from "./grid.js";
 import type { Settlement } from "./settlement.js";
@@ -104,6 +105,10 @@ function executeAction(action: NonNullable<InputFrame["action"]>, ctx: FrameCont
   const { grid, agent, agents, settlements } = ctx;
 
   switch (action.type) {
+    case "interact": {
+      dispatchInteract(ctx);
+      break;
+    }
     case "gather": {
       performGatherOnFacingTile(action.resourceTile, ctx);
       break;

@@ -270,6 +270,43 @@ describe("executeFrame", () => {
     });
   });
 
+  describe("executeFrame — interact verb", () => {
+    it("facing hostile enemy → damage applied", () => {
+      const ctx = makeCtx();
+      ctx.agent.position = { x: 1, y: 1 };
+      ctx.agent.facing = "east";
+      const enemy = new Agent({ id: "enemy", position: { x: 2, y: 1 }, faction: "den-1", role: "beast", controller: "bot" });
+      ctx.agents.set("enemy", enemy);
+      const frame: InputFrame = { seq: 1, action: { type: "interact" } };
+      executeFrame(frame, ctx);
+      expect(enemy.hp).toBe(100 - BASE_ATTACK_DAMAGE);
+      expect(ctx.agent.lastProcessedInput).toBe(1);
+    });
+
+    it("facing resource bush → inventory increases", () => {
+      const ctx = makeCtx();
+      ctx.agent.position = { x: 5, y: 4 };
+      ctx.agent.facing = "south";
+      ctx.grid.setResourceYield(5, 5, "food");
+      const frame: InputFrame = { seq: 1, action: { type: "interact" } };
+      executeFrame(frame, ctx);
+      expect(ctx.agent.inventory.food).toBe(1);
+      expect(ctx.agent.lastProcessedInput).toBe(1);
+    });
+
+    it("facing nothing → no state change", () => {
+      const ctx = makeCtx();
+      ctx.agent.position = { x: 1, y: 1 };
+      ctx.agent.facing = "east";
+      // (2,1) is empty — no agent, no resource
+      const frame: InputFrame = { seq: 1, action: { type: "interact" } };
+      executeFrame(frame, ctx);
+      expect(ctx.agent.inventory.food).toBe(0);
+      expect(ctx.agent.inventory.material).toBe(0);
+      expect(ctx.agent.lastProcessedInput).toBe(1);
+    });
+  });
+
   describe("dialogue lock", () => {
     it("rejects all frames when agent is in dialogue", () => {
       const ctx = makeCtx();
