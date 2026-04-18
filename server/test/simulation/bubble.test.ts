@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { Agent } from "../../src/simulation/agent.js";
+import { Grid } from "../../src/simulation/grid.js";
+import { processTick, type SimulationState } from "../../src/simulation/tick.js";
 
 describe("Agent.setBubble", () => {
   it("sets bubbleText and computes bubbleExpiresAt from current tick", () => {
@@ -43,5 +45,122 @@ describe("Agent.proximityBubble", () => {
     a.recordProximityTrigger("p1", 100);
     a.forgetPlayerProximity("p1");
     expect(a.getLastProximityTrigger("p1")).toBeUndefined();
+  });
+});
+
+function makeBubbleWorld(): SimulationState {
+  return {
+    grid: new Grid(20, 20),
+    agents: new Map(),
+    settlements: new Map(),
+    tick: 0,
+    nextMerchantId: 0,
+    activeSessions: new Map(),
+    dialogueTrees: new Map(),
+  };
+}
+
+describe("processTick — bubble upkeep", () => {
+  it("clears bubble when bubbleExpiresAt is reached", () => {
+    const world = makeBubbleWorld();
+    const npc = new Agent({ id: "n1", position: { x: 5, y: 5 }, faction: "f", role: "villager", controller: "bot" });
+    npc.setBubble("hi", 2, 0); // bubbleExpiresAt = 2
+    world.agents.set(npc.id, npc);
+
+    processTick(world); // tick → 1, still active
+    expect(npc.bubbleText).toBe("hi");
+
+    processTick(world); // tick → 2, expiry fires
+    expect(npc.bubbleText).toBeNull();
+    expect(npc.bubbleExpiresAt).toBe(0);
+  });
+
+  it("fires proximityBubble when a player enters the NPC's vision radius", () => {
+    const world = makeBubbleWorld();
+    const npc = new Agent({
+      id: "n1",
+      position: { x: 5, y: 5 },
+      faction: "f",
+      role: "villager",
+      controller: "bot",
+      proximityBubble: { text: "Hi!", durationTicks: 5, cooldownTicks: 50 },
+    });
+    const player = new Agent({ id: "p1", position: { x: 6, y: 5 }, faction: "player", role: "player", controller: "player" });
+    world.agents.set(npc.id, npc);
+    world.agents.set(player.id, player);
+
+    processTick(world);
+
+    expect(npc.bubbleText).toBe("Hi!");
+    expect(npc.getLastProximityTrigger("p1")).toBe(world.tick);
+  });
+
+  it("does not re-fire within cooldownTicks", () => {
+    const world = makeBubbleWorld();
+    const npc = new Agent({
+      id: "n1",
+      position: { x: 5, y: 5 },
+      faction: "f",
+      role: "villager",
+      controller: "bot",
+      proximityBubble: { text: "Hi!", durationTicks: 2, cooldownTicks: 50 },
+    });
+    const player = new Agent({ id: "p1", position: { x: 6, y: 5 }, faction: "player", role: "player", controller: "player" });
+    world.agents.set(npc.id, npc);
+    world.agents.set(player.id, player);
+
+    processTick(world); // fires at tick 1
+    const firstFireTick = npc.getLastProximityTrigger("p1");
+    expect(firstFireTick).toBe(1);
+
+    // Advance several ticks but stay below cooldown; bubble will expire mid-way
+    for (let i = 0; i < 5; i++) processTick(world);
+    expect(npc.bubbleText).toBeNull(); // expired
+    expect(npc.getLastProximityTrigger("p1")).toBe(firstFireTick); // ledger unchanged → no re-fire
+  });
+
+  it("re-fires after cooldown once conditions allow", () => {
+    const world = makeBubbleWorld();
+    const npc = new Agent({
+      id: "n1",
+      position: { x: 5, y: 5 },
+      faction: "f",
+      role: "villager",
+      controller: "bot",
+      proximityBubble: { text: "Hi!", durationTicks: 2, cooldownTicks: 5 },
+    });
+    const player = new Agent({ id: "p1", position: { x: 6, y: 5 }, faction: "player", role: "player", controller: "player" });
+    world.agents.set(npc.id, npc);
+    world.agents.set(player.id, player);
+
+    processTick(world); // fires at tick 1
+    expect(npc.getLastProximityTrigger("p1")).toBe(1);
+
+    // Advance past cooldown
+    for (let i = 0; i < 6; i++) processTick(world);
+
+    expect(npc.getLastProximityTrigger("p1")).toBeGreaterThan(1);
+    expect(npc.bubbleText).toBe("Hi!");
+  });
+
+  it("does not fire proximity bubble for a dead NPC", () => {
+    const world = makeBubbleWorld();
+    const npc = new Agent({
+      id: "n1",
+      position: { x: 5, y: 5 },
+      faction: "f",
+      role: "villager",
+      controller: "bot",
+      proximityBubble: { text: "Hi!", durationTicks: 5, cooldownTicks: 50 },
+    });
+    npc.takeDamage(npc.hp);
+    const player = new Agent({ id: "p1", position: { x: 6, y: 5 }, faction: "player", role: "player", controller: "player" });
+    world.agents.set(npc.id, npc);
+    world.agents.set(player.id, player);
+
+    processTick(world);
+
+    expect(npc.bubbleText).toBeNull();
+    expect(npc.getLastProximityTrigger("p1")).toBeUndefined();
   });
 });

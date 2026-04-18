@@ -1,4 +1,4 @@
-import { MERCHANT_SPAWN_INTERVAL } from "@town-zero/shared";
+import { MERCHANT_SPAWN_INTERVAL, DEFAULT_VISION_RADIUS, SCOUT_VISION_RADIUS } from "@town-zero/shared";
 import type { Fact, Value, InputFrame, DialogueTreeData } from "@town-zero/shared";
 import { Agent } from "./agent.js";
 import type { Grid } from "./grid.js";
@@ -108,6 +108,36 @@ export function processTick(state: SimulationState): TalkResult[] {
   // Phase 6: Vision update
   for (const [, agent] of agents) {
     updateVision(agent, grid, agents, tick);
+  }
+
+  // Phase 6b: Bubble upkeep (expiry + proximity triggers)
+  for (const [, agent] of agents) {
+    // Dead NPCs do not emit bubbles or re-fire proximity greetings.
+    if (!agent.isAlive()) continue;
+
+    // Expiry
+    if (agent.bubbleText !== null && tick >= agent.bubbleExpiresAt) {
+      agent.setBubble("", 0, tick);
+    }
+
+    // Proximity trigger
+    if (!agent.proximityBubble) continue;
+    const cfg = agent.proximityBubble;
+    const radius = agent.role === "scout" ? SCOUT_VISION_RADIUS : DEFAULT_VISION_RADIUS;
+    for (const [, other] of agents) {
+      if (other.controller !== "player") continue;
+      if (!other.isAlive()) continue;
+      const dx = Math.abs(other.position.x - agent.position.x);
+      const dy = Math.abs(other.position.y - agent.position.y);
+      if (dx + dy > radius) continue;
+
+      const last = agent.getLastProximityTrigger(other.id);
+      if (last !== undefined && tick - last < cfg.cooldownTicks) continue;
+
+      agent.setBubble(cfg.text, cfg.durationTicks, tick);
+      agent.recordProximityTrigger(other.id, tick);
+      break; // One fire per tick; others arriving within duration share the same text.
+    }
   }
 
   // Phase 7: Memory merge for adjacent same-faction agents
