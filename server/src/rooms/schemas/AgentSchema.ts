@@ -13,6 +13,7 @@ export const AgentSchema = schema({
   facing: "string",
   lastProcessedInput: "number",
   inventory: { map: "number" },
+  bubbleText: "string",
 }, "AgentSchema");
 
 export type AgentSchema = SchemaType<typeof AgentSchema>;
