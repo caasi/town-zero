@@ -50,6 +50,10 @@ export class Agent {
   talkingToNpcId: string | null = null;     // player → which NPC am I talking to
   currentTalkingTo: string | null = null;   // NPC → which player is talking to me
 
+  // Speech bubble
+  bubbleText: string | null = null;
+  bubbleExpiresAt: number = 0;
+
   constructor(init: AgentInit) {
     this.id = init.id;
     this.name = init.name ?? init.id;
@@ -77,6 +81,17 @@ export class Agent {
 
   hasResource(resource: ResourceType, amount: number): boolean {
     return this.inventory[resource] >= amount;
+  }
+
+  setBubble(text: string, durationTicks: number, currentTick: number): void {
+    const BUBBLE_MAX_LEN = 64;
+    if (!text || durationTicks <= 0) {
+      this.bubbleText = null;
+      this.bubbleExpiresAt = 0;
+      return;
+    }
+    this.bubbleText = text.length > BUBBLE_MAX_LEN ? text.slice(0, BUBBLE_MAX_LEN) : text;
+    this.bubbleExpiresAt = currentTick + durationTicks;
   }
 
   takeDamage(damage: number): void {
