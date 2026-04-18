@@ -49,6 +49,7 @@ export type FrameAction =
   | { type: "take"; settlementId: string; resource: ResourceType; amount: number }
   | { type: "trade"; targetId: string; offer: ResourceType; offerAmount: number; want: ResourceType; wantAmount: number }
   | { type: "talk"; targetId: string }
+  | { type: "interact" }
   | { type: "idle" };
 
 export interface InputFrame {
