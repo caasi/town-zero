@@ -94,6 +94,29 @@ export class Renderer {
         if (tileX < vp.startX - 1 || tileX > vp.endX || tileY < vp.startY - 1 || tileY > vp.endY) return;
 
         this.drawAgent(ctx, px, py, agent, playerId, playerFaction, "visible", display);
+
+        // Bubble text above sprite (server clears with empty string; no client-side expiry)
+        const bubble: string = typeof agent.bubbleText === "string" ? agent.bubbleText : "";
+        if (bubble) {
+          const cx = px + TILE_SIZE / 2;
+          const bubbleY = py - 6; // baseline of bubble bottom edge above the tile
+          ctx.save();
+          ctx.font = "12px sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          const textWidth = ctx.measureText(bubble).width;
+          const padX = 4;
+          const padY = 2;
+          const rectW = textWidth + padX * 2;
+          const rectH = 12 + padY * 2;
+          const rectX = cx - rectW / 2;
+          const rectY = bubbleY - rectH;
+          ctx.fillStyle = "rgba(0,0,0,0.7)";
+          ctx.fillRect(rectX, rectY, rectW, rectH);
+          ctx.fillStyle = "#fff";
+          ctx.fillText(bubble, cx, rectY + rectH / 2);
+          ctx.restore();
+        }
       });
     }
 
