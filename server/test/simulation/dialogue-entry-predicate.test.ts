@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { hasMatchingDialogueEntry, resolveDialogueEntryNode } from "../../src/simulation/dialogue-entry-predicate.js";
+import { hasMatchingDialogueEntry } from "../../src/simulation/dialogue-entry-predicate.js";
 import { Agent } from "../../src/simulation/agent.js";
 import type { SimulationState } from "../../src/simulation/tick.js";
 import type { DialogueTreeData } from "@town-zero/shared";
