@@ -103,6 +103,8 @@ export function startDialogue(
 
   // Build payload — if this throws, dispose cleans up the locks
   try {
+    // Clear any active bubble so it doesn't render alongside the dialogue UI.
+    target.setBubble("", 0, state.tick);
     const ended = session.isEnded();
     if (ended) {
       const payload = buildPayload(session, state);

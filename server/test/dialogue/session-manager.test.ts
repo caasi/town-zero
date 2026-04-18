@@ -152,6 +152,18 @@ describe("session-manager", () => {
       expect(result.payload.content).toBe("Scout the north");
     });
 
+    it("clears the target NPC's active bubble", () => {
+      const npc = state.agents.get("test-npc")!;
+      npc.setBubble("早安", 80, 0);
+      expect(npc.bubbleText).toBe("早安");
+      expect(npc.bubbleExpiresAt).toBe(80);
+
+      const result = startDialogue("player-0", "test-npc", state);
+      expect(result.ok).toBe(true);
+      expect(npc.bubbleText).toBeNull();
+      expect(npc.bubbleExpiresAt).toBe(0);
+    });
+
     it("evaluates entryPoints for conditional root", () => {
       const tree = makeTree();
       tree.entryPoints = [
