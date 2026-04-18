@@ -1,5 +1,5 @@
 import { TERRAIN_MOVE_COST, DIRECTION_DELTA, BASE_ATTACK_DAMAGE } from "@town-zero/shared";
-import type { InputFrame, ResourceType, Facing } from "@town-zero/shared";
+import type { InputFrame, ResourceType, Facing, Position } from "@town-zero/shared";
 import type { Agent } from "./agent.js";
 import type { Grid } from "./grid.js";
 import type { Settlement } from "./settlement.js";
@@ -73,22 +73,43 @@ function isFacingTile(agent: Agent, pos: { x: number; y: number }): boolean {
   return ft.x === pos.x && ft.y === pos.y;
 }
 
+export function performAttackOnFacingTarget(targetId: string, ctx: FrameContext): void {
+  const { agent, agents } = ctx;
+  const target = agents.get(targetId);
+  if (!target || !target.isAlive()) return;
+  if (!isFacingTile(agent, target.position)) return;
+  target.takeDamage(BASE_ATTACK_DAMAGE);
+}
+
+export function performGatherOnFacingTile(resourceTile: Position, ctx: FrameContext): void {
+  const { agent, grid } = ctx;
+  const resource = grid.getResourceYield(resourceTile.x, resourceTile.y);
+  if (!resource) return;
+  if (!isFacingTile(agent, resourceTile)) return;
+  agent.addToInventory(resource, 1);
+}
+
+export function performTalkOnFacingTarget(targetId: string, ctx: FrameContext): void {
+  const { agent, agents } = ctx;
+  if (ctx.simState && ctx.talkResults) {
+    const talkTarget = agents.get(targetId);
+    if (!talkTarget || !talkTarget.isAlive()) return;
+    if (!isFacingTile(agent, talkTarget.position)) return;
+    const result = startDialogue(agent.id, targetId, ctx.simState as any);
+    ctx.talkResults.push({ agentId: agent.id, targetId, result });
+  }
+}
+
 function executeAction(action: NonNullable<InputFrame["action"]>, ctx: FrameContext): void {
   const { grid, agent, agents, settlements } = ctx;
 
   switch (action.type) {
     case "gather": {
-      const resource = grid.getResourceYield(action.resourceTile.x, action.resourceTile.y);
-      if (!resource) return;
-      if (!isFacingTile(agent, action.resourceTile)) return;
-      agent.addToInventory(resource, 1);
+      performGatherOnFacingTile(action.resourceTile, ctx);
       break;
     }
     case "attack": {
-      const target = agents.get(action.targetId);
-      if (!target || !target.isAlive()) return;
-      if (!isFacingTile(agent, target.position)) return;
-      target.takeDamage(BASE_ATTACK_DAMAGE);
+      performAttackOnFacingTarget(action.targetId, ctx);
       break;
     }
     case "deposit": {
@@ -129,13 +150,7 @@ function executeAction(action: NonNullable<InputFrame["action"]>, ctx: FrameCont
       break;
     }
     case "talk": {
-      if (ctx.simState && ctx.talkResults) {
-        const talkTarget = agents.get(action.targetId);
-        if (!talkTarget || !talkTarget.isAlive()) return;
-        if (!isFacingTile(agent, talkTarget.position)) return;
-        const result = startDialogue(agent.id, action.targetId, ctx.simState as any);
-        ctx.talkResults.push({ agentId: agent.id, targetId: action.targetId, result });
-      }
+      performTalkOnFacingTarget(action.targetId, ctx);
       break;
     }
     case "idle":
