@@ -1,8 +1,8 @@
 import type { DialogueStatePayload } from "@town-zero/shared";
 import { DIALOGUE_TIMEOUT_TICKS } from "@town-zero/shared";
-import { checkCondition, type EvalContext } from "./evaluator.js";
 import { DialogueSession } from "./dialogue-session.js";
 import type { SimulationState } from "../simulation/tick.js";
+import { findTreeIdForNpc, resolveDialogueEntryNode } from "../simulation/dialogue-entry-predicate.js";
 
 type DialogueResult =
   | { ok: true; payload: DialogueStatePayload; ended: boolean }
@@ -62,26 +62,8 @@ export function startDialogue(
   if (target.currentTalkingTo !== null) return { ok: false, error: "busy" };
 
   // Find dialogue tree for this NPC
-  let treeId: string | null = null;
-  for (const [id] of state.dialogueTrees) {
-    // Convention: tree ID contains the NPC ID
-    if (id.startsWith(targetId)) {
-      treeId = id;
-      break;
-    }
-  }
-  // Also check by NPC dialogue IDs if scenario loader stored them
-  if (!treeId) {
-    // Try finding any tree — for now use first available tree for this NPC
-    for (const [id] of state.dialogueTrees) {
-      if (id.includes(targetId)) {
-        treeId = id;
-        break;
-      }
-    }
-  }
+  const treeId = findTreeIdForNpc(targetId, state);
   if (!treeId) return { ok: false, error: "no_dialogue" };
-
   const tree = state.dialogueTrees.get(treeId)!;
 
   // Auto-face both agents toward each other
@@ -96,46 +78,7 @@ export function startDialogue(
   }
 
   // Evaluate entry points for conditional root
-  let entryNodeId = tree.root;
-  if (tree.entryPoints) {
-    const beliefs = target.getAllBeliefs();
-    const ctx: EvalContext = {
-      beliefs,
-      locals: new Map(),
-      agentState: {
-        player: { get: (p: string) => {
-          if (p === "hp") return player.hp;
-          if (p === "id") return player.id;
-          if (p === "role") return player.role;
-          if (p === "faction") return player.faction;
-          if (p === "x") return player.position.x;
-          if (p === "y") return player.position.y;
-          const inv = player.inventory;
-          if (p in inv) return inv[p as keyof typeof inv];
-          return 0;
-        }},
-        npc: { get: (p: string) => {
-          if (p === "hp") return target.hp;
-          if (p === "id") return target.id;
-          if (p === "role") return target.role;
-          if (p === "faction") return target.faction;
-          if (p === "x") return target.position.x;
-          if (p === "y") return target.position.y;
-          const inv = target.inventory;
-          if (p in inv) return inv[p as keyof typeof inv];
-          return 0;
-        }},
-        settlement: null,
-      },
-      currentTick: state.tick,
-    };
-    for (const ep of tree.entryPoints) {
-      if (checkCondition(ep.condition, ctx)) {
-        entryNodeId = ep.nodeId;
-        break;
-      }
-    }
-  }
+  const entryNodeId = resolveDialogueEntryNode(player, target, state) ?? tree.root;
 
   // Create a modified tree with the resolved root
   const resolvedTree = entryNodeId === tree.root
