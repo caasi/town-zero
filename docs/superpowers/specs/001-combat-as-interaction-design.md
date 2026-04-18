@@ -82,6 +82,10 @@ Dead agents on the tile are invisible to the dispatcher (no action).
 
 Dispatch is a pure tick-time operation: rule 2's dialogue-entry check runs at dispatch time, so any belief change committed before this tick is reflected. Since dialogue is data-driven, no combat-side surrender logic is needed — authors simply add a dialogue tree entry whose condition is a belief flag, and dispatcher rule 2 picks it up automatically.
 
+**Implementation note — pure predicate:** rule 2's check must be a side-effect-free predicate `hasMatchingDialogueEntry(target, player, state)` that reuses the existing `EvalContext` plumbing used by `startDialogue`. The dispatcher must not speculatively invoke `startDialogue` itself (which locks agents and mutates facing). Only after rule 2 commits does the server then call `startDialogue`.
+
+**Entry-less dialogue trees:** if a dialogue tree has a plain `root` node and no `entryPoints` array, rule 2 does not match. Cross-faction targets with such trees therefore fall through to rule 3 (attack). This is intentional — entry-less trees represent "talk only when explicitly addressed by a same-faction ally" (rule 4 noop for same faction). Authors who want a cross-faction ambient-talkable NPC must define at least one `entryPoints` entry.
+
 Existing `executeAction` case `"attack"` is changed:
 - `grid.isAdjacent(agent.position, target.position)` → `isFacingTile(agent, target.position)`.
 - Behaviour for LLM-issued `attack` actions also tightens to facing-only, consistent with all other facing-verbs.
@@ -99,6 +103,8 @@ In `client/src/input.ts`:
 
 HUD hint text is advisory only; ground truth is the server-side dispatcher. If the client's preview disagrees with the server's outcome (stale fog, belief changed mid-flight), the outcome is whatever the server chose.
 
+**HUD hint logic is not an acceptance-criterion of this spec.** The HUD may retain its current static legend (e.g. "E: Interact") without context-sensitive previewing. Context-aware previews ("E: Attack" vs "E: Talk") are a future enhancement and should not expand the scope of the implementation plan derived from this spec.
+
 No client-side prediction of interact effects is performed. This is consistent with the existing behaviour of `gather`, `talk`, and `trade` (all instant effects, no client prediction).
 
 #### 1.4 Trade modal special case
@@ -108,6 +114,8 @@ The trade modal is a client-only UI element. Option A (recommended): the client 
 Option B (considered, rejected): the client always sends `interact`; the server replies with `trade_available(merchantId)`; the client opens the modal. Cleaner protocol shape but adds latency for no behavioural gain. Rejected for v1.
 
 Under Option A, dispatcher priority rule 1 on the server remains defined so that LLM/bot agents (if they ever face merchants and issue `interact`) get a consistent resolution — though LLMs will normally emit the specific `trade` action directly.
+
+**Merchants do not get bubbles in v1.** Merchant NPC configs must not carry a `proximityBubble`. This sidesteps the edge case of a client opening a trade modal without firing `startDialogue` (and therefore without clearing any bubble) for an entity that happens to be both merchant and bubble-source.
 
 #### 1.5 Sequence / reconciliation
 
@@ -120,11 +128,16 @@ Under Option A, dispatcher priority rule 1 on the server remains defined so that
 `Agent` gains:
 
 ```ts
+// Synced (Colyseus schema, subject to per-client vision filter):
 bubbleText: string | null      // current bubble content, null when none
-bubbleExpiresAt: number        // tick at which the bubble auto-clears
+
+// Server-only (not in schema):
+bubbleExpiresAt: number        // tick at which the server clears bubbleText
 ```
 
-Both fields are part of the Colyseus agent schema so they are synced per-client, subject to the existing per-client vision filter (fog of war already decides which agents are visible to which player).
+Only `bubbleText` is synced. `bubbleExpiresAt` is a server-side implementation detail — the client trusts the server to clear the text and performs no expiry math locally. Keeping `bubbleExpiresAt` out of the schema avoids unnecessary schema-diff bandwidth for a value the client does not use.
+
+Fog of war already filters which agents are visible to each player; `bubbleText` inherits that filter automatically.
 
 #### 2.2 API
 
@@ -164,6 +177,8 @@ Each tick, for every NPC with a `proximityBubble`:
   - If this NPC has not triggered for this player within `cooldownTicks` → call `setBubble(text, durationTicks)` and record the trigger tick for `(npcId, playerId)`.
 
 The per-(npc, player) trigger ledger lives on the NPC (small `Map<playerId, tick>`). When a player leaves vision and re-enters after the cooldown window, the bubble fires again.
+
+**Ledger cleanup:** remove the player's entry when (a) the player disconnects (`onLeave`), or (b) the NPC dies (`state === "dead"`; the ledger Map itself is released along with the agent). This avoids retaining stale `playerId` keys after their owners are gone.
 
 Because there is a single shared `bubbleText` per NPC (not per-viewer), concurrent eligibility from multiple players collapses naturally: the first player to enter vision triggers the bubble; other players arriving within `durationTicks` simply see the same bubble. This is acceptable for a "greeting" UX and keeps schema per-NPC rather than per-(NPC, player).
 
@@ -212,7 +227,8 @@ Bubble text is short (enforce server-side cap, e.g. 64 characters).
 
 Server:
 - `dispatchInteract`: one test per priority rule (merchant, talkable NPC, hostile NPC, same-faction silent NPC, resource tile, empty tile).
-- Facing-only `attack`: target on side-adjacent (non-facing) tile → attack rejected as noop.
+- Facing-only `attack` (player-issued): target on side-adjacent (non-facing) tile → attack rejected as noop.
+- Facing-only `attack` (LLM-issued specific action): non-facing `attack` frame from a bot/LLM → rejected as noop, covering the "LLM `attack` also tightens to facing-only" rule in §1.2.
 - `attack` via `interact`: facing hostile enemy → damage applied via existing `takeDamage`.
 - Talkable-enemy flow: different-faction NPC with a dialogue entryPoint whose condition is true → dispatcher picks `talk`; entry condition false → dispatcher picks `attack`.
 - `setBubble`: sets fields, expiry arithmetic correct; tick-loop clears at expiry.
@@ -233,8 +249,10 @@ Client:
 ## Migration notes
 
 - Rename KeyQ references in `client/src/input.ts` HUD hint string.
-- Remove `TODO` line in `CLAUDE.md` about facing-only attack (debt cleared).
-- Add an entry in `CLAUDE.md` noting the new `interact` verb and bubble channel.
+- Update `CLAUDE.md`:
+  - Remove the facing-only-attack TODO from the "Known Debt" / "TODO" lists.
+  - Rewrite the "Facing-based interaction" paragraph so the sentence "Attack (KeyQ) currently checks any adjacent enemy but should be changed to facing-only in the future" is replaced by a description of the new unified `interact` verb and its dispatcher.
+  - Add a short note describing the NPC bubble channel (schema field, setBubble API, proximity source).
 - No database migrations (state is in-memory).
 
 ## Open questions (resolved during brainstorming)
