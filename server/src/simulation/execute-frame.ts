@@ -87,7 +87,7 @@ function executeAction(action: NonNullable<InputFrame["action"]>, ctx: FrameCont
     case "attack": {
       const target = agents.get(action.targetId);
       if (!target || !target.isAlive()) return;
-      if (!grid.isAdjacent(agent.position, target.position)) return;
+      if (!isFacingTile(agent, target.position)) return;
       target.takeDamage(BASE_ATTACK_DAMAGE);
       break;
     }
