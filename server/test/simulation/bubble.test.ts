@@ -24,3 +24,24 @@ describe("Agent.setBubble", () => {
     expect(a.bubbleText!.length).toBeLessThanOrEqual(64);
   });
 });
+
+describe("Agent.proximityBubble", () => {
+  it("exposes a typed proximityBubble config field (optional)", () => {
+    const a = new Agent({ id: "n1", position: { x: 0, y: 0 }, faction: "f", role: "villager", controller: "bot" });
+    expect(a.proximityBubble).toBeUndefined();
+  });
+
+  it("tracks last trigger tick per player in the proximity ledger", () => {
+    const a = new Agent({ id: "n1", position: { x: 0, y: 0 }, faction: "f", role: "villager", controller: "bot" });
+    a.recordProximityTrigger("p1", 100);
+    expect(a.getLastProximityTrigger("p1")).toBe(100);
+    expect(a.getLastProximityTrigger("p2")).toBeUndefined();
+  });
+
+  it("removes a player from the ledger on disconnect-cleanup", () => {
+    const a = new Agent({ id: "n1", position: { x: 0, y: 0 }, faction: "f", role: "villager", controller: "bot" });
+    a.recordProximityTrigger("p1", 100);
+    a.forgetPlayerProximity("p1");
+    expect(a.getLastProximityTrigger("p1")).toBeUndefined();
+  });
+});
