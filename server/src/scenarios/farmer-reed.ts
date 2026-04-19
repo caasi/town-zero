@@ -1,4 +1,4 @@
-import { scenario, setFact, take, fact, player } from "@town-zero/shared/script-dsl";
+import { scenario, setFact, take, fact, literal, player } from "@town-zero/shared/script-dsl";
 
 export const farmerReedScenario = scenario("farmer-reed", (s) => {
   s.npc("farmer-reed", {
@@ -7,6 +7,11 @@ export const farmerReedScenario = scenario("farmer-reed", (s) => {
     faction: "village-1",
     position: { x: 9, y: 19 },
     initialBeliefs: [],
+    proximityBubble: {
+      text: "Greetings, traveler!",
+      durationTicks: 40,   // ~5s at 8 tps
+      cooldownTicks: 240,  // ~30s between re-fires per player
+    },
   });
 
   s.dialogue("farmer-reed", "farmer-reed-dialogue", (d) => {
@@ -48,7 +53,11 @@ export const farmerReedScenario = scenario("farmer-reed", (s) => {
 
     d.end("done");
 
-    // Entry point: if quest is active, start at check-return
+    // Entry points (evaluated in order; first match wins):
+    // - If quest is active, resume at check-return.
+    // - Otherwise, always enter at greeting — this also makes the dispatcher's
+    //   rule 2 (dialogue-entry match) fire on KeyE for Reed at rest.
     d.entry("check-return", fact("food_quest_active").eq(true));
+    d.entry("greeting", literal(true));
   });
 });

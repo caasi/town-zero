@@ -11,14 +11,11 @@ import type {
   Fact,
   DialogueProgressEntry,
   InputFrame,
+  ProximityBubbleConfig,
 } from "@town-zero/shared";
 import { emptyResourceStore, DEFAULT_MAX_HP, INPUT_QUEUE_CAP } from "@town-zero/shared";
 
-export interface ProximityBubbleConfig {
-  text: string;
-  durationTicks: number;
-  cooldownTicks: number;
-}
+export type { ProximityBubbleConfig };
 
 interface AgentInit {
   id: string;

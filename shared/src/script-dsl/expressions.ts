@@ -63,6 +63,10 @@ export function not(expr: ExprBuilder): ExprBuilder {
   return new ExprBuilder({ type: "logic", op: "not", args: [expr.toExpr()] });
 }
 
+export function literal(value: Value): ExprBuilder {
+  return new ExprBuilder({ type: "literal", value });
+}
+
 export function fact(key: string): ExprBuilder {
   return new ExprBuilder({ type: "fact_ref", key });
 }
