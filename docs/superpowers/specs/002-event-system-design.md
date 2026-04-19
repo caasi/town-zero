@@ -98,6 +98,8 @@ Both participants are in the payload (Godot/Papyrus convention). No "who fired t
 
 ```ts
 // shared/src/script-dsl/builders.ts
+// SOURCE OF TRUTH for event keys + payloads: NpcEventMap (event-types.ts).
+// These overloads must stay in sync — when adding a new event, update both.
 
 export interface NpcBuilder {
   on(event: "proximity:enter", handler: EventHandler<ProximityEnterPayload>): NpcBuilder;
@@ -115,6 +117,8 @@ Overloads (not a single generic signature) because:
 - Autocomplete on `.on(` shows the event names as a dropdown.
 - "No overload matches call" is a clearer error than a generic lookup failure.
 - The catalog is rare-change; hand-written overloads are not a maintenance burden.
+
+**Duplication cost.** The event map and the overload list are two places to edit when adding an event. Accepted. An alternative is a mapped-type derivation (`{ [K in keyof NpcEventMap]: ... }[keyof NpcEventMap]`) but autocomplete on the derived form regresses in practice. If the catalog grows past ~15 events the decision should be revisited.
 
 The author-facing shape:
 
@@ -157,27 +161,36 @@ const compose = <P>(...hs: EventHandler<P>[]): EventHandler<P> =>
 
 ### 4. Unsubscribe
 
-`.on()` in the **scenario-build phase** is still chainable (returns `NpcBuilder`), but each registration is recorded with a registration id. After load, the runtime exposes an imperative `agent.on(event, handler)` that returns `Unsubscribe = () => void`. Scenario authors who need dynamic wiring (e.g. stop greeting after quest accepted) use the imperative form inside handlers:
+Two call surfaces, different return types:
+
+- **Scenario-build `.on()`** — on the builder returned from `s.npc(...)`. Chainable: returns `NpcBuilder`. Registrations are **always static** for the lifetime of the loaded scenario; no disposer.
+- **Runtime `agent.on(event, handler)`** — on the live `Agent` instance, reachable from inside another handler via `payload.self` (after resolving to `Agent`) or from server code. Returns `Unsubscribe = () => void`.
+
+Dynamic wiring therefore always happens from inside a handler:
 
 ```ts
-reed.on("talk:end", (ctx) => {
-  if (ctx.reason === "completed") {
-    unsubscribeGreeting();  // captured from an earlier registration
-  }
-  return [];
-});
+s.npc("reed", {...})
+  .on("talk:end", ({ self, reason }) => {
+    if (reason === "completed") {
+      // stop greeting this player on future enters
+      self.offByTag("greeting");   // or whatever runtime API we expose
+    }
+    return [];
+  });
 ```
 
-Scenarios with purely static wiring never touch `Unsubscribe`. Scenarios that mutate wiring hold the disposer and call it. No auto-cleanup magic; explicit.
+The exact runtime API for "find and remove a named handler" is a plan-stage detail — candidates: `agent.on(event, handler, { tag })` + `agent.off(tag)`, or returning an `Unsubscribe` from the runtime-form registration and having scenarios stash it in scenario-local state. The spec-level guarantee is: static scenario wiring cannot produce an `Unsubscribe`; dynamic wiring, if needed, uses the runtime form only.
 
 ### 5. Runtime storage
 
 On `Agent`:
 
 ```ts
-eventHandlers: Map<NpcEventName, EventHandler<any>[]> = new Map();
-inRangeLastTick: Set<string> = new Set();   // playerIds — for enter/leave diffs
+eventHandlers: Map<NpcEventName, EventHandler<unknown>[]> = new Map();
+proximityState: Map<string, number> = new Map();   // playerId → ticksInRange
 ```
+
+`proximityState.has(playerId)` acts as the "in range last tick" predicate; the value is the `ticksInRange` counter surfaced in `ProximityStayPayload`. One map, `get` gives the counter, `delete` on leave resets both presence and counter. `EventHandler<unknown>` (not `any`) keeps the shared-type surface honest; the dispatch site narrows via the declared overload.
 
 Scenario-load (`loadScenario`) runs the `s.npc(...).on(...).on(...)` chain and for each `.on()` call pushes the handler into `agent.eventHandlers.get(event)`. The chain is metadata + runtime functions; not JSON-serialised.
 
@@ -189,11 +202,13 @@ Scenario-load (`loadScenario`) runs the `s.npc(...).on(...).on(...)` chain and f
 
 Per NPC per tick:
 
-1. **Proximity diff.** Compute the set of player IDs currently within vision radius. Compare to `agent.inRangeLastTick`:
-   - New entries → dispatch `proximity:enter` per (npc, player).
-   - Persistent entries → dispatch `proximity:stay` per (npc, player); payload carries `ticksInRange` from a small per-(npc, player) counter.
-   - Dropped entries → dispatch `proximity:leave` per (npc, player).
-   Update `inRangeLastTick` for next tick.
+1. **Proximity diff.** Compute the set of player IDs currently within vision radius. For each NPC, walk `proximityState`:
+   - Player in new set but not in map → dispatch `proximity:enter`; `set(playerId, 1)`.
+   - Player in new set and in map → dispatch `proximity:stay` with `ticksInRange = map.get(playerId)`; `set(playerId, prev + 1)`.
+   - Player in map but not in new set → dispatch `proximity:leave`; `delete(playerId)`.
+
+   **Symmetry rule.** Proximity is computed from relative position. `:enter` fires on the first tick either side crosses into range, whether the NPC moved, the player moved, or both. `:leave` fires symmetrically. Handler authors who care about cause (e.g. "only greet when the player actively approached") must inspect payload deltas themselves; v1 does not filter. This matches Godot/Unity/Papyrus conventions and keeps the diff cheap.
+
 2. **Apply effects.** `flatMap` the handler results into an `Effect[]`; apply via the existing effect interpreter.
 
 Other events are dispatched from the subsystems that cause them:
@@ -201,20 +216,22 @@ Other events are dispatched from the subsystems that cause them:
 - `talk:start` — `startDialogue` in `session-manager.ts` (replaces the hardcoded `target.setBubble("", ...)` with a dispatch).
 - `talk:end` — `endDialogue` in `session-manager.ts`.
 - `combat:hit` — `performAttackOnFacingTarget` / `executeDamage` in `execute-frame.ts`.
-- `combat:death` — `Agent.applyDamage` when `hp <= 0`.
+- `combat:death` — `Agent.applyDamage` when `hp` crosses to `≤ 0`. **Ordering guarantee:** on a killing blow, `combat:hit` dispatches first (with `hpAfter: 0`), then `combat:death`. Handlers for `combat:hit` may therefore observe `hpAfter === 0` and run before death effects resolve.
 
 Each dispatch site calls `dispatch(agent, "talk:start", payload)` and applies the returned `Effect[]` before returning control.
+
+**Dialogue-lock interaction.** Event dispatch is independent of the dialogue input-lock. A locked NPC still receives `proximity:enter/stay/leave` and `combat:hit/death` events, and its handlers still run. The lock only affects input processing; handler-emitted effects (setBubble, setFact, damage) apply normally. Handlers that would open a new dialogue (e.g. by emitting a `talk` effect) no-op because the target is busy — this is an engine-level invariant, not an event-system concern.
 
 ### 7. Removal of `proximityBubble` sugar
 
 Delete from:
 
-- `shared/src/script-types.ts` — `ProximityBubbleConfig` (promoted in 001) stays as a type but `NpcDefinition.proximityBubble` is removed.
+- `shared/src/script-types.ts` — `ProximityBubbleConfig` type **and** `NpcDefinition.proximityBubble` field. No v1 caller keeps the type; half-removals rot.
 - `shared/src/script-dsl/builders.ts` — `ScenarioBuilderApi.npc` opts loses `proximityBubble?`.
 - `server/src/simulation/agent.ts` — `Agent.proximityBubble` field, `proximityLedger` map, `getLastProximityTrigger`, `recordProximityTrigger` (and Agent init).
 - `server/src/simulation/scenario-loader.ts` — the `proximityBubble: npcDef.proximityBubble` line.
 - `server/src/simulation/tick.ts` — current Phase 6b proximity trigger block (replaced by event-dispatch pass).
-- `server/src/rooms/proximity-cleanup.ts` — either deleted or rewritten against the new `inRangeLastTick` / handler registry (TBD in plan).
+- `server/src/rooms/proximity-cleanup.ts` — **rename to `proximity-state-cleanup.ts`**. Purpose: on `onLeave`, delete the departing playerId from every alive NPC's `proximityState` map. Same call site as today; same intent (make reconnects re-fire greetings). The old ledger semantics are preserved by the new map's `delete` key.
 
 Farmer Reed's scenario migrates to `.on("proximity:enter", ...)`. All other call sites in `server/test/` that reference `proximityBubble` / `proximityLedger` are rewritten against `.on()` handlers.
 
@@ -225,15 +242,14 @@ Farmer Reed's scenario migrates to `.on("proximity:enter", ...)`. All other call
 | `shared/src/script-dsl/event-types.ts` | **new** — `NpcEventMap`, payload types, `EntityRef`, `EventHandler`, `Unsubscribe` |
 | `shared/src/script-dsl/builders.ts` | Add `NpcBuilder` interface with overloaded `.on()`; `s.npc()` returns `NpcBuilder`; remove `proximityBubble?` from opts |
 | `shared/src/script-dsl/index.ts` | Export new types |
-| `shared/src/script-types.ts` | Remove `proximityBubble?` from `NpcDefinition` (keep `ProximityBubbleConfig` or delete — TBD in plan) |
-| `server/src/simulation/agent.ts` | Remove `proximityBubble`, `proximityLedger`, related methods; add `eventHandlers`, `inRangeLastTick` |
+| `shared/src/script-types.ts` | Remove `proximityBubble?` field from `NpcDefinition`; delete `ProximityBubbleConfig` type |
+| `server/src/simulation/agent.ts` | Remove `proximityBubble`, `proximityLedger`, related methods; add `eventHandlers`, `proximityState`; dispatch `combat:death` from `applyDamage` when HP crosses zero |
 | `server/src/simulation/scenario-loader.ts` | Replace `proximityBubble` propagation with handler registration walk |
 | `server/src/simulation/tick.ts` | Remove current Phase 6b; add event-dispatch phase with proximity diff |
 | `server/src/simulation/event-dispatch.ts` | **new** — `dispatch<K>()` + effect application glue |
 | `server/src/dialogue/session-manager.ts` | Replace hardcoded `setBubble("", ...)` with `dispatch(target, "talk:start", ...)` / `talk:end` |
 | `server/src/simulation/execute-frame.ts` | Dispatch `combat:hit` after damage applied |
-| `server/src/simulation/agent.ts` | Dispatch `combat:death` from `applyDamage` when HP crosses zero |
-| `server/src/rooms/proximity-cleanup.ts` | Rewrite or delete |
+| `server/src/rooms/proximity-cleanup.ts` | Rename to `proximity-state-cleanup.ts`; delete departing playerId from each alive NPC's `proximityState` on `onLeave` |
 | `server/src/scenarios/farmer-reed.ts` | Migrate to `.on("proximity:enter", ...)` and `.on("talk:start", ...)` |
 | `server/test/**` | Update / add tests (see Testing) |
 
@@ -241,16 +257,19 @@ Farmer Reed's scenario migrates to `.on("proximity:enter", ...)`. All other call
 
 Unit:
 
-- `event-dispatch.test.ts` — `dispatch` composes multiple handlers via flatMap; handler order preserved; `[]` no-ops.
-- `proximity-events.test.ts` — enter fires on first tick in range; stay fires on subsequent ticks with monotonic `ticksInRange`; leave fires exactly once when player drops out; re-enter resets `ticksInRange`.
+- `event-dispatch.test.ts` — `dispatch` composes multiple handlers via flatMap; handler order preserved; `[]` no-ops. **Throwing handler is isolated:** one handler throws, remaining handlers still run, tick does not crash, error logged with event name + agent id.
+- `event-dispatch.test.ts` — **snapshot-at-dispatch:** a handler that registers a new handler mid-dispatch does *not* observe it this tick; the new handler activates on the next dispatch.
+- `proximity-events.test.ts` — enter fires on first tick in range; stay fires on subsequent ticks with monotonic `ticksInRange`; leave fires exactly once when player drops out; re-enter resets `ticksInRange` to 1. **Symmetry test:** enter fires whether the NPC moved into the player or vice versa.
+- `proximity-events.test.ts` — on player disconnect, `proximityState` entry is purged so reconnecting re-fires `proximity:enter`.
 - `talk-events.test.ts` — `talk:start` fires on session open; `talk:end` fires with correct `reason` for each close path (complete / timeout / player leaves / npc dies).
-- `combat-events.test.ts` — `hit` payload carries attacker, damage, hpAfter; `death` fires once at hp ≤ 0; `combat:hit` at hp crossing 0 fires before `combat:death`.
+- `combat-events.test.ts` — `hit` payload carries attacker, damage, hpAfter; `death` fires once at hp ≤ 0; on a killing blow, `combat:hit` dispatches strictly before `combat:death`.
 - `builder.test.ts` — `.on()` chaining returns builder; each overload accepts matching handler; wrong payload shape fails `tsc` (negative test via `// @ts-expect-error`).
 
 Integration:
 
 - Migrated Farmer Reed scenario still greets on proximity, clears bubble on talk, behaves identically end-to-end.
 - Multi-handler composition: register two `proximity:enter` handlers on Reed, both fire, effects concatenated in registration order.
+- Dialogue-lock interaction: proximity events for a locked NPC still dispatch; handlers still emit effects.
 
 ## Migration path
 
