@@ -1,6 +1,6 @@
-import { DIRECTION_DELTA } from "@town-zero/shared";
 import {
   type FrameContext,
+  facingTile,
   performAttackOnFacingTarget,
   performGatherOnFacingTile,
   performTalkOnFacingTarget,
@@ -9,8 +9,7 @@ import { hasMatchingDialogueEntry } from "./dialogue-entry-predicate.js";
 
 export function dispatchInteract(ctx: FrameContext): void {
   const { agent, agents, grid, simState } = ctx;
-  const delta = DIRECTION_DELTA[agent.facing];
-  const target = { x: agent.position.x + delta.dx, y: agent.position.y + delta.dy };
+  const target = facingTile(agent);
   if (!grid.inBounds(target.x, target.y)) return;
 
   // Find an alive agent on the facing tile
