@@ -123,10 +123,12 @@ export function processTick(state: SimulationState): TalkResult[] {
     // Proximity trigger
     if (!agent.proximityBubble) continue;
     const cfg = agent.proximityBubble;
-    const radius = agent.role === "scout" ? SCOUT_VISION_RADIUS : DEFAULT_VISION_RADIUS;
     for (const [, other] of agents) {
       if (other.controller !== "player") continue;
       if (!other.isAlive()) continue;
+      // Radius is the observing player's vision, not the NPC's — we fire when
+      // the NPC enters *the player's* awareness, independent of the NPC's role.
+      const radius = other.role === "scout" ? SCOUT_VISION_RADIUS : DEFAULT_VISION_RADIUS;
       const dx = Math.abs(other.position.x - agent.position.x);
       const dy = Math.abs(other.position.y - agent.position.y);
       if (dx + dy > radius) continue;
