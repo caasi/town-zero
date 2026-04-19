@@ -1,11 +1,11 @@
-import { MERCHANT_SPAWN_INTERVAL, DEFAULT_VISION_RADIUS, SCOUT_VISION_RADIUS } from "@town-zero/shared";
+import { MERCHANT_SPAWN_INTERVAL } from "@town-zero/shared";
 import type { Fact, Value, InputFrame, DialogueTreeData } from "@town-zero/shared";
 import { Agent } from "./agent.js";
 import type { Grid } from "./grid.js";
 import type { Settlement } from "./settlement.js";
 import { executeFrame, type TalkResult } from "./execute-frame.js";
 import { processProduction, processConsumption } from "./resources.js";
-import { updateVision, mergeAdjacentMemories } from "./vision.js";
+import { updateVision, mergeAdjacentMemories, getVisionRadius } from "./vision.js";
 import { decideBotAction } from "../ai/bot-controller.js";
 import { TriggerRegistry } from "../dialogue/trigger-registry.js";
 import { evaluate } from "../dialogue/evaluator.js";
@@ -133,7 +133,7 @@ export function processTick(state: SimulationState): TalkResult[] {
       if (!other.isAlive()) continue;
       // Radius is the observing player's vision, not the NPC's — we fire when
       // the NPC enters *the player's* awareness, independent of the NPC's role.
-      const radius = other.role === "scout" ? SCOUT_VISION_RADIUS : DEFAULT_VISION_RADIUS;
+      const radius = getVisionRadius(other);
       const dx = Math.abs(other.position.x - agent.position.x);
       const dy = Math.abs(other.position.y - agent.position.y);
       if (dx + dy > radius) continue;
