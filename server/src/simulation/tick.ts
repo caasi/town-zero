@@ -111,6 +111,14 @@ export function processTick(state: SimulationState): TalkResult[] {
   }
 
   // Phase 6b: Bubble upkeep (expiry + proximity triggers)
+  // Precompute alive players (+ per-player vision radius) once per tick so the
+  // proximity scan is O(N_npcs * N_players) instead of O(N * N).
+  const alivePlayers: Array<{ agent: Agent; radius: number }> = [];
+  for (const [, other] of agents) {
+    if (other.controller !== "player" || !other.isAlive()) continue;
+    alivePlayers.push({ agent: other, radius: getVisionRadius(other) });
+  }
+
   for (const [, agent] of agents) {
     // Dead NPCs do not emit bubbles or re-fire proximity greetings.
     if (!agent.isAlive()) continue;
@@ -128,12 +136,9 @@ export function processTick(state: SimulationState): TalkResult[] {
     // indefinitely when players keep entering range). They still enter the
     // ledger so their personal cooldown starts from this tick.
     const bubbleActive = agent.bubbleText !== null && tick < agent.bubbleExpiresAt;
-    for (const [, other] of agents) {
-      if (other.controller !== "player") continue;
-      if (!other.isAlive()) continue;
+    for (const { agent: other, radius } of alivePlayers) {
       // Radius is the observing player's vision, not the NPC's — we fire when
       // the NPC enters *the player's* awareness, independent of the NPC's role.
-      const radius = getVisionRadius(other);
       const dx = Math.abs(other.position.x - agent.position.x);
       const dy = Math.abs(other.position.y - agent.position.y);
       if (dx + dy > radius) continue;
