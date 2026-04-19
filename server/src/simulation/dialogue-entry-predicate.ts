@@ -3,11 +3,9 @@ import type { SimulationState } from "./tick.js";
 import { checkCondition, type EvalContext } from "../dialogue/evaluator.js";
 
 export function findTreeIdForNpc(npcId: string, state: SimulationState): string | null {
+  if (state.dialogueTrees.has(npcId)) return npcId;
   for (const [id] of state.dialogueTrees) {
-    if (id.startsWith(npcId)) return id;
-  }
-  for (const [id] of state.dialogueTrees) {
-    if (id.includes(npcId)) return id;
+    if (id.startsWith(`${npcId}-`) || id.startsWith(`${npcId}:`)) return id;
   }
   return null;
 }
