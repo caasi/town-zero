@@ -177,6 +177,34 @@ describe("processTick — bubble upkeep", () => {
     expect(npc.getLastProximityTrigger("p2")).toBeDefined();
   });
 
+  it("records every in-range player in the ledger on the tick the bubble fires", () => {
+    // Two players are already in range when the bubble first fires. Only the
+    // first player flips the bubble from inactive to active, but BOTH must
+    // land in the ledger this tick so their personal cooldowns start now —
+    // otherwise a player standing right next to the NPC wouldn't get a
+    // cooldown until the next scan, and could re-fire the greeting too soon.
+    const world = makeBubbleWorld();
+    const npc = new Agent({
+      id: "n1",
+      position: { x: 5, y: 5 },
+      faction: "f",
+      role: "villager",
+      controller: "bot",
+      proximityBubble: { text: "Hi!", durationTicks: 10, cooldownTicks: 50 },
+    });
+    const p1 = new Agent({ id: "p1", position: { x: 6, y: 5 }, faction: "player", role: "player", controller: "player" });
+    const p2 = new Agent({ id: "p2", position: { x: 4, y: 5 }, faction: "player", role: "player", controller: "player" });
+    world.agents.set(npc.id, npc);
+    world.agents.set(p1.id, p1);
+    world.agents.set(p2.id, p2);
+
+    processTick(world); // tick → 1, bubble fires
+
+    expect(npc.bubbleText).toBe("Hi!");
+    expect(npc.getLastProximityTrigger("p1")).toBe(world.tick);
+    expect(npc.getLastProximityTrigger("p2")).toBe(world.tick);
+  });
+
   it("does not fire proximity bubble for a dead NPC", () => {
     const world = makeBubbleWorld();
     const npc = new Agent({

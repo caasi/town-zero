@@ -135,7 +135,7 @@ export function processTick(state: SimulationState): TalkResult[] {
     // one — they don't reset `bubbleExpiresAt` (which would extend duration
     // indefinitely when players keep entering range). They still enter the
     // ledger so their personal cooldown starts from this tick.
-    const bubbleActive = agent.bubbleText !== null && tick < agent.bubbleExpiresAt;
+    let bubbleActive = agent.bubbleText !== null && tick < agent.bubbleExpiresAt;
     for (const { agent: other, radius } of alivePlayers) {
       // Radius is the observing player's vision, not the NPC's — we fire when
       // the NPC enters *the player's* awareness, independent of the NPC's role.
@@ -148,9 +148,12 @@ export function processTick(state: SimulationState): TalkResult[] {
 
       if (!bubbleActive) {
         agent.setBubble(cfg.text, cfg.durationTicks, tick);
+        bubbleActive = true;
       }
+      // Every eligible in-range player enters the ledger this tick so their
+      // personal cooldown starts now, even though only the first one flips
+      // the bubble from inactive to active.
       agent.recordProximityTrigger(other.id, tick);
-      if (!bubbleActive) break; // Fresh fire this tick; subsequent arrivals share it.
     }
   }
 
