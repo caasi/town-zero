@@ -5,6 +5,7 @@ import type { Grid } from "./grid.js";
 import type { Settlement } from "./settlement.js";
 import type { DialogueSession } from "../dialogue/dialogue-session.js";
 import { startDialogue } from "../dialogue/session-manager.js";
+import type { SimulationState } from "./tick.js";
 
 export interface TalkResult {
   agentId: string;
@@ -18,7 +19,7 @@ export interface FrameContext {
   agents: Map<string, Agent>;
   settlements: Map<string, Settlement>;
   activeSessions: Map<string, DialogueSession>;
-  simState?: unknown;
+  simState?: SimulationState;
   talkResults?: TalkResult[];
 }
 
@@ -54,7 +55,7 @@ export function performTalkOnFacingTarget(targetId: string, ctx: FrameContext): 
     const talkTarget = agents.get(targetId);
     if (!talkTarget || !talkTarget.isAlive()) return;
     if (!isFacingTile(agent, talkTarget.position)) return;
-    const result = startDialogue(agent.id, targetId, ctx.simState as any);
+    const result = startDialogue(agent.id, targetId, ctx.simState);
     ctx.talkResults.push({ agentId: agent.id, targetId, result });
   }
 }

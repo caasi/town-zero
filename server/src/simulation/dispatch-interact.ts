@@ -27,7 +27,7 @@ export function dispatchInteract(ctx: FrameContext): void {
     if (occupant.role === "merchant") return;
 
     // Rule 2 — dialogue entry match
-    if (simState && hasMatchingDialogueEntry(agent, occupant, simState as any)) {
+    if (simState && hasMatchingDialogueEntry(agent, occupant, simState)) {
       performTalkOnFacingTarget(occupant.id, ctx);
       return;
     }
