@@ -143,6 +143,40 @@ describe("processTick — bubble upkeep", () => {
     expect(npc.bubbleText).toBe("Hi!");
   });
 
+  it("does not extend bubble duration when a second player arrives mid-bubble", () => {
+    // First player triggers the bubble; second player arrives while the
+    // bubble is still displayed. Expected: bubbleExpiresAt stays pinned to
+    // the original expiry (no re-trigger extension), but the second player
+    // still lands in the ledger so their personal cooldown starts.
+    const world = makeBubbleWorld();
+    const npc = new Agent({
+      id: "n1",
+      position: { x: 5, y: 5 },
+      faction: "f",
+      role: "villager",
+      controller: "bot",
+      proximityBubble: { text: "Hi!", durationTicks: 10, cooldownTicks: 50 },
+    });
+    const p1 = new Agent({ id: "p1", position: { x: 6, y: 5 }, faction: "player", role: "player", controller: "player" });
+    world.agents.set(npc.id, npc);
+    world.agents.set(p1.id, p1);
+
+    processTick(world); // tick → 1, bubble fires for p1
+    expect(npc.bubbleText).toBe("Hi!");
+    const originalExpiry = npc.bubbleExpiresAt;
+    expect(originalExpiry).toBeGreaterThan(0);
+
+    // Second player arrives next tick, bubble still active
+    const p2 = new Agent({ id: "p2", position: { x: 4, y: 5 }, faction: "player", role: "player", controller: "player" });
+    world.agents.set(p2.id, p2);
+
+    processTick(world); // tick → 2
+    // Expiry MUST NOT have shifted — duration extension would be a bug.
+    expect(npc.bubbleExpiresAt).toBe(originalExpiry);
+    // p2 is recorded so its own cooldown is honored on future re-entries.
+    expect(npc.getLastProximityTrigger("p2")).toBeDefined();
+  });
+
   it("does not fire proximity bubble for a dead NPC", () => {
     const world = makeBubbleWorld();
     const npc = new Agent({

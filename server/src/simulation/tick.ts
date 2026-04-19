@@ -123,6 +123,11 @@ export function processTick(state: SimulationState): TalkResult[] {
     // Proximity trigger
     if (!agent.proximityBubble) continue;
     const cfg = agent.proximityBubble;
+    // If a bubble is already displayed, later arrivals just see the existing
+    // one — they don't reset `bubbleExpiresAt` (which would extend duration
+    // indefinitely when players keep entering range). They still enter the
+    // ledger so their personal cooldown starts from this tick.
+    const bubbleActive = agent.bubbleText !== null && tick < agent.bubbleExpiresAt;
     for (const [, other] of agents) {
       if (other.controller !== "player") continue;
       if (!other.isAlive()) continue;
@@ -136,9 +141,11 @@ export function processTick(state: SimulationState): TalkResult[] {
       const last = agent.getLastProximityTrigger(other.id);
       if (last !== undefined && tick - last < cfg.cooldownTicks) continue;
 
-      agent.setBubble(cfg.text, cfg.durationTicks, tick);
+      if (!bubbleActive) {
+        agent.setBubble(cfg.text, cfg.durationTicks, tick);
+      }
       agent.recordProximityTrigger(other.id, tick);
-      break; // One fire per tick; others arriving within duration share the same text.
+      if (!bubbleActive) break; // Fresh fire this tick; subsequent arrivals share it.
     }
   }
 
