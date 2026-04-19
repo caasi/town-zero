@@ -17,6 +17,8 @@ import { emptyResourceStore, DEFAULT_MAX_HP, INPUT_QUEUE_CAP } from "@town-zero/
 
 export type { ProximityBubbleConfig };
 
+const BUBBLE_MAX_LEN = 64;
+
 interface AgentInit {
   id: string;
   name?: string;
@@ -93,7 +95,6 @@ export class Agent {
   }
 
   setBubble(text: string, durationTicks: number, currentTick: number): void {
-    const BUBBLE_MAX_LEN = 64;
     if (!text || durationTicks <= 0) {
       this.bubbleText = null;
       this.bubbleExpiresAt = 0;
