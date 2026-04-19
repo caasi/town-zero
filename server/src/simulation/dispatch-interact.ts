@@ -1,10 +1,10 @@
 import { DIRECTION_DELTA } from "@town-zero/shared";
-import type { FrameContext } from "./execute-frame.js";
 import {
+  type FrameContext,
   performAttackOnFacingTarget,
   performGatherOnFacingTile,
   performTalkOnFacingTarget,
-} from "./execute-frame.js";
+} from "./facing-actions.js";
 import { hasMatchingDialogueEntry } from "./dialogue-entry-predicate.js";
 
 export function dispatchInteract(ctx: FrameContext): void {
