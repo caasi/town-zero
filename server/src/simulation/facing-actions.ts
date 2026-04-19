@@ -4,13 +4,13 @@ import type { Agent } from "./agent.js";
 import type { Grid } from "./grid.js";
 import type { Settlement } from "./settlement.js";
 import type { DialogueSession } from "../dialogue/dialogue-session.js";
-import { startDialogue } from "../dialogue/session-manager.js";
+import { startDialogue, type DialogueResult } from "../dialogue/session-manager.js";
 import type { SimulationState } from "./tick.js";
 
 export interface TalkResult {
   agentId: string;
   targetId: string;
-  result: { ok: boolean; payload?: unknown; ended?: boolean; error?: string };
+  result: DialogueResult;
 }
 
 export interface FrameContext {

@@ -174,10 +174,10 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
         if (playerAgent && playerSchema) syncAgent(playerAgent, playerSchema);
         if (npcAgent && npcSchema) syncAgent(npcAgent, npcSchema);
 
-        if ((result as any).ended) {
+        if (result.ended) {
           this.sendToAgent(agentId, "dialogue:end", { reason: "completed" });
         } else {
-          this.sendToAgent(agentId, "dialogue:state", (result as any).payload);
+          this.sendToAgent(agentId, "dialogue:state", result.payload);
         }
       } else {
         this.sendToAgent(agentId, "dialogue:error", { error: result.error });

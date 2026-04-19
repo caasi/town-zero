@@ -4,7 +4,7 @@ import { DialogueSession } from "./dialogue-session.js";
 import type { SimulationState } from "../simulation/tick.js";
 import { findTreeIdForNpc, resolveDialogueEntryNode } from "../simulation/dialogue-entry-predicate.js";
 
-type DialogueResult =
+export type DialogueResult =
   | { ok: true; payload: DialogueStatePayload; ended: boolean }
   | { ok: false; error: "busy" | "too_far" | "no_dialogue" | "not_in_dialogue" | "invalid_option" | "wrong_node_type" };
 
