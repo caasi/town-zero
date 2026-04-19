@@ -120,13 +120,14 @@ export function processTick(state: SimulationState): TalkResult[] {
   }
 
   for (const [, agent] of agents) {
-    // Dead NPCs do not emit bubbles or re-fire proximity greetings.
-    if (!agent.isAlive()) continue;
-
-    // Expiry
+    // Expiry runs for dead agents too — otherwise a bubble active at the
+    // moment of death would stay synced to clients forever.
     if (agent.bubbleText !== null && tick >= agent.bubbleExpiresAt) {
       agent.setBubble("", 0, tick);
     }
+
+    // Dead NPCs do not emit bubbles or re-fire proximity greetings.
+    if (!agent.isAlive()) continue;
 
     // Proximity trigger
     if (!agent.proximityBubble) continue;

@@ -205,6 +205,29 @@ describe("processTick — bubble upkeep", () => {
     expect(npc.getLastProximityTrigger("p2")).toBe(world.tick);
   });
 
+  it("clears an active bubble when the NPC dies before expiry", () => {
+    // If a bubble is active at the tick an NPC dies, the expiry check must
+    // still run on subsequent ticks — otherwise `bubbleText` keeps syncing
+    // to clients forever on a corpse.
+    const world = makeBubbleWorld();
+    const npc = new Agent({ id: "n1", position: { x: 5, y: 5 }, faction: "f", role: "villager", controller: "bot" });
+    npc.setBubble("hi", 5, 0); // bubbleExpiresAt = 5
+    world.agents.set(npc.id, npc);
+
+    processTick(world); // tick → 1
+    expect(npc.bubbleText).toBe("hi");
+
+    npc.takeDamage(npc.hp);
+    expect(npc.isAlive()).toBe(false);
+    expect(npc.bubbleText).toBe("hi"); // death alone doesn't clear bubble
+
+    // Advance past the original expiry.
+    for (let i = 0; i < 5; i++) processTick(world);
+
+    expect(npc.bubbleText).toBeNull();
+    expect(npc.bubbleExpiresAt).toBe(0);
+  });
+
   it("does not fire proximity bubble for a dead NPC", () => {
     const world = makeBubbleWorld();
     const npc = new Agent({
