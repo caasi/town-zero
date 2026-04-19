@@ -8,6 +8,7 @@ import { isValidInputFrame } from "./validation.js";
 import { extractVisionForPlayer } from "./vision.js";
 import { Agent } from "../simulation/agent.js";
 import { advanceDialogue, chooseDialogue, endDialogue, tickDialogues } from "../dialogue/session-manager.js";
+import { purgeProximityLedger } from "./proximity-cleanup.js";
 
 export class GameRoom extends Room<{ state: WorldStateSchema }> {
   private simState!: SimulationState;
@@ -156,6 +157,7 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
     }
 
     this.sessionToAgent.delete(client.sessionId);
+    purgeProximityLedger(this.simState, agentId);
     console.log(`${agentId} left, now bot-controlled (${client.sessionId})`);
   }
 
@@ -172,10 +174,10 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
         if (playerAgent && playerSchema) syncAgent(playerAgent, playerSchema);
         if (npcAgent && npcSchema) syncAgent(npcAgent, npcSchema);
 
-        if ((result as any).ended) {
+        if (result.ended) {
           this.sendToAgent(agentId, "dialogue:end", { reason: "completed" });
         } else {
-          this.sendToAgent(agentId, "dialogue:state", (result as any).payload);
+          this.sendToAgent(agentId, "dialogue:state", result.payload);
         }
       } else {
         this.sendToAgent(agentId, "dialogue:error", { error: result.error });

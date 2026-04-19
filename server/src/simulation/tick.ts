@@ -5,7 +5,7 @@ import type { Grid } from "./grid.js";
 import type { Settlement } from "./settlement.js";
 import { executeFrame, type TalkResult } from "./execute-frame.js";
 import { processProduction, processConsumption } from "./resources.js";
-import { updateVision, mergeAdjacentMemories } from "./vision.js";
+import { updateVision, mergeAdjacentMemories, getVisionRadius } from "./vision.js";
 import { decideBotAction } from "../ai/bot-controller.js";
 import { TriggerRegistry } from "../dialogue/trigger-registry.js";
 import { evaluate } from "../dialogue/evaluator.js";
@@ -108,6 +108,54 @@ export function processTick(state: SimulationState): TalkResult[] {
   // Phase 6: Vision update
   for (const [, agent] of agents) {
     updateVision(agent, grid, agents, tick);
+  }
+
+  // Phase 6b: Bubble upkeep (expiry + proximity triggers)
+  // Precompute alive players (+ per-player vision radius) once per tick so the
+  // proximity scan is O(N_npcs * N_players) instead of O(N * N).
+  const alivePlayers: Array<{ agent: Agent; radius: number }> = [];
+  for (const [, other] of agents) {
+    if (other.controller !== "player" || !other.isAlive()) continue;
+    alivePlayers.push({ agent: other, radius: getVisionRadius(other) });
+  }
+
+  for (const [, agent] of agents) {
+    // Expiry runs for dead agents too — otherwise a bubble active at the
+    // moment of death would stay synced to clients forever.
+    if (agent.bubbleText !== null && tick >= agent.bubbleExpiresAt) {
+      agent.setBubble("", 0, tick);
+    }
+
+    // Dead NPCs do not emit bubbles or re-fire proximity greetings.
+    if (!agent.isAlive()) continue;
+
+    // Proximity trigger
+    if (!agent.proximityBubble) continue;
+    const cfg = agent.proximityBubble;
+    // If a bubble is already displayed, later arrivals just see the existing
+    // one — they don't reset `bubbleExpiresAt` (which would extend duration
+    // indefinitely when players keep entering range). They still enter the
+    // ledger so their personal cooldown starts from this tick.
+    let bubbleActive = agent.bubbleText !== null && tick < agent.bubbleExpiresAt;
+    for (const { agent: other, radius } of alivePlayers) {
+      // Radius is the observing player's vision, not the NPC's — we fire when
+      // the NPC enters *the player's* awareness, independent of the NPC's role.
+      const dx = Math.abs(other.position.x - agent.position.x);
+      const dy = Math.abs(other.position.y - agent.position.y);
+      if (dx + dy > radius) continue;
+
+      const last = agent.getLastProximityTrigger(other.id);
+      if (last !== undefined && tick - last < cfg.cooldownTicks) continue;
+
+      if (!bubbleActive) {
+        agent.setBubble(cfg.text, cfg.durationTicks, tick);
+        bubbleActive = true;
+      }
+      // Every eligible in-range player enters the ledger this tick so their
+      // personal cooldown starts now, even though only the first one flips
+      // the bubble from inactive to active.
+      agent.recordProximityTrigger(other.id, tick);
+    }
   }
 
   // Phase 7: Memory merge for adjacent same-faction agents

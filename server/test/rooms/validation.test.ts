@@ -90,3 +90,17 @@ describe("isValidInputFrame", () => {
     expect(isValidInputFrame({ seq: Number.MAX_SAFE_INTEGER + 1, direction: "north" })).toBe(false);
   });
 });
+
+describe("isValidInputFrame — interact", () => {
+  it("accepts an interact action frame", () => {
+    expect(isValidInputFrame({ seq: 1, action: { type: "interact" } })).toBe(true);
+  });
+
+  it("still accepts existing action shapes", () => {
+    expect(isValidInputFrame({ seq: 1, action: { type: "attack", targetId: "a" } })).toBe(true);
+  });
+
+  it("rejects unknown action types", () => {
+    expect(isValidInputFrame({ seq: 1, action: { type: "teleport" } })).toBe(false);
+  });
+});

@@ -3,7 +3,7 @@ import type { EntitySnapshot } from "@town-zero/shared";
 import type { Agent } from "./agent.js";
 import type { Grid } from "./grid.js";
 
-function getVisionRadius(agent: Agent): number {
+export function getVisionRadius(agent: Agent): number {
   return agent.role === "scout" ? SCOUT_VISION_RADIUS : DEFAULT_VISION_RADIUS;
 }
 

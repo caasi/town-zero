@@ -24,6 +24,7 @@ export function loadScenario(
       faction: npcDef.faction,
       role: npcDef.role,
       controller: "bot",
+      proximityBubble: npcDef.proximityBubble,
     });
 
     // Inject initial beliefs

@@ -45,10 +45,11 @@ describe("farmer-reed scenario", () => {
     expect(tree.nodes["done"]).toBeDefined();
   });
 
-  it("has entryPoint for food_quest_active", () => {
+  it("has entryPoints: conditional check-return first, default greeting last", () => {
     const tree = farmerReedScenario.dialogues[0];
-    expect(tree.entryPoints).toHaveLength(1);
+    expect(tree.entryPoints).toHaveLength(2);
     expect(tree.entryPoints![0].nodeId).toBe("check-return");
+    expect(tree.entryPoints![1].nodeId).toBe("greeting");
   });
 
   describe("full walkthrough", () => {

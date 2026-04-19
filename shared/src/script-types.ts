@@ -89,6 +89,12 @@ export interface DialogueTreeData {
 
 // --- Scenario ---
 
+export interface ProximityBubbleConfig {
+  text: string;
+  durationTicks: number;
+  cooldownTicks: number;
+}
+
 export interface NpcDefinition {
   id: string;
   name: string;
@@ -97,6 +103,7 @@ export interface NpcDefinition {
   position: Position;
   initialBeliefs: Array<{ key: string; value: Value }>;
   dialogueIds: string[];
+  proximityBubble?: ProximityBubbleConfig;
 }
 
 export interface ScenarioData {

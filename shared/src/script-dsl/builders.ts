@@ -1,7 +1,7 @@
 import type {
   Value, Expr, Effect, AgentRef, TextTemplate,
   ScenarioData, NpcDefinition, DialogueTreeData, DialogueNodeData,
-  ChoiceOptionData, TriggerRule,
+  ChoiceOptionData, TriggerRule, ProximityBubbleConfig,
 } from "../script-types.js";
 import type { ResourceType } from "../types.js";
 import { ExprBuilder, toExpr, type ExprOrValue } from "./expressions.js";
@@ -187,6 +187,7 @@ interface ScenarioBuilderApi {
     faction: string;
     position: { x: number; y: number };
     initialBeliefs: Array<{ key: string; value: Value }>;
+    proximityBubble?: ProximityBubbleConfig;
   }): void;
   dialogue(npcId: string, dialogueId: string, fn: (d: DialogueBuilderApi) => void): void;
   trigger(whenExpr: Expr, thenEffects: Effect[], opts: { targets: AgentRef[]; once?: boolean }): void;
@@ -214,6 +215,7 @@ export function scenario(id: string, fn: (s: ScenarioBuilderApi) => void): Scena
         position: opts.position,
         initialBeliefs: opts.initialBeliefs,
         dialogueIds: npcDialogueMap.get(npcId)!,
+        proximityBubble: opts.proximityBubble,
       });
     },
 

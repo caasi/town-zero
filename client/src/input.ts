@@ -20,11 +20,11 @@ interface NearbyEntity {
   hp: number;
 }
 
-const ACTION_CODES = ["KeyW", "KeyA", "KeyS", "KeyD", "KeyQ", "KeyE", "KeyT"] as const;
+const ACTION_CODES = ["KeyW", "KeyA", "KeyS", "KeyD", "KeyE", "KeyT"] as const;
 
 const QWERTY_LABELS: Record<string, string> = {
   KeyW: "W", KeyA: "A", KeyS: "S", KeyD: "D",
-  KeyQ: "Q", KeyE: "E", KeyT: "T",
+  KeyE: "E", KeyT: "T",
 };
 
 export async function getKeyLabels(): Promise<Record<string, string>> {
@@ -45,7 +45,7 @@ export async function getKeyLabels(): Promise<Record<string, string>> {
 
 export function formatKeyHints(labels: Record<string, string>): string {
   const move = `${labels.KeyW}${labels.KeyA}${labels.KeyS}${labels.KeyD}`;
-  return `${move}:Move  ${labels.KeyE}:Interact  ${labels.KeyQ}:Attack  ${labels.KeyT}:Deposit`;
+  return `${move}:Move  ${labels.KeyE}:Interact  ${labels.KeyT}:Deposit`;
 }
 
 export function formatDialogueKeyHints(labels: Record<string, string>): string {
@@ -265,22 +265,7 @@ export class InputHandler {
     // Block repeat for action keys
     if (e.repeat) return;
 
-    const { x, y, faction } = this.playerAgent;
-
     switch (code) {
-      case "KeyQ": {
-        // Attack nearest adjacent enemy
-        const enemy = this.nearbyEntities.find(
-          (e) => e.faction !== faction && e.hp > 0 && this.isAdjacent(x, y, e.x, e.y),
-        );
-        if (enemy) {
-          ++this.inputSeq;
-          const frame: InputFrame = { seq: this.inputSeq, action: { type: "attack", targetId: enemy.id } };
-          this.onSendInput?.(frame);
-          this.pendingInputs.push(frame);
-        }
-        break;
-      }
       case "KeyT":
         if (this.currentSettlementId) {
           ++this.inputSeq;
@@ -315,44 +300,22 @@ export class InputHandler {
 
   private handleInteract(): void {
     if (!this.playerAgent) return;
-    const { faction } = this.playerAgent;
-    // Use server position for all interaction checks — entity positions
-    // in nearbyEntities are server-authoritative, and the server validates
-    // adjacency from its own position.
     const target = this.getServerFacingTile();
     if (!target) return;
 
     const atFacing = (e: NearbyEntity) => e.x === target.x && e.y === target.y;
 
-    // 1. Merchant in front
-    const merchant = this.nearbyEntities.find(
-      (e) => e.role === "merchant" && atFacing(e),
-    );
+    // Merchant short-circuit — open modal client-side, do not send a frame (spec §1.4 Option A)
+    const merchant = this.nearbyEntities.find((e) => e.role === "merchant" && atFacing(e));
     if (merchant) {
       this.onModal?.({ type: "trade", merchantId: merchant.id });
       return;
     }
 
-    // 2. Same-faction NPC in front
-    const npc = this.nearbyEntities.find(
-      (e) => e.faction === faction && e.controller !== "player" && e.hp > 0
-        && atFacing(e),
-    );
-    if (npc) {
-      ++this.inputSeq;
-      const frame: InputFrame = { seq: this.inputSeq, action: { type: "talk", targetId: npc.id } };
-      this.onSendInput?.(frame);
-      this.pendingInputs.push(frame);
-      return;
-    }
-
-    // 3. Gather from facing resource tile (bush)
-    if (target) {
-      ++this.inputSeq;
-      const frame: InputFrame = { seq: this.inputSeq, action: { type: "gather", resourceTile: target } };
-      this.onSendInput?.(frame);
-      this.pendingInputs.push(frame);
-    }
+    ++this.inputSeq;
+    const frame: InputFrame = { seq: this.inputSeq, action: { type: "interact" } };
+    this.onSendInput?.(frame);
+    this.pendingInputs.push(frame);
   }
 
   private handleKeyUp(e: KeyboardEvent): void {
@@ -366,10 +329,6 @@ export class InputHandler {
         this.pendingInputs = [];
       }
     }
-  }
-
-  private isAdjacent(x1: number, y1: number, x2: number, y2: number): boolean {
-    return Math.abs(x1 - x2) + Math.abs(y1 - y2) === 1;
   }
 
   destroy(): void {

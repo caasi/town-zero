@@ -23,6 +23,7 @@ export function syncAgent(agent: Agent, agentSchema: AgentSchema): void {
   agentSchema.inventory.set("food", agent.inventory.food);
   agentSchema.inventory.set("material", agent.inventory.material);
   agentSchema.inventory.set("currency", agent.inventory.currency);
+  agentSchema.bubbleText = agent.bubbleText ?? "";
 }
 
 function syncSettlement(settlement: Settlement, schema: SettlementSchema): void {
