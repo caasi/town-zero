@@ -2,12 +2,12 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace the hard-wired `proximityBubble` NPC sugar with a typed, composable, TSC-checked event system: `s.npc(id).on("proximity:enter", handler)` etc. One surface for proximity/talk/combat; handlers return `Effect[]` and are composed by `flatMap`.
+**Goal:** Replace the hard-wired `proximityBubble` NPC sugar with a typed, composable, TSC-checked event system: `s.npc(id).on("proximity:enter", handler)` etc. One surface for proximity/talk/combat; handlers return `EventEffect[]` and are composed by `flatMap`.
 
 **Architecture:**
 - A single TS event map (`NpcEventMap`) declares every event key and its payload shape. `s.npc()` returns an `NpcBuilder` exposing overloaded `.on(event, handler)` per key.
 - At load time, scenario handlers are registered into `Agent.eventHandlers: Map<NpcEventName, EventHandler<unknown>[]>`. Dispatch sites (tick proximity diff, session-manager, combat damage) call a shared `dispatch<K>(agent, event, payload)` and the effect interpreter applies the returned effects.
-- A new `bubble` Effect variant lets handlers set / clear NPC bubbles without importing server internals. Existing effect types (`set_fact`, `damage`, etc.) continue to work.
+- A new `bubble` Effect variant lets handlers set / clear NPC bubbles without importing server internals. `EventEffect` is deliberately narrowed to `Extract<Effect, { type: "bubble" }>` — returning `set_fact`/`damage`/`give_item`/etc. from an event handler is a compile-time error. Script-level triggers remain the path for broader effect emission. Bubble targets accept `$npc`/`$self`/`$player` refs resolved against the event payload.
 - `proximityBubble` config, `proximityLedger`, `recordProximityTrigger`, etc. are deleted. `proximity-cleanup.ts` renamed to `proximity-state-cleanup.ts` and now purges `proximityState` entries on player leave.
 
 **Tech Stack:** TypeScript (strict, ES2022), Node.js via tsx, Colyseus 0.17 + `@colyseus/schema` 4.x, Vitest. Monorepo with pnpm workspaces (`shared/`, `server/`, `client/`).
