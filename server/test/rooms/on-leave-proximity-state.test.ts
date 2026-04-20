@@ -29,4 +29,18 @@ describe("purgeProximityState", () => {
     expect(n2.proximityState.has("p1")).toBe(false);
     expect(n1.proximityState.get("p2")).toBe(5);
   });
+
+  it("does not touch player agents' proximityState", () => {
+    const state = buildState();
+    const npc = new Agent({ id: "n1", position: { x: 0, y: 0 }, faction: "village", role: "villager", controller: "bot" });
+    const other = new Agent({ id: "p2", position: { x: 1, y: 0 }, faction: "village-1", role: "player", controller: "player" });
+    npc.proximityState.set("p1", 3);
+    other.proximityState.set("p1", 7);
+    state.agents.set("n1", npc); state.agents.set("p2", other);
+
+    purgeProximityState(state, "p1");
+
+    expect(npc.proximityState.has("p1")).toBe(false);
+    expect(other.proximityState.get("p1")).toBe(7);
+  });
 });
