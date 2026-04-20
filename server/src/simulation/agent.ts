@@ -57,7 +57,6 @@ export class Agent {
   bubbleText: string | null = null;
   bubbleExpiresAt: number = 0;
 
-  // Event handler registry
   eventHandlers: Map<NpcEventName, EventHandler<unknown>[]> = new Map();
   proximityState: Map<string, number> = new Map();
 
