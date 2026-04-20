@@ -66,6 +66,26 @@ describe("session-manager — talk events", () => {
     expect(ends[0].reason).toBe("player_left");
   });
 
+  it("dispatches talk:end with reason=\"npc_killed\" when NPC dies mid-dialogue", () => {
+    const state = buildState("n1");
+    const npc = new Agent({ id: "n1", position: { x: 0, y: 0 }, faction: "f", role: "villager", controller: "bot" });
+    const player = new Agent({ id: "p1", position: { x: 1, y: 0 }, faction: "player", role: "player", controller: "player" });
+    state.agents.set("n1", npc); state.agents.set("p1", player);
+    const ends: TalkEndPayload[] = [];
+    npc.eventHandlers.set("talk:end", [((p: TalkEndPayload) => { ends.push(p); return []; }) as EventHandler<unknown>]);
+
+    startDialogue("p1", "n1", state);
+    npc.takeDamage(npc.hp);
+    const expired = tickDialogues(state);
+
+    expect(expired).toHaveLength(1);
+    expect(expired[0].reason).toBe("npc_killed");
+    expect(ends).toHaveLength(1);
+    expect(ends[0].reason).toBe("npc_killed");
+    expect(state.activeSessions.has("n1")).toBe(false);
+    expect(player.talkingToNpcId).toBeNull();
+  });
+
   it("dispatches talk:end with reason=\"error\" when endDialogue called from an error path", () => {
     const state = buildState("n1");
     const npc = new Agent({ id: "n1", position: { x: 0, y: 0 }, faction: "f", role: "villager", controller: "bot" });

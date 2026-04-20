@@ -210,17 +210,20 @@ export function chooseDialogue(
 
 export function tickDialogues(
   state: SimulationState,
-): Array<{ playerId: string; npcId: string; reason: "timeout" }> {
-  const expired: Array<{ playerId: string; npcId: string; reason: "timeout" }> = [];
+): Array<{ playerId: string; npcId: string; reason: "timeout" | "npc_killed" }> {
+  const expired: Array<{ playerId: string; npcId: string; reason: "timeout" | "npc_killed" }> = [];
 
   for (const [npcId, session] of state.activeSessions) {
-    if (state.tick - session.lastInteractionTick >= DIALOGUE_TIMEOUT_TICKS) {
+    const npc = state.agents.get(npcId);
+    if (!npc || !npc.isAlive()) {
+      expired.push({ playerId: session.playerId, npcId, reason: "npc_killed" });
+    } else if (state.tick - session.lastInteractionTick >= DIALOGUE_TIMEOUT_TICKS) {
       expired.push({ playerId: session.playerId, npcId, reason: "timeout" });
     }
   }
 
-  for (const { npcId } of expired) {
-    endDialogue(npcId, state, "timeout");
+  for (const { npcId, reason } of expired) {
+    endDialogue(npcId, state, reason);
   }
 
   return expired;
