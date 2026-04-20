@@ -114,18 +114,25 @@ describe("bubble() effect factory", () => {
 Run: `pnpm --filter @town-zero/server exec vitest run test/script-dsl/event-builder.test.ts`
 Expected: FAIL "bubble is not exported".
 
-- [ ] **Step 3: Extend `Effect` union in `shared/src/script-types.ts`**
+- [ ] **Step 3: Define standalone `EventEffect` type in `shared/src/script-dsl/event-types.ts`**
 
-Add to the `Effect` union:
+`bubble` is deliberately **not** a member of the shared `Effect` union. The dialogue effect executor has no handler for it; adding it to `Effect` would make `bubble` syntactically legal in dialogue/action/trigger effects and throw `Unknown effect type: bubble` at runtime. Instead, keep it in a standalone `EventEffect` type that only the event-dispatch applier executes:
 
 ```ts
-  | { type: "bubble"; target: AgentRef; text: string; durationTicks: number };
+import type { AgentRef } from "../script-types.js";
+
+export type EventEffect = {
+  type: "bubble";
+  target: AgentRef;
+  text: string;
+  durationTicks: number;
+};
 ```
 
 - [ ] **Step 4: Add `bubble()` helper to `shared/src/script-dsl/builders.ts`**
 
 ```ts
-export function bubble(target: AgentRef, text: string, opts: { durationTicks: number }): Effect {
+export function bubble(target: AgentRef, text: string, opts: { durationTicks: number }): EventEffect {
   return { type: "bubble", target, text, durationTicks: opts.durationTicks };
 }
 ```
