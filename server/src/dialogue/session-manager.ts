@@ -33,7 +33,7 @@ function buildPayload(session: DialogueSession, state: SimulationState): Dialogu
 export function endDialogue(
   npcId: string,
   state: SimulationState,
-  reason: TalkEndPayload["reason"] = "completed",
+  reason: TalkEndPayload["reason"],
 ): void {
   const session = state.activeSessions.get(npcId);
   if (!session) return;
@@ -128,13 +128,13 @@ export function startDialogue(
     const ended = session.isEnded();
     if (ended) {
       const payload = buildPayload(session, state);
-      endDialogue(targetId, state);
+      endDialogue(targetId, state, "completed");
       return { ok: true, payload, ended: true };
     }
     return { ok: true, payload: buildPayload(session, state), ended: false };
   } catch (err) {
     console.error(`[session-manager] startDialogue buildPayload failed for ${playerId} → ${targetId}:`, err);
-    endDialogue(targetId, state);
+    endDialogue(targetId, state, "error");
     return { ok: false, error: "no_dialogue" };
   }
 }
@@ -162,13 +162,13 @@ export function advanceDialogue(
     const ended = session.isEnded();
     if (ended) {
       const payload = buildPayload(session, state);
-      endDialogue(npcId, state);
+      endDialogue(npcId, state, "completed");
       return { ok: true, payload, ended: true };
     }
     return { ok: true, payload: buildPayload(session, state), ended };
   } catch (err) {
     console.error(`[session-manager] advanceDialogue buildPayload failed for ${playerId}:`, err);
-    endDialogue(npcId, state);
+    endDialogue(npcId, state, "error");
     return { ok: false, error: "not_in_dialogue" };
   }
 }
@@ -197,13 +197,13 @@ export function chooseDialogue(
     const ended = session.isEnded();
     if (ended) {
       const payload = buildPayload(session, state);
-      endDialogue(npcId, state);
+      endDialogue(npcId, state, "completed");
       return { ok: true, payload, ended: true };
     }
     return { ok: true, payload: buildPayload(session, state), ended };
   } catch (err) {
     console.error(`[session-manager] chooseDialogue buildPayload failed for ${playerId}:`, err);
-    endDialogue(npcId, state);
+    endDialogue(npcId, state, "error");
     return { ok: false, error: "not_in_dialogue" };
   }
 }

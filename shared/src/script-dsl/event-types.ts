@@ -35,7 +35,7 @@ export interface TalkStartPayload extends EventBase {
 }
 export interface TalkEndPayload extends EventBase {
   player: EntityRef;
-  reason: "completed" | "timeout" | "player_left" | "npc_killed";
+  reason: "completed" | "timeout" | "player_left" | "npc_killed" | "error";
 }
 export interface CombatHitPayload extends EventBase {
   attacker: EntityRef;

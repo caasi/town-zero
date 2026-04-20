@@ -194,7 +194,7 @@ describe("session-manager", () => {
       if (r1.ok) expect(r1.payload.content).toBe("Hello!");
 
       // Clean up and set fact
-      endDialogue("test-npc", state);
+      endDialogue("test-npc", state, "completed");
       state.agents.get("test-npc")!.setBelief("quest_done", { key: "quest_done", value: true, tick: 1, source: "test" });
 
       const r2 = startDialogue("player-0", "test-npc", state);
@@ -274,7 +274,7 @@ describe("session-manager", () => {
   describe("endDialogue", () => {
     it("clears session and unlocks both agents", () => {
       startDialogue("player-0", "test-npc", state);
-      endDialogue("test-npc", state);
+      endDialogue("test-npc", state, "completed");
 
       expect(state.activeSessions.has("test-npc")).toBe(false);
       expect(state.agents.get("player-0")!.state).toBe("idle");
