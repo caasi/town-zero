@@ -33,7 +33,7 @@ export function applyEventEffects(effects: Effect[], state: SimulationState): vo
         break;
       }
       default:
-        console.warn(`[event-dispatch] unsupported effect type "${(effect as any).type}" in event handler`);
+        console.warn(`[event-dispatch] unsupported effect type "${effect.type}" in event handler`);
     }
   }
 }
