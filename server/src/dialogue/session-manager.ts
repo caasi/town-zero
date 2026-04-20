@@ -3,6 +3,8 @@ import { DIALOGUE_TIMEOUT_TICKS } from "@town-zero/shared";
 import { DialogueSession } from "./dialogue-session.js";
 import type { SimulationState } from "../simulation/tick.js";
 import { findTreeIdForNpc, resolveDialogueEntryNode } from "../simulation/dialogue-entry-predicate.js";
+import { dispatch, applyEventEffects } from "../simulation/event-dispatch.js";
+import type { TalkEndPayload } from "@town-zero/shared/script-dsl";
 
 export type DialogueResult =
   | { ok: true; payload: DialogueStatePayload; ended: boolean }
@@ -28,13 +30,21 @@ function buildPayload(session: DialogueSession, state: SimulationState): Dialogu
   };
 }
 
-/**
- * Dispose a session and remove it from activeSessions.
- * Idempotent — safe to call even if session doesn't exist or is already disposed.
- */
-export function endDialogue(npcId: string, state: SimulationState): void {
+export function endDialogue(
+  npcId: string,
+  state: SimulationState,
+  reason: TalkEndPayload["reason"] = "completed",
+): void {
   const session = state.activeSessions.get(npcId);
   if (!session) return;
+  const npc = state.agents.get(npcId);
+  const player = state.agents.get(session.playerId);
+  if (npc && player) {
+    const selfRef = { id: npc.id, faction: npc.faction, role: npc.role, position: { ...npc.position } };
+    const playerRef = { id: player.id, faction: player.faction, role: player.role, position: { ...player.position } };
+    const effs = dispatch(npc, "talk:end", { tick: state.tick, self: selfRef, player: playerRef, reason });
+    applyEventEffects(effs, state);
+  }
   session.dispose();
   state.activeSessions.delete(npcId);
 }
@@ -101,10 +111,15 @@ export function startDialogue(
   target.currentTalkingTo = playerId;
   state.activeSessions.set(targetId, session);
 
+  const selfRef = { id: target.id, faction: target.faction, role: target.role, position: { ...target.position } };
+  const playerRef = { id: player.id, faction: player.faction, role: player.role, position: { ...player.position } };
+  const effs = dispatch(target, "talk:start", {
+    tick: state.tick, self: selfRef, player: playerRef, dialogueId: treeId,
+  });
+  applyEventEffects(effs, state);
+
   // Build payload — if this throws, dispose cleans up the locks
   try {
-    // Clear any active bubble so it doesn't render alongside the dialogue UI.
-    target.setBubble("", 0, state.tick);
     const ended = session.isEnded();
     if (ended) {
       const payload = buildPayload(session, state);
@@ -200,7 +215,7 @@ export function tickDialogues(
   }
 
   for (const { npcId } of expired) {
-    endDialogue(npcId, state);
+    endDialogue(npcId, state, "timeout");
   }
 
   return expired;

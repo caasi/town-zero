@@ -87,7 +87,7 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
       const agent = this.simState.agents.get(agentId);
       if (!agent?.talkingToNpcId) return;
 
-      endDialogue(agent.talkingToNpcId, this.simState);
+      endDialogue(agent.talkingToNpcId, this.simState, "player_left");
       client.send("dialogue:end", { reason: "closed" });
     });
 
@@ -151,7 +151,7 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
     const agent = this.simState.agents.get(agentId);
     if (agent) {
       if (agent.talkingToNpcId) {
-        endDialogue(agent.talkingToNpcId, this.simState);
+        endDialogue(agent.talkingToNpcId, this.simState, "player_left");
       }
       agent.controller = "bot";
     }
