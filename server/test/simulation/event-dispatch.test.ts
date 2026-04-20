@@ -74,6 +74,23 @@ describe("dispatch", () => {
     };
     expect(dispatch(npc, "proximity:enter", payload)).toEqual([]);
   });
+
+  it("resolves $npc / $self / $player refs in effect targets", () => {
+    const npc = new Agent({ id: "n1", position: { x: 0, y: 0 }, faction: "f", role: "villager", controller: "bot" });
+    const player = new Agent({ id: "p1", position: { x: 1, y: 0 }, faction: "village-1", role: "player", controller: "player" });
+    npc.eventHandlers.set("proximity:enter", [
+      () => [
+        bubble("$npc", "self", { durationTicks: 1 }),
+        bubble("$self", "self2", { durationTicks: 1 }),
+        bubble("$player", "player", { durationTicks: 1 }),
+      ],
+    ]);
+    const payload: ProximityEnterPayload = {
+      tick: 0, self: refOf(npc), player: refOf(player), distance: 1,
+    };
+    const effects = dispatch(npc, "proximity:enter", payload);
+    expect(effects.map(e => e.target)).toEqual(["n1", "n1", "p1"]);
+  });
 });
 
 describe("applyEventEffects", () => {
