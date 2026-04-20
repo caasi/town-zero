@@ -128,6 +128,15 @@ export function processTick(state: SimulationState): TalkResult[] {
     if (!npc.isAlive()) continue;
     if (npc.controller === "player") continue;
     if (npc.eventHandlers.size === 0) continue;
+    // Skip the O(N_players) scan + proximityState bookkeeping for NPCs that
+    // registered only non-proximity handlers (talk:*, combat:*). Checking all
+    // three keys keeps this cheap and avoids mutating proximityState for
+    // handlers that wouldn't observe it anyway.
+    if (
+      !npc.eventHandlers.has("proximity:enter") &&
+      !npc.eventHandlers.has("proximity:stay") &&
+      !npc.eventHandlers.has("proximity:leave")
+    ) continue;
 
     const selfRef = {
       id: npc.id, faction: npc.faction, role: npc.role, position: { ...npc.position },
