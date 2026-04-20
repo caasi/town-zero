@@ -1489,8 +1489,8 @@ git push -u origin feat/event-system
 gh pr create --title "feat(events): typed event system for NPCs" --body "$(cat <<'EOF'
 ## Summary
 - Replaces hard-wired `proximityBubble` config with a typed, composable event system (`s.npc().on(event, handler)`).
-- Event map covers proximity/talk/combat; handlers return `Effect[]` composed via `flatMap`.
-- New `bubble` Effect variant lets handlers set/clear NPC speech bubbles.
+- Event map covers proximity/talk/combat; handlers return `EventEffect[]` (bubble-only in MVP) composed via `flatMap`. Non-bubble effects are a compile-time error — script-level triggers remain the path for broader effect emission.
+- New standalone `EventEffect` type (not a member of the general `Effect` union) lets handlers set/clear NPC speech bubbles without making bubble legal in dialogue/trigger effects.
 - Removes `ProximityBubbleConfig`, `proximityLedger`, and the old Phase 6b cooldown loop.
 
 ## Test plan
