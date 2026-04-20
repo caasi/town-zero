@@ -9,6 +9,7 @@ import { updateVision, mergeAdjacentMemories, getVisionRadius } from "./vision.j
 import { decideBotAction } from "../ai/bot-controller.js";
 import { TriggerRegistry } from "../dialogue/trigger-registry.js";
 import { evaluate } from "../dialogue/evaluator.js";
+import { dispatch, applyEventEffects } from "./event-dispatch.js";
 
 export interface SimulationState {
   grid: Grid;
@@ -110,51 +111,67 @@ export function processTick(state: SimulationState): TalkResult[] {
     updateVision(agent, grid, agents, tick);
   }
 
-  // Phase 6b: Bubble upkeep (expiry + proximity triggers)
-  // Precompute alive players (+ per-player vision radius) once per tick so the
-  // proximity scan is O(N_npcs * N_players) instead of O(N * N).
+  // Phase 6b: Bubble expiry + event dispatch.
+  for (const [, agent] of agents) {
+    if (agent.bubbleText !== null && tick >= agent.bubbleExpiresAt) {
+      agent.setBubble("", 0, tick);
+    }
+  }
+
   const alivePlayers: Array<{ agent: Agent; radius: number }> = [];
   for (const [, other] of agents) {
     if (other.controller !== "player" || !other.isAlive()) continue;
     alivePlayers.push({ agent: other, radius: getVisionRadius(other) });
   }
 
-  for (const [, agent] of agents) {
-    // Expiry runs for dead agents too — otherwise a bubble active at the
-    // moment of death would stay synced to clients forever.
-    if (agent.bubbleText !== null && tick >= agent.bubbleExpiresAt) {
-      agent.setBubble("", 0, tick);
+  for (const [, npc] of agents) {
+    if (!npc.isAlive()) continue;
+    if (npc.controller === "player") continue;
+    if (npc.eventHandlers.size === 0) continue;
+
+    const selfRef = {
+      id: npc.id, faction: npc.faction, role: npc.role, position: { ...npc.position },
+    };
+
+    const currentInRange = new Map<string, number>();
+    for (const { agent: p, radius } of alivePlayers) {
+      const dx = Math.abs(p.position.x - npc.position.x);
+      const dy = Math.abs(p.position.y - npc.position.y);
+      const dist = dx + dy;
+      if (dist <= radius) currentInRange.set(p.id, dist);
     }
 
-    // Dead NPCs do not emit bubbles or re-fire proximity greetings.
-    if (!agent.isAlive()) continue;
-
-    // Proximity trigger
-    if (!agent.proximityBubble) continue;
-    const cfg = agent.proximityBubble;
-    // If a bubble is already displayed, later arrivals just see the existing
-    // one — they don't reset `bubbleExpiresAt` (which would extend duration
-    // indefinitely when players keep entering range). They still enter the
-    // ledger so their personal cooldown starts from this tick.
-    let bubbleActive = agent.bubbleText !== null && tick < agent.bubbleExpiresAt;
-    for (const { agent: other, radius } of alivePlayers) {
-      // Radius is the observing player's vision, not the NPC's — we fire when
-      // the NPC enters *the player's* awareness, independent of the NPC's role.
-      const dx = Math.abs(other.position.x - agent.position.x);
-      const dy = Math.abs(other.position.y - agent.position.y);
-      if (dx + dy > radius) continue;
-
-      const last = agent.getLastProximityTrigger(other.id);
-      if (last !== undefined && tick - last < cfg.cooldownTicks) continue;
-
-      if (!bubbleActive) {
-        agent.setBubble(cfg.text, cfg.durationTicks, tick);
-        bubbleActive = true;
+    for (const [pid, dist] of currentInRange) {
+      const playerAgent = agents.get(pid)!;
+      const playerRef = {
+        id: playerAgent.id, faction: playerAgent.faction, role: playerAgent.role,
+        position: { ...playerAgent.position },
+      };
+      const prevTicks = npc.proximityState.get(pid);
+      if (prevTicks === undefined) {
+        const effs = dispatch(npc, "proximity:enter", {
+          tick, self: selfRef, player: playerRef, distance: dist,
+        });
+        applyEventEffects(effs, state);
+        npc.proximityState.set(pid, 1);
+      } else {
+        const effs = dispatch(npc, "proximity:stay", {
+          tick, self: selfRef, player: playerRef, distance: dist, ticksInRange: prevTicks,
+        });
+        applyEventEffects(effs, state);
+        npc.proximityState.set(pid, prevTicks + 1);
       }
-      // Every eligible in-range player enters the ledger this tick so their
-      // personal cooldown starts now, even though only the first one flips
-      // the bubble from inactive to active.
-      agent.recordProximityTrigger(other.id, tick);
+    }
+
+    for (const pid of [...npc.proximityState.keys()]) {
+      if (currentInRange.has(pid)) continue;
+      const playerAgent = agents.get(pid);
+      const playerRef = playerAgent
+        ? { id: playerAgent.id, faction: playerAgent.faction, role: playerAgent.role, position: { ...playerAgent.position } }
+        : { id: pid, faction: "player", role: "player", position: { x: -1, y: -1 } };
+      const effs = dispatch(npc, "proximity:leave", { tick, self: selfRef, player: playerRef });
+      applyEventEffects(effs, state);
+      npc.proximityState.delete(pid);
     }
   }
 
