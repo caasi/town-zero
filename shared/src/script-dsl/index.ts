@@ -7,6 +7,7 @@ export {
 export type { OptionBuilder, NpcBuilder } from "./builders.js";
 export type {
   EntityRef,
+  EventEffect,
   NpcEventMap,
   NpcEventName,
   EventHandler,

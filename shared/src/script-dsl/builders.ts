@@ -7,7 +7,7 @@ import type { NpcHandlerEntry } from "../script-types.js";
 import type { ResourceType } from "../types.js";
 import { ExprBuilder, toExpr, type ExprOrValue } from "./expressions.js";
 import type {
-  NpcEventName, EventHandler,
+  NpcEventName, EventHandler, EventEffect,
   ProximityEnterPayload, ProximityStayPayload, ProximityLeavePayload,
   TalkStartPayload, TalkEndPayload,
   CombatHitPayload, CombatDeathPayload,
@@ -35,7 +35,7 @@ export function damage(target: AgentRef, amount: ExprOrValue): Effect {
   return { type: "damage", target, amount: toExpr(amount) };
 }
 
-export function bubble(target: AgentRef, text: string, opts: { durationTicks: number }): Effect {
+export function bubble(target: AgentRef, text: string, opts: { durationTicks: number }): EventEffect {
   return { type: "bubble", target, text, durationTicks: opts.durationTicks };
 }
 

@@ -1,5 +1,10 @@
 import type { Effect } from "../script-types.js";
 
+// Narrowed effect union usable from event handlers. Kept intentionally small so
+// that returning an unsupported effect (set_fact/give_item/damage/etc.) is a
+// compile-time error rather than a silent runtime no-op.
+export type EventEffect = Extract<Effect, { type: "bubble" }>;
+
 export interface EntityRef {
   id: string;
   faction: string;
@@ -52,5 +57,5 @@ export interface NpcEventMap {
 }
 
 export type NpcEventName = keyof NpcEventMap;
-export type EventHandler<P> = (ctx: P) => Effect[];
+export type EventHandler<P> = (ctx: P) => EventEffect[];
 export type Unsubscribe = () => void;
