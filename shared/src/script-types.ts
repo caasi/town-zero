@@ -32,7 +32,8 @@ export type Effect =
   | { type: "give_item"; target: AgentRef; item: ResourceType; amount: Expr }
   | { type: "take_item"; target: AgentRef; item: ResourceType; amount: Expr }
   | { type: "damage"; target: AgentRef; amount: Expr }
-  | { type: "register_trigger"; trigger: TriggerRule };
+  | { type: "register_trigger"; trigger: TriggerRule }
+  | { type: "bubble"; target: AgentRef; text: string; durationTicks: number };
 
 // --- Facts & Beliefs ---
 

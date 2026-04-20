@@ -28,6 +28,10 @@ export function damage(target: AgentRef, amount: ExprOrValue): Effect {
   return { type: "damage", target, amount: toExpr(amount) };
 }
 
+export function bubble(target: AgentRef, text: string, opts: { durationTicks: number }): Effect {
+  return { type: "bubble", target, text, durationTicks: opts.durationTicks };
+}
+
 export function when(builder: ExprBuilder): Expr {
   return builder.toExpr();
 }
