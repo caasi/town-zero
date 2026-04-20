@@ -12,6 +12,7 @@ import type {
   DialogueProgressEntry,
   InputFrame,
 } from "@town-zero/shared";
+import type { NpcEventName, EventHandler } from "@town-zero/shared/script-dsl";
 import { emptyResourceStore, DEFAULT_MAX_HP, INPUT_QUEUE_CAP } from "@town-zero/shared";
 
 const BUBBLE_MAX_LEN = 64;
@@ -55,6 +56,10 @@ export class Agent {
   // Speech bubble
   bubbleText: string | null = null;
   bubbleExpiresAt: number = 0;
+
+  // Event handler registry
+  eventHandlers: Map<NpcEventName, EventHandler<unknown>[]> = new Map();
+  proximityState: Map<string, number> = new Map();
 
   constructor(init: AgentInit) {
     this.id = init.id;
