@@ -11,11 +11,8 @@ import type {
   Fact,
   DialogueProgressEntry,
   InputFrame,
-  ProximityBubbleConfig,
 } from "@town-zero/shared";
 import { emptyResourceStore, DEFAULT_MAX_HP, INPUT_QUEUE_CAP } from "@town-zero/shared";
-
-export type { ProximityBubbleConfig };
 
 const BUBBLE_MAX_LEN = 64;
 
@@ -28,7 +25,6 @@ interface AgentInit {
   controller: ControllerType;
   hp?: number;
   facing?: Facing;
-  proximityBubble?: ProximityBubbleConfig;
 }
 
 export class Agent {
@@ -60,10 +56,6 @@ export class Agent {
   bubbleText: string | null = null;
   bubbleExpiresAt: number = 0;
 
-  // Proximity-triggered bubble (NPC reacts when a player enters vision)
-  proximityBubble?: ProximityBubbleConfig;
-  private proximityLedger: Map<string, number> = new Map();
-
   constructor(init: AgentInit) {
     this.id = init.id;
     this.name = init.name ?? init.id;
@@ -77,7 +69,6 @@ export class Agent {
     this.state = "idle";
     this.controller = init.controller;
     this.mapMemory = new Map();
-    this.proximityBubble = init.proximityBubble;
   }
 
   addToInventory(resource: ResourceType, amount: number): void {
@@ -102,18 +93,6 @@ export class Agent {
     }
     this.bubbleText = text.length > BUBBLE_MAX_LEN ? text.slice(0, BUBBLE_MAX_LEN) : text;
     this.bubbleExpiresAt = currentTick + durationTicks;
-  }
-
-  recordProximityTrigger(playerId: string, tick: number): void {
-    this.proximityLedger.set(playerId, tick);
-  }
-
-  getLastProximityTrigger(playerId: string): number | undefined {
-    return this.proximityLedger.get(playerId);
-  }
-
-  forgetPlayerProximity(playerId: string): void {
-    this.proximityLedger.delete(playerId);
   }
 
   takeDamage(damage: number): void {

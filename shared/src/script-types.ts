@@ -91,12 +91,6 @@ export interface DialogueTreeData {
 
 // --- Scenario ---
 
-export interface ProximityBubbleConfig {
-  text: string;
-  durationTicks: number;
-  cooldownTicks: number;
-}
-
 export interface NpcHandlerEntry {
   event: NpcEventName;
   handler: EventHandler<unknown>;
@@ -110,7 +104,6 @@ export interface NpcDefinition {
   position: Position;
   initialBeliefs: Array<{ key: string; value: Value }>;
   dialogueIds: string[];
-  proximityBubble?: ProximityBubbleConfig;
   handlers?: NpcHandlerEntry[];
 }
 
