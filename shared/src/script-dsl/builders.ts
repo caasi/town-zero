@@ -1,10 +1,17 @@
 import type {
   Value, Expr, Effect, AgentRef, TextTemplate,
   ScenarioData, NpcDefinition, DialogueTreeData, DialogueNodeData,
-  ChoiceOptionData, TriggerRule, ProximityBubbleConfig,
+  ChoiceOptionData, TriggerRule,
 } from "../script-types.js";
+import type { NpcHandlerEntry } from "../script-types.js";
 import type { ResourceType } from "../types.js";
 import { ExprBuilder, toExpr, type ExprOrValue } from "./expressions.js";
+import type {
+  NpcEventName, EventHandler,
+  ProximityEnterPayload, ProximityStayPayload, ProximityLeavePayload,
+  TalkStartPayload, TalkEndPayload,
+  CombatHitPayload, CombatDeathPayload,
+} from "./event-types.js";
 
 // --- Simple effect builders ---
 
@@ -182,6 +189,18 @@ function createDialogueBuilder(
   return { api, build };
 }
 
+// SOURCE OF TRUTH for event keys + payloads: NpcEventMap (event-types.ts).
+// Keep these overloads in sync with NpcEventMap.
+export interface NpcBuilder {
+  on(event: "proximity:enter", handler: EventHandler<ProximityEnterPayload>): NpcBuilder;
+  on(event: "proximity:stay",  handler: EventHandler<ProximityStayPayload>):  NpcBuilder;
+  on(event: "proximity:leave", handler: EventHandler<ProximityLeavePayload>): NpcBuilder;
+  on(event: "talk:start",      handler: EventHandler<TalkStartPayload>):      NpcBuilder;
+  on(event: "talk:end",        handler: EventHandler<TalkEndPayload>):        NpcBuilder;
+  on(event: "combat:hit",      handler: EventHandler<CombatHitPayload>):      NpcBuilder;
+  on(event: "combat:death",    handler: EventHandler<CombatDeathPayload>):    NpcBuilder;
+}
+
 // --- Scenario builder ---
 
 interface ScenarioBuilderApi {
@@ -191,8 +210,7 @@ interface ScenarioBuilderApi {
     faction: string;
     position: { x: number; y: number };
     initialBeliefs: Array<{ key: string; value: Value }>;
-    proximityBubble?: ProximityBubbleConfig;
-  }): void;
+  }): NpcBuilder;
   dialogue(npcId: string, dialogueId: string, fn: (d: DialogueBuilderApi) => void): void;
   trigger(whenExpr: Expr, thenEffects: Effect[], opts: { targets: AgentRef[]; once?: boolean }): void;
 }
@@ -211,6 +229,7 @@ export function scenario(id: string, fn: (s: ScenarioBuilderApi) => void): Scena
         throw new Error(`Duplicate npcId "${npcId}" in scenario "${id}"`);
       }
       npcDialogueMap.set(npcId, []);
+      const handlers: NpcHandlerEntry[] = [];
       npcs.push({
         id: npcId,
         name: opts.name ?? npcId,
@@ -219,8 +238,15 @@ export function scenario(id: string, fn: (s: ScenarioBuilderApi) => void): Scena
         position: opts.position,
         initialBeliefs: opts.initialBeliefs,
         dialogueIds: npcDialogueMap.get(npcId)!,
-        proximityBubble: opts.proximityBubble,
+        handlers,
       });
+      const builder: NpcBuilder = {
+        on(event: NpcEventName, handler: EventHandler<any>): NpcBuilder {
+          handlers.push({ event, handler: handler as EventHandler<unknown> });
+          return builder;
+        },
+      };
+      return builder;
     },
 
     dialogue(npcId, dialogueId, builderFn) {

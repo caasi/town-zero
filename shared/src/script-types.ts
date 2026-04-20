@@ -1,4 +1,5 @@
 import type { ResourceType, Position } from "./types.js";
+import type { NpcEventName, EventHandler } from "./script-dsl/event-types.js";
 
 // --- Values ---
 
@@ -96,6 +97,11 @@ export interface ProximityBubbleConfig {
   cooldownTicks: number;
 }
 
+export interface NpcHandlerEntry {
+  event: NpcEventName;
+  handler: EventHandler<unknown>;
+}
+
 export interface NpcDefinition {
   id: string;
   name: string;
@@ -105,6 +111,7 @@ export interface NpcDefinition {
   initialBeliefs: Array<{ key: string; value: Value }>;
   dialogueIds: string[];
   proximityBubble?: ProximityBubbleConfig;
+  handlers?: NpcHandlerEntry[];
 }
 
 export interface ScenarioData {
