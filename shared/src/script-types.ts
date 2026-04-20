@@ -27,14 +27,17 @@ export type AgentRef = string; // agent ID, "$player", "$npc", "$faction:xxx"
 
 // --- Effects ---
 
+// Effects emitted by dialogue actions and script-level triggers. The dialogue
+// executor has a handler for every variant here. `bubble` is deliberately NOT
+// part of this union — it's emitted only from NPC event handlers and executed
+// by the event-dispatch applier. See `EventEffect` in `script-dsl/event-types`.
 export type Effect =
   | { type: "set_fact"; target: AgentRef; key: string; value: Expr }
   | { type: "set_local"; key: string; value: Expr }
   | { type: "give_item"; target: AgentRef; item: ResourceType; amount: Expr }
   | { type: "take_item"; target: AgentRef; item: ResourceType; amount: Expr }
   | { type: "damage"; target: AgentRef; amount: Expr }
-  | { type: "register_trigger"; trigger: TriggerRule }
-  | { type: "bubble"; target: AgentRef; text: string; durationTicks: number };
+  | { type: "register_trigger"; trigger: TriggerRule };
 
 // --- Facts & Beliefs ---
 

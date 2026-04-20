@@ -1,9 +1,19 @@
-import type { Effect } from "../script-types.js";
+import type { AgentRef } from "../script-types.js";
 
-// Narrowed effect union usable from event handlers. Kept intentionally small so
-// that returning an unsupported effect (set_fact/give_item/damage/etc.) is a
-// compile-time error rather than a silent runtime no-op.
-export type EventEffect = Extract<Effect, { type: "bubble" }>;
+// Effects emitted by NPC event handlers. Deliberately kept tiny — and
+// deliberately _not_ a member of the general `Effect` union — so that:
+//   1. Returning `set_fact`/`give_item`/`damage`/etc. from an event handler is
+//      a compile-time error rather than a silent runtime no-op.
+//   2. Emitting `bubble` from dialogue actions or script triggers is also
+//      impossible (the dialogue executor has no bubble handler, so previously
+//      it would have thrown "Unknown effect type: bubble" at runtime).
+// Script-level triggers remain the path for broader effect emission.
+export type EventEffect = {
+  type: "bubble";
+  target: AgentRef;
+  text: string;
+  durationTicks: number;
+};
 
 export interface EntityRef {
   id: string;
