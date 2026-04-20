@@ -154,6 +154,17 @@ describe("session-manager", () => {
       expect(result.payload.content).toBe("Scout the north");
     });
 
+    it("clears an active NPC bubble on startDialogue even without a talk:start handler", () => {
+      const npc = state.agents.get("test-npc")!;
+      npc.setBubble("Hi!", 80, 0);
+      expect(npc.bubbleText).toBe("Hi!");
+
+      const result = startDialogue("player-0", "test-npc", state);
+      expect(result.ok).toBe(true);
+      expect(npc.bubbleText).toBeNull();
+      expect(npc.bubbleExpiresAt).toBe(0);
+    });
+
     it("lets a talk:start handler clear the target NPC's active bubble", () => {
       const npc = state.agents.get("test-npc")!;
       npc.setBubble("早安", 80, 0);

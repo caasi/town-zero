@@ -111,6 +111,11 @@ export function startDialogue(
   target.currentTalkingTo = playerId;
   state.activeSessions.set(targetId, session);
 
+  // Clear any active speech bubble up front so it can't render alongside the
+  // dialogue UI for NPCs that don't register a talk:start handler. Handlers
+  // may still re-set a bubble via the bubble effect below.
+  target.setBubble("", 0, state.tick);
+
   const selfRef = { id: target.id, faction: target.faction, role: target.role, position: { ...target.position } };
   const playerRef = { id: player.id, faction: player.faction, role: player.role, position: { ...player.position } };
   const effs = dispatch(target, "talk:start", {
