@@ -39,7 +39,7 @@
 
 | File | Change |
 |------|--------|
-| `shared/src/script-types.ts` | Delete `ProximityBubbleConfig` type; remove `proximityBubble?` from `NpcDefinition`; add `handlers?: NpcHandlerEntry[]` runtime-only field; add `{ type: "bubble"; target: AgentRef; text: string; durationTicks: number }` to `Effect` union. |
+| `shared/src/script-types.ts` | Delete `ProximityBubbleConfig` type; remove `proximityBubble?` from `NpcDefinition`; add `handlers?: NpcHandlerEntry[]` runtime-only field. (Note: `bubble` is **not** added to the `Effect` union — it lives in a standalone `EventEffect` type in `script-dsl/event-types.ts` so it can only be emitted from event handlers, not from dialogue/trigger effects.) |
 | `shared/src/script-dsl/builders.ts` | Drop `proximityBubble?` from `s.npc()` opts; `s.npc()` returns `NpcBuilder` with overloaded `.on()` (7 overloads matching `NpcEventMap`); add `bubble(target, text, opts)` Effect factory. |
 | `shared/src/script-dsl/index.ts` | Export new `event-types` + `NpcBuilder`, `bubble`. |
 | `server/src/simulation/agent.ts` | Remove `proximityBubble`, `proximityLedger`, `recordProximityTrigger`, `getLastProximityTrigger`, `forgetPlayerProximity`, `proximityBubble?` init opt. Add `eventHandlers: Map<NpcEventName, EventHandler<unknown>[]>`, `proximityState: Map<string, number>`. |
@@ -47,7 +47,7 @@
 | `server/src/simulation/tick.ts` | Remove old Phase 6b proximity-bubble block. New Phase 6b: proximity diff (compute player-ids-in-range, update `proximityState`, dispatch enter/stay/leave) → apply effects. Keep bubble expiry sweep. |
 | `server/src/dialogue/session-manager.ts` | Replace hardcoded `target.setBubble("", 0, …)` in `startDialogue` with `dispatch(target, "talk:start", …)` + `applyEventEffects(...)`. Extend `endDialogue` signature to accept `reason`. Call sites: `tickDialogues` (reason: `"timeout"`), `advance/chooseDialogue` end branches (reason: `"completed"`), `GameRoom.onMessage("dialogue:close")` (reason: `"player_left"`). |
 | `server/src/simulation/execute-frame.ts` / `facing-actions.ts` | `performAttackOnFacingTarget` calls the new `applyDamage` helper instead of `target.takeDamage` directly. |
-| `server/src/dialogue/executor.ts` | Add `damage` effect path: uses `applyDamage` so triggers that damage agents also fire combat events. Add `bubble` handler: resolves ref → agent, calls `setBubble`. |
+| `server/src/dialogue/executor.ts` | Add `damage` effect path: uses `applyDamage` so triggers that damage agents also fire combat events. (No `bubble` handler here — `bubble` is not in the `Effect` union, so it can't reach the dialogue executor.) |
 | `server/src/rooms/GameRoom.ts` | Import from `proximity-state-cleanup.ts`; call `purgeProximityState` in `onLeave`. In `onLeave`, when agent was mid-dialogue, call `endDialogue(..., "player_left")` (new reason arg). |
 | `server/src/scenarios/farmer-reed.ts` | Remove `proximityBubble`; add `.on("proximity:enter", ({ self }) => [bubble(self.id, "Greetings, traveler!", { durationTicks: 40 })])` + `.on("talk:start", ({ self }) => [bubble(self.id, "", { durationTicks: 0 })])`. |
 | `server/test/simulation/bubble.test.ts` | Remove tests that target deleted `proximityBubble`/`proximityLedger` API. Keep `setBubble` + expiry tests. Proximity-trigger behavior is verified in the new `proximity-events.test.ts`. |
