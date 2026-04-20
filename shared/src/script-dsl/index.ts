@@ -5,3 +5,17 @@ export {
   belief, setFact, give, take, damage, bubble, when, scenario,
 } from "./builders.js";
 export type { OptionBuilder } from "./builders.js";
+export type {
+  EntityRef,
+  NpcEventMap,
+  NpcEventName,
+  EventHandler,
+  Unsubscribe,
+  ProximityEnterPayload,
+  ProximityStayPayload,
+  ProximityLeavePayload,
+  TalkStartPayload,
+  TalkEndPayload,
+  CombatHitPayload,
+  CombatDeathPayload,
+} from "./event-types.js";
