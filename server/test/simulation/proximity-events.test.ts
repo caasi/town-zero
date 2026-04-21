@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { Agent } from "../../src/simulation/agent.js";
 import { Grid } from "../../src/simulation/grid.js";
 import { processTick, type SimulationState } from "../../src/simulation/tick.js";
+import { purgeProximityState } from "../../src/rooms/proximity-state-cleanup.js";
 import type { EventHandler, ProximityEnterPayload, ProximityStayPayload, ProximityLeavePayload } from "@town-zero/shared/script-dsl";
 
 function buildWorld(): SimulationState {
@@ -77,6 +78,35 @@ describe("Phase 6b — proximity event dispatch", () => {
     processTick(world);
     processTick(world);
     expect(stays).toEqual([1, 1]);
+  });
+
+  it("disconnect cleanup lets a reconnecting player re-fire proximity:enter", () => {
+    const world = buildWorld();
+    const npc = new Agent({ id: "n1", position: { x: 5, y: 5 }, faction: "f", role: "villager", controller: "bot" });
+    const enters: string[] = [];
+    npc.eventHandlers.set("proximity:enter", [((p: ProximityEnterPayload) => { enters.push(p.player.id); return []; }) as EventHandler<unknown>]);
+    const player = new Agent({ id: "p1", position: { x: 6, y: 5 }, faction: "player", role: "player", controller: "player" });
+    world.agents.set(npc.id, npc);
+    world.agents.set(player.id, player);
+
+    processTick(world);
+    processTick(world);
+    expect(enters).toEqual(["p1"]);
+    expect(npc.proximityState.get("p1")).toBe(2);
+
+    // Simulate disconnect: GameRoom.onLeave removes the player agent and
+    // calls purgeProximityState so the reconnecting player is treated as new.
+    world.agents.delete("p1");
+    purgeProximityState(world, "p1");
+    expect(npc.proximityState.has("p1")).toBe(false);
+
+    // Reconnect: same id returns within range.
+    const reconnected = new Agent({ id: "p1", position: { x: 6, y: 5 }, faction: "player", role: "player", controller: "player" });
+    world.agents.set(reconnected.id, reconnected);
+    processTick(world);
+
+    expect(enters).toEqual(["p1", "p1"]);
+    expect(npc.proximityState.get("p1")).toBe(1);
   });
 
   it("symmetry: enter fires whether NPC moves into range or player does", () => {
