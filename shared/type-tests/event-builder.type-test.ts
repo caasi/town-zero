@@ -69,7 +69,7 @@ scenario("type-tests", (s) => {
   // @ts-expect-error — handlers must return EventEffect[], not Effect.
   // `set_fact` lives in the general Effect union and is intentionally excluded
   // from EventEffect so script-level triggers stay the only path for it.
-  npc.on("proximity:enter", () => [{ type: "set_fact", target: "$npc", key: "k", value: { kind: "lit", value: true } }]);
+  npc.on("proximity:enter", () => [{ type: "set_fact", target: "$npc", key: "k", value: { type: "literal", value: true } }]);
 
   // @ts-expect-error — bubble.durationTicks is required; passing no opts breaks.
   bubble("$npc", "hi");
