@@ -17,6 +17,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "prepare": "tsc"
+    "prepare": "tsc",
+    "typecheck:types": "tsc --project tsconfig.type-tests.json"
   }
 }

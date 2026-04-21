@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { bubble, scenario } from "@town-zero/shared/script-dsl";
 
+// Runtime behavior only. The TypeScript overload signatures on
+// NpcBuilder.on(...) — and the EventEffect return contract — are validated at
+// compile time in `shared/type-tests/event-builder.type-test.ts`, which runs
+// via `pnpm --filter @town-zero/shared typecheck:types`.
+
 describe("bubble() effect factory", () => {
   it("returns a bubble Effect with target/text/durationTicks", () => {
     const eff = bubble("npc-1", "hello", { durationTicks: 40 });
