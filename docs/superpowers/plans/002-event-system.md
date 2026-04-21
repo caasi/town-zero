@@ -168,7 +168,18 @@ git commit -m "feat(events): add bubble Effect variant and builder"
 - [ ] **Step 1: Create `shared/src/script-dsl/event-types.ts`**
 
 ```ts
-import type { Effect } from "../script-types.js";
+import type { AgentRef } from "../script-types.js";
+
+// Effects emitted by NPC event handlers. Deliberately kept tiny — and
+// deliberately _not_ a member of the general `Effect` union — so that
+// returning `set_fact`/`give_item`/`damage`/etc. from an event handler is
+// a compile-time error, and so `bubble` cannot reach the dialogue executor.
+export type EventEffect = {
+  type: "bubble";
+  target: AgentRef;
+  text: string;
+  durationTicks: number;
+};
 
 export interface EntityRef {
   id: string;
@@ -200,7 +211,7 @@ export interface TalkStartPayload extends EventBase {
 }
 export interface TalkEndPayload extends EventBase {
   player: EntityRef;
-  reason: "completed" | "timeout" | "player_left" | "npc_killed";
+  reason: "completed" | "timeout" | "player_left" | "npc_killed" | "error";
 }
 export interface CombatHitPayload extends EventBase {
   attacker: EntityRef;
@@ -222,7 +233,7 @@ export interface NpcEventMap {
 }
 
 export type NpcEventName = keyof NpcEventMap;
-export type EventHandler<P> = (ctx: P) => Effect[];
+export type EventHandler<P> = (ctx: P) => EventEffect[];
 export type Unsubscribe = () => void;
 ```
 
