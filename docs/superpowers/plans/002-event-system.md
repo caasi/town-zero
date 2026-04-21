@@ -1108,7 +1108,7 @@ Change `endDialogue` signature:
 export function endDialogue(
   npcId: string,
   state: SimulationState,
-  reason: TalkEndPayload["reason"] = "completed",
+  reason: TalkEndPayload["reason"],
 ): void {
   const session = state.activeSessions.get(npcId);
   if (!session) return;
@@ -1143,7 +1143,7 @@ In `tickDialogues`, change `endDialogue(npcId, state)` → `endDialogue(npcId, s
 
 - [ ] **Step 4: Update call sites in `advanceDialogue` / `chooseDialogue` end branches**
 
-They already call `endDialogue(npcId, state)` — leave default `"completed"`.
+They already call `endDialogue(npcId, state)` — update to pass `"completed"` explicitly: `endDialogue(npcId, state, "completed")`. `reason` is required (no default) so non-completion end paths can't be mislabeled.
 
 - [ ] **Step 5: Update `GameRoom.ts` call sites**
 
