@@ -25,15 +25,15 @@
 | File | Responsibility |
 |------|----------------|
 | `shared/src/script-dsl/event-types.ts` | `NpcEventMap`, payload types (`ProximityEnterPayload`, …, `CombatDeathPayload`), `EntityRef`, `EventHandler<P>`, `Unsubscribe`. |
-| `server/src/simulation/event-dispatch.ts` | `dispatch<K>(agent, event, payload): Effect[]` with snapshot-at-dispatch, per-handler try/catch, event-name+agent-id on error. `applyEventEffects(effects, state)` glues dispatched effects into simulation mutations (including new `bubble` effect). |
+| `server/src/simulation/event-dispatch.ts` | `dispatch<K>(agent, event, payload): EventEffect[]` with snapshot-at-dispatch, per-handler try/catch, event-name+agent-id on error. `applyEventEffects(effects, state)` interprets `EventEffect` (bubble-only in MVP) into simulation mutations. |
 | `server/src/simulation/apply-damage.ts` | `applyDamage(target, amount, attacker, state)` helper: calls `target.takeDamage`, dispatches `combat:hit` then (on lethal) `combat:death`, applies returned effects. Replaces direct `target.takeDamage` call sites. |
-| `server/src/rooms/proximity-state-cleanup.ts` | Replaces `proximity-cleanup.ts`. `purgeProximityState(state, playerId)` deletes the player id from every alive NPC's `proximityState` on disconnect. |
+| `server/src/rooms/proximity-state-cleanup.ts` | Replaces `proximity-cleanup.ts`. `purgeProximityState(state, playerId)` deletes the player id from every NPC's `proximityState` on disconnect. Intentionally includes dead NPCs (skips only `controller === "player"` agents) so reconnecting players can re-fire `proximity:enter` against NPCs that were killed while disconnected, and so stale entries don't leak. |
 | `server/test/simulation/event-dispatch.test.ts` | Composition via flatMap, handler-order preservation, `[]` no-op, throwing-handler isolation, snapshot-at-dispatch. |
 | `server/test/simulation/proximity-events.test.ts` | Enter fires on first tick in range; stay fires monotonically; leave once; re-enter resets ticksInRange; symmetry (NPC-moved vs player-moved); reconnect re-fires after cleanup. |
 | `server/test/dialogue/talk-events.test.ts` | `talk:start` fires on open; `talk:end` reason matches path (completed / timeout / player_left / npc_killed). |
 | `server/test/simulation/combat-events.test.ts` | `combat:hit` payload fields correct; `combat:death` fires once at hp ≤ 0; `combat:hit` dispatches strictly before `combat:death` on killing blow. |
 | `server/test/script-dsl/event-builder.test.ts` | `.on()` chaining returns builder; type of handler narrows per overload (`// @ts-expect-error` negative tests). |
-| `server/test/rooms/on-leave-proximity-state.test.ts` | Replaces `on-leave-proximity.test.ts`. Asserts playerId removed from every alive NPC's `proximityState`. |
+| `server/test/rooms/on-leave-proximity-state.test.ts` | Replaces `on-leave-proximity.test.ts`. Asserts playerId removed from every NPC's `proximityState` (including dead NPCs). |
 
 ### Modified files
 
