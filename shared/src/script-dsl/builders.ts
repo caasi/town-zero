@@ -6,12 +6,7 @@ import type {
 import type { NpcHandlerEntry } from "../script-types.js";
 import type { ResourceType } from "../types.js";
 import { ExprBuilder, toExpr, type ExprOrValue } from "./expressions.js";
-import type {
-  NpcEventName, EventHandler, EventEffect,
-  ProximityEnterPayload, ProximityStayPayload, ProximityLeavePayload,
-  TalkStartPayload, TalkEndPayload,
-  CombatHitPayload, CombatDeathPayload,
-} from "./event-types.js";
+import type { NpcEventMap, NpcEventName, EventHandler, EventEffect } from "./event-types.js";
 
 // --- Simple effect builders ---
 
@@ -190,15 +185,19 @@ function createDialogueBuilder(
 }
 
 // SOURCE OF TRUTH for event keys + payloads: NpcEventMap (event-types.ts).
-// Keep these overloads in sync with NpcEventMap.
+// `on` is derived from NpcEventMap by turning the per-key signature union
+// into an intersection — TypeScript treats an intersection of function types
+// as an overload set, so each event key narrows its payload exactly.
+// Adding a key to NpcEventMap adds a new overload automatically.
+type UnionToIntersection<U> =
+  (U extends unknown ? (x: U) => void : never) extends (x: infer I) => void ? I : never;
+
+type NpcOnOverloads = UnionToIntersection<{
+  [K in NpcEventName]: (event: K, handler: EventHandler<NpcEventMap[K]>) => NpcBuilder;
+}[NpcEventName]>;
+
 export interface NpcBuilder {
-  on(event: "proximity:enter", handler: EventHandler<ProximityEnterPayload>): NpcBuilder;
-  on(event: "proximity:stay",  handler: EventHandler<ProximityStayPayload>):  NpcBuilder;
-  on(event: "proximity:leave", handler: EventHandler<ProximityLeavePayload>): NpcBuilder;
-  on(event: "talk:start",      handler: EventHandler<TalkStartPayload>):      NpcBuilder;
-  on(event: "talk:end",        handler: EventHandler<TalkEndPayload>):        NpcBuilder;
-  on(event: "combat:hit",      handler: EventHandler<CombatHitPayload>):      NpcBuilder;
-  on(event: "combat:death",    handler: EventHandler<CombatDeathPayload>):    NpcBuilder;
+  on: NpcOnOverloads;
 }
 
 // --- Scenario builder ---
