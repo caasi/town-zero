@@ -41,6 +41,21 @@ describe("applyDamage", () => {
     expect(seq).toEqual(["hit:0", "death:a1"]);
   });
 
+  it("clamps combat:hit damage to hp actually removed on overkill", () => {
+    const state = buildState();
+    const attacker = new Agent({ id: "a1", position: { x: 0, y: 0 }, faction: "hostile", role: "warrior", controller: "bot" });
+    const victim = new Agent({ id: "v1", position: { x: 1, y: 0 }, faction: "f", role: "villager", controller: "bot" });
+    state.agents.set(attacker.id, attacker); state.agents.set(victim.id, victim);
+    const hits: CombatHitPayload[] = [];
+    victim.eventHandlers.set("combat:hit", [((p: CombatHitPayload) => { hits.push(p); return []; }) as EventHandler<unknown>]);
+
+    const hpBefore = victim.hp;
+    applyDamage(victim, hpBefore + 9999, attacker, state);
+    expect(hits).toHaveLength(1);
+    expect(hits[0].damage).toBe(hpBefore);
+    expect(hits[0].hpAfter).toBe(0);
+  });
+
   it("does not fire combat:death on non-lethal hits", () => {
     const state = buildState();
     const attacker = new Agent({ id: "a1", position: { x: 0, y: 0 }, faction: "hostile", role: "warrior", controller: "bot" });

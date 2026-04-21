@@ -9,7 +9,9 @@ export function applyDamage(
   state: SimulationState,
 ): void {
   if (!target.isAlive()) return;
+  const hpBefore = target.hp;
   target.takeDamage(amount);
+  const actualDamage = Math.min(amount, hpBefore);
 
   const selfRef = { id: target.id, faction: target.faction, role: target.role, position: { ...target.position } };
   const attackerRef = attacker
@@ -18,7 +20,7 @@ export function applyDamage(
 
   if (attackerRef) {
     const hitEffs = dispatch(target, "combat:hit", {
-      tick: state.tick, self: selfRef, attacker: attackerRef, damage: amount, hpAfter: target.hp,
+      tick: state.tick, self: selfRef, attacker: attackerRef, damage: actualDamage, hpAfter: target.hp,
     });
     applyEventEffects(hitEffs, state);
   }
