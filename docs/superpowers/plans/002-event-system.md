@@ -653,8 +653,7 @@ Expected: FAIL.
 - [ ] **Step 3: Create `server/src/simulation/event-dispatch.ts`**
 
 ```ts
-import type { Effect } from "@town-zero/shared";
-import type { NpcEventMap, NpcEventName } from "@town-zero/shared/script-dsl";
+import type { EventEffect, NpcEventMap, NpcEventName } from "@town-zero/shared/script-dsl";
 import type { Agent } from "./agent.js";
 import type { SimulationState } from "./tick.js";
 
@@ -662,11 +661,11 @@ export function dispatch<K extends NpcEventName>(
   agent: Agent,
   event: K,
   payload: NpcEventMap[K],
-): Effect[] {
+): EventEffect[] {
   const handlers = agent.eventHandlers.get(event);
   if (!handlers || handlers.length === 0) return [];
   const snapshot = [...handlers];
-  const out: Effect[] = [];
+  const out: EventEffect[] = [];
   for (let i = 0; i < snapshot.length; i++) {
     try {
       const effects = snapshot[i](payload as unknown);
@@ -678,7 +677,11 @@ export function dispatch<K extends NpcEventName>(
   return out;
 }
 
-export function applyEventEffects(effects: Effect[], state: SimulationState): void {
+export function applyEventEffects(effects: EventEffect[], state: SimulationState): void {
+  // `EventEffect` is deliberately narrow (bubble-only in MVP). The switch is
+  // exhaustive — broader effects (set_fact / damage / give etc.) live in the
+  // shared `Effect` union and are emitted by script-level triggers, which go
+  // through the dialogue executor instead of this path.
   for (const effect of effects) {
     switch (effect.type) {
       case "bubble": {
@@ -687,13 +690,6 @@ export function applyEventEffects(effects: Effect[], state: SimulationState): vo
         target.setBubble(effect.text, effect.durationTicks, state.tick);
         break;
       }
-      // Other effect types (set_fact, damage, give_item, take_item, set_local,
-      // register_trigger) are not applicable at the event-dispatch layer today.
-      // Triggers handle them via dialogue executor. If scenarios need those
-      // from event handlers later, route through executeEffects with a
-      // MutableContext here.
-      default:
-        console.warn(`[event-dispatch] unsupported effect type "${(effect as any).type}" in event handler`);
     }
   }
 }
