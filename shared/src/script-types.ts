@@ -1,4 +1,5 @@
 import type { ResourceType, Position } from "./types.js";
+import type { NpcEventName, EventHandler } from "./script-dsl/event-types.js";
 
 // --- Values ---
 
@@ -26,6 +27,10 @@ export type AgentRef = string; // agent ID, "$player", "$npc", "$faction:xxx"
 
 // --- Effects ---
 
+// Effects emitted by dialogue actions and script-level triggers. The dialogue
+// executor has a handler for every variant here. `bubble` is deliberately NOT
+// part of this union — it's emitted only from NPC event handlers and executed
+// by the event-dispatch applier. See `EventEffect` in `script-dsl/event-types`.
 export type Effect =
   | { type: "set_fact"; target: AgentRef; key: string; value: Expr }
   | { type: "set_local"; key: string; value: Expr }
@@ -89,10 +94,9 @@ export interface DialogueTreeData {
 
 // --- Scenario ---
 
-export interface ProximityBubbleConfig {
-  text: string;
-  durationTicks: number;
-  cooldownTicks: number;
+export interface NpcHandlerEntry {
+  event: NpcEventName;
+  handler: EventHandler<unknown>;
 }
 
 export interface NpcDefinition {
@@ -103,7 +107,7 @@ export interface NpcDefinition {
   position: Position;
   initialBeliefs: Array<{ key: string; value: Value }>;
   dialogueIds: string[];
-  proximityBubble?: ProximityBubbleConfig;
+  handlers?: NpcHandlerEntry[];
 }
 
 export interface ScenarioData {

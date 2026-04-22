@@ -8,7 +8,7 @@ import { isValidInputFrame } from "./validation.js";
 import { extractVisionForPlayer } from "./vision.js";
 import { Agent } from "../simulation/agent.js";
 import { advanceDialogue, chooseDialogue, endDialogue, tickDialogues } from "../dialogue/session-manager.js";
-import { purgeProximityLedger } from "./proximity-cleanup.js";
+import { purgeProximityState } from "./proximity-state-cleanup.js";
 
 export class GameRoom extends Room<{ state: WorldStateSchema }> {
   private simState!: SimulationState;
@@ -87,7 +87,7 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
       const agent = this.simState.agents.get(agentId);
       if (!agent?.talkingToNpcId) return;
 
-      endDialogue(agent.talkingToNpcId, this.simState);
+      endDialogue(agent.talkingToNpcId, this.simState, "player_left");
       client.send("dialogue:end", { reason: "closed" });
     });
 
@@ -151,13 +151,13 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
     const agent = this.simState.agents.get(agentId);
     if (agent) {
       if (agent.talkingToNpcId) {
-        endDialogue(agent.talkingToNpcId, this.simState);
+        endDialogue(agent.talkingToNpcId, this.simState, "player_left");
       }
       agent.controller = "bot";
     }
 
     this.sessionToAgent.delete(client.sessionId);
-    purgeProximityLedger(this.simState, agentId);
+    purgeProximityState(this.simState, agentId);
     console.log(`${agentId} left, now bot-controlled (${client.sessionId})`);
   }
 

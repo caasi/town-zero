@@ -1,10 +1,12 @@
 import type {
   Value, Expr, Effect, AgentRef, TextTemplate,
   ScenarioData, NpcDefinition, DialogueTreeData, DialogueNodeData,
-  ChoiceOptionData, TriggerRule, ProximityBubbleConfig,
+  ChoiceOptionData, TriggerRule,
 } from "../script-types.js";
+import type { NpcHandlerEntry } from "../script-types.js";
 import type { ResourceType } from "../types.js";
 import { ExprBuilder, toExpr, type ExprOrValue } from "./expressions.js";
+import type { NpcEventMap, NpcEventName, EventHandler, EventEffect } from "./event-types.js";
 
 // --- Simple effect builders ---
 
@@ -26,6 +28,10 @@ export function take(target: AgentRef, item: ResourceType, amount: ExprOrValue):
 
 export function damage(target: AgentRef, amount: ExprOrValue): Effect {
   return { type: "damage", target, amount: toExpr(amount) };
+}
+
+export function bubble(target: AgentRef, text: string, opts: { durationTicks: number }): EventEffect {
+  return { type: "bubble", target, text, durationTicks: opts.durationTicks };
 }
 
 export function when(builder: ExprBuilder): Expr {
@@ -178,6 +184,22 @@ function createDialogueBuilder(
   return { api, build };
 }
 
+// SOURCE OF TRUTH for event keys + payloads: NpcEventMap (event-types.ts).
+// `on` is derived from NpcEventMap by turning the per-key signature union
+// into an intersection — TypeScript treats an intersection of function types
+// as an overload set, so each event key narrows its payload exactly.
+// Adding a key to NpcEventMap adds a new overload automatically.
+type UnionToIntersection<U> =
+  (U extends unknown ? (x: U) => void : never) extends (x: infer I) => void ? I : never;
+
+type NpcOnOverloads = UnionToIntersection<{
+  [K in NpcEventName]: (event: K, handler: EventHandler<NpcEventMap[K]>) => NpcBuilder;
+}[NpcEventName]>;
+
+export interface NpcBuilder {
+  on: NpcOnOverloads;
+}
+
 // --- Scenario builder ---
 
 interface ScenarioBuilderApi {
@@ -187,8 +209,7 @@ interface ScenarioBuilderApi {
     faction: string;
     position: { x: number; y: number };
     initialBeliefs: Array<{ key: string; value: Value }>;
-    proximityBubble?: ProximityBubbleConfig;
-  }): void;
+  }): NpcBuilder;
   dialogue(npcId: string, dialogueId: string, fn: (d: DialogueBuilderApi) => void): void;
   trigger(whenExpr: Expr, thenEffects: Effect[], opts: { targets: AgentRef[]; once?: boolean }): void;
 }
@@ -207,6 +228,7 @@ export function scenario(id: string, fn: (s: ScenarioBuilderApi) => void): Scena
         throw new Error(`Duplicate npcId "${npcId}" in scenario "${id}"`);
       }
       npcDialogueMap.set(npcId, []);
+      const handlers: NpcHandlerEntry[] = [];
       npcs.push({
         id: npcId,
         name: opts.name ?? npcId,
@@ -215,8 +237,15 @@ export function scenario(id: string, fn: (s: ScenarioBuilderApi) => void): Scena
         position: opts.position,
         initialBeliefs: opts.initialBeliefs,
         dialogueIds: npcDialogueMap.get(npcId)!,
-        proximityBubble: opts.proximityBubble,
+        handlers,
       });
+      const builder: NpcBuilder = {
+        on(event: NpcEventName, handler: EventHandler<any>): NpcBuilder {
+          handlers.push({ event, handler: handler as EventHandler<unknown> });
+          return builder;
+        },
+      };
+      return builder;
     },
 
     dialogue(npcId, dialogueId, builderFn) {

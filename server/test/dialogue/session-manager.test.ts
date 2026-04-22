@@ -5,6 +5,8 @@ import { Agent } from "../../src/simulation/agent.js";
 import { Grid } from "../../src/simulation/grid.js";
 import type { SimulationState } from "../../src/simulation/tick.js";
 import type { DialogueTreeData } from "@town-zero/shared";
+import { bubble } from "@town-zero/shared/script-dsl";
+import type { EventHandler } from "@town-zero/shared/script-dsl";
 
 function makeTree(): DialogueTreeData {
   return {
@@ -152,11 +154,26 @@ describe("session-manager", () => {
       expect(result.payload.content).toBe("Scout the north");
     });
 
-    it("clears the target NPC's active bubble", () => {
+    it("clears an active NPC bubble on startDialogue even without a talk:start handler", () => {
+      const npc = state.agents.get("test-npc")!;
+      npc.setBubble("Hi!", 80, 0);
+      expect(npc.bubbleText).toBe("Hi!");
+
+      const result = startDialogue("player-0", "test-npc", state);
+      expect(result.ok).toBe(true);
+      expect(npc.bubbleText).toBeNull();
+      expect(npc.bubbleExpiresAt).toBe(0);
+    });
+
+    it("lets a talk:start handler clear the target NPC's active bubble", () => {
       const npc = state.agents.get("test-npc")!;
       npc.setBubble("早安", 80, 0);
       expect(npc.bubbleText).toBe("早安");
       expect(npc.bubbleExpiresAt).toBe(80);
+
+      npc.eventHandlers.set("talk:start", [
+        (({ self }: { self: { id: string } }) => [bubble(self.id, "", { durationTicks: 0 })]) as EventHandler<unknown>,
+      ]);
 
       const result = startDialogue("player-0", "test-npc", state);
       expect(result.ok).toBe(true);
@@ -177,7 +194,7 @@ describe("session-manager", () => {
       if (r1.ok) expect(r1.payload.content).toBe("Hello!");
 
       // Clean up and set fact
-      endDialogue("test-npc", state);
+      endDialogue("test-npc", state, "completed");
       state.agents.get("test-npc")!.setBelief("quest_done", { key: "quest_done", value: true, tick: 1, source: "test" });
 
       const r2 = startDialogue("player-0", "test-npc", state);
@@ -257,7 +274,7 @@ describe("session-manager", () => {
   describe("endDialogue", () => {
     it("clears session and unlocks both agents", () => {
       startDialogue("player-0", "test-npc", state);
-      endDialogue("test-npc", state);
+      endDialogue("test-npc", state, "completed");
 
       expect(state.activeSessions.has("test-npc")).toBe(false);
       expect(state.agents.get("player-0")!.state).toBe("idle");

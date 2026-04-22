@@ -24,7 +24,6 @@ export function loadScenario(
       faction: npcDef.faction,
       role: npcDef.role,
       controller: "bot",
-      proximityBubble: npcDef.proximityBubble,
     });
 
     // Inject initial beliefs
@@ -33,6 +32,14 @@ export function loadScenario(
     }
 
     state.agents.set(npcDef.id, agent);
+
+    if (npcDef.handlers) {
+      for (const { event, handler } of npcDef.handlers) {
+        const list = agent.eventHandlers.get(event) ?? [];
+        list.push(handler);
+        agent.eventHandlers.set(event, list);
+      }
+    }
   }
 
   // Register dialogue trees

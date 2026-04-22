@@ -1,4 +1,5 @@
 import { DIRECTION_DELTA, BASE_ATTACK_DAMAGE } from "@town-zero/shared";
+import { applyDamage } from "./apply-damage.js";
 import type { Position } from "@town-zero/shared";
 import type { Agent } from "./agent.js";
 import type { Grid } from "./grid.js";
@@ -38,7 +39,8 @@ export function performAttackOnFacingTarget(targetId: string, ctx: FrameContext)
   const target = agents.get(targetId);
   if (!target || !target.isAlive()) return;
   if (!isFacingTile(agent, target.position)) return;
-  target.takeDamage(BASE_ATTACK_DAMAGE);
+  if (!ctx.simState) { target.takeDamage(BASE_ATTACK_DAMAGE); return; }
+  applyDamage(target, BASE_ATTACK_DAMAGE, agent, ctx.simState);
 }
 
 export function performGatherOnFacingTile(resourceTile: Position, ctx: FrameContext): void {

@@ -1,4 +1,4 @@
-import { scenario, setFact, take, fact, literal, player } from "@town-zero/shared/script-dsl";
+import { scenario, setFact, take, fact, literal, player, bubble } from "@town-zero/shared/script-dsl";
 
 export const farmerReedScenario = scenario("farmer-reed", (s) => {
   s.npc("farmer-reed", {
@@ -7,12 +7,13 @@ export const farmerReedScenario = scenario("farmer-reed", (s) => {
     faction: "village-1",
     position: { x: 9, y: 19 },
     initialBeliefs: [],
-    proximityBubble: {
-      text: "Greetings, traveler!",
-      durationTicks: 40,   // ~5s at 8 tps
-      cooldownTicks: 240,  // ~30s between re-fires per player
-    },
-  });
+  })
+  .on("proximity:enter", ({ self }) => [
+    bubble(self.id, "Greetings, traveler!", { durationTicks: 40 }),
+  ])
+  .on("talk:start", ({ self }) => [
+    bubble(self.id, "", { durationTicks: 0 }),
+  ]);
 
   s.dialogue("farmer-reed", "farmer-reed-dialogue", (d) => {
     // --- Default path: greeting → quest-offer ---

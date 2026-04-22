@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { Agent } from "../../src/simulation/agent.js";
+import type { NpcEventName, EventHandler } from "@town-zero/shared/script-dsl";
 
 describe("Agent", () => {
   function makeAgent(overrides?: Partial<ConstructorParameters<typeof Agent>[0]>) {
@@ -145,4 +146,20 @@ describe("Agent", () => {
     expect(agent.facing).toBe("north");
   });
 
+});
+
+describe("Agent.eventHandlers + proximityState", () => {
+  it("exposes empty eventHandlers and proximityState maps", () => {
+    const a = new Agent({ id: "n1", position: { x: 0, y: 0 }, faction: "f", role: "villager", controller: "bot" });
+    expect(a.eventHandlers.size).toBe(0);
+    expect(a.proximityState.size).toBe(0);
+  });
+
+  it("accepts handler registration under a known event key", () => {
+    const a = new Agent({ id: "n1", position: { x: 0, y: 0 }, faction: "f", role: "villager", controller: "bot" });
+    const h: EventHandler<unknown> = () => [];
+    const key: NpcEventName = "proximity:enter";
+    a.eventHandlers.set(key, [h]);
+    expect(a.eventHandlers.get(key)).toEqual([h]);
+  });
 });

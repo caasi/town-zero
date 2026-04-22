@@ -128,7 +128,7 @@ describe("integration: Farmer Reed full flow", () => {
     addPlayer(state, "player-0", reed.position.x, reed.position.y - 1);
 
     startDialogue("player-0", "farmer-reed", state);
-    endDialogue("farmer-reed", state);
+    endDialogue("farmer-reed", state, "completed");
 
     expect(state.activeSessions.has("farmer-reed")).toBe(false);
     expect(state.agents.get("player-0")!.state).toBe("idle");

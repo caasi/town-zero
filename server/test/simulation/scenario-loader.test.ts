@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { loadScenario } from "../../src/simulation/scenario-loader.js";
 import type { ScenarioData } from "@town-zero/shared";
+import { scenario, bubble } from "@town-zero/shared/script-dsl";
 import type { SimulationState } from "../../src/simulation/tick.js";
 import { Grid } from "../../src/simulation/grid.js";
 
@@ -252,5 +253,20 @@ describe("loadScenario()", () => {
     expect(agent.position).toEqual({ x: 10, y: 15 });
     expect(agent.role).toBe("scout");
     expect(agent.controller).toBe("bot");
+  });
+});
+
+describe("loadScenario — handler registration", () => {
+  it("registers NPC .on() handlers into agent.eventHandlers", () => {
+    const state = makeState();
+    const data = scenario("s1", (s) => {
+      s.npc("n1", { role: "villager", faction: "f", position: { x: 0, y: 0 }, initialBeliefs: [] })
+        .on("proximity:enter", ({ self }) => [bubble(self.id, "hi", { durationTicks: 5 })])
+        .on("talk:start",      () => []);
+    });
+    loadScenario(data, state);
+    const agent = state.agents.get("n1")!;
+    expect(agent.eventHandlers.get("proximity:enter")).toHaveLength(1);
+    expect(agent.eventHandlers.get("talk:start")).toHaveLength(1);
   });
 });
