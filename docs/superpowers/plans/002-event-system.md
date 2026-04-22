@@ -61,7 +61,7 @@
 ## Notes for the implementer
 
 1. **Spec §6 says dispatch `combat:death` from `Agent.applyDamage`. This plan deviates.** `Agent` is a pure data class today without access to `SimulationState`, and `combat:hit`/`combat:death` dispatch needs the state to apply effects. Instead, this plan adds a small `applyDamage(target, amount, attacker, state)` helper in `server/src/simulation/apply-damage.ts` and routes every damage call site through it (both `performAttackOnFacingTarget` and the `damage` effect in `executor.ts`). `Agent.takeDamage` stays pure. Same observable guarantees: `hit` always dispatches before `death`, `death` only on HP cross to ≤ 0.
-2. **New `bubble` Effect variant.** Spec §2 and §6 call for a `bubble(self, text, { durationTicks })` factory emitted by handlers. Existing `Effect` union has no bubble variant; handlers must return `Effect[]`. Resolution: add `{ type: "bubble"; target: AgentRef; text: string; durationTicks: number }` to the shared union and a handler for it in `executor.ts` / `applyEventEffects`. This keeps the effect model unified (spec §0: "Not a new effect execution model").
+2. **Standalone `EventEffect` type (not added to shared `Effect` union).** Spec §2 and §6 call for a `bubble(self, text, { durationTicks })` factory emitted by handlers. Do **not** add `bubble` to the shared `Effect` union: the dialogue executor in `executor.ts` would then accept `bubble` as a syntactically-legal dialogue/action/trigger effect and throw `Unknown effect type: bubble` at runtime. Resolution: define a standalone `EventEffect = { type: "bubble"; target: AgentRef; text: string; durationTicks: number }` in `shared/src/script-dsl/event-types.ts`, applied exclusively by `applyEventEffects` in `server/src/simulation/event-dispatch.ts`. `EventHandler<P>` returns `EventEffect[]`, which constrains handler output at compile time while leaving `Effect` untouched for dialogue/trigger code paths.
 3. **Handlers are runtime-only.** `NpcDefinition.handlers` is typed but not JSON-serialised. Scenarios that use `.on()` cannot be round-tripped through JSON. Accept this — spec §0 non-goal #3.
 4. **Snapshot-at-dispatch is load-bearing.** Spec §5 risk 5. A handler can register new handlers (via `agent.on(...)`); new handlers must not fire this tick. `dispatch` MUST copy the array (`[...handlers]`) before iterating. Test `event-dispatch.test.ts: registers handler mid-dispatch → new handler only fires next dispatch`.
 5. **Throwing handler isolation.** Wrap each handler invocation in `try/catch`. Log `console.error(\`[event-dispatch] ${agent.id} ${event} handler ${i} threw:\`, err)`. Failing handler contributes no effects to the flatMap; remaining handlers still run; tick does not crash. Spec §7 risk 1.
@@ -80,12 +80,12 @@ git checkout -b feat/event-system
 
 ---
 
-## Task 1: Add `bubble` Effect variant + `bubble()` builder
+## Task 1: Add standalone `EventEffect` type + `bubble()` builder
 
 **Files:**
-- Modify: `shared/src/script-types.ts` (Effect union, ~line 29-35)
-- Modify: `shared/src/script-dsl/builders.ts` (new `bubble` factory)
-- Modify: `shared/src/script-dsl/index.ts` (export `bubble`)
+- Create: `shared/src/script-dsl/event-types.ts` (standalone `EventEffect` type — **not** added to shared `Effect` union; see Note 2)
+- Modify: `shared/src/script-dsl/builders.ts` (new `bubble` factory returning `EventEffect`)
+- Modify: `shared/src/script-dsl/index.ts` (export `bubble` + `EventEffect`)
 - Test: `server/test/script-dsl/event-builder.test.ts` (new)
 
 - [ ] **Step 1: Write failing test for `bubble()` factory shape**
