@@ -48,7 +48,9 @@ export interface TalkEndPayload extends EventBase {
   reason: "completed" | "timeout" | "player_left" | "npc_killed" | "error";
 }
 export interface CombatHitPayload extends EventBase {
-  attacker: EntityRef;
+  // Nullable: scripted-trigger / environmental damage has no attacker.
+  // Handlers that only care about PvE-style hits should null-check before use.
+  attacker: EntityRef | null;
   damage: number;
   hpAfter: number;
 }

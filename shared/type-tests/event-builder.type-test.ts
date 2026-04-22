@@ -37,7 +37,8 @@ scenario("type-tests", (s) => {
   });
 
   npc.on("combat:hit", ({ attacker, damage, hpAfter }) => {
-    void attacker.id; void damage; void hpAfter;
+    // attacker is nullable: scripted/environmental damage has no attacker.
+    void attacker?.id; void damage; void hpAfter;
     return [];
   });
 

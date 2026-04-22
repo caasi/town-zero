@@ -18,12 +18,10 @@ export function applyDamage(
     ? { id: attacker.id, faction: attacker.faction, role: attacker.role, position: { ...attacker.position } }
     : null;
 
-  if (attackerRef) {
-    const hitEffs = dispatch(target, "combat:hit", {
-      tick: state.tick, self: selfRef, attacker: attackerRef, damage: actualDamage, hpAfter: target.hp,
-    });
-    applyEventEffects(hitEffs, state);
-  }
+  const hitEffs = dispatch(target, "combat:hit", {
+    tick: state.tick, self: selfRef, attacker: attackerRef, damage: actualDamage, hpAfter: target.hp,
+  });
+  applyEventEffects(hitEffs, state);
 
   if (!target.isAlive()) {
     const deathEffs = dispatch(target, "combat:death", {

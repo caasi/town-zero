@@ -23,8 +23,22 @@ describe("applyDamage", () => {
 
     applyDamage(victim, 10, attacker, state);
     expect(hits).toHaveLength(1);
-    expect(hits[0].attacker.id).toBe("a1");
+    expect(hits[0].attacker?.id).toBe("a1");
     expect(hits[0].damage).toBe(10);
+    expect(hits[0].hpAfter).toBe(victim.hp);
+  });
+
+  it("fires combat:hit with null attacker for attacker-less damage", () => {
+    const state = buildState();
+    const victim = new Agent({ id: "v1", position: { x: 1, y: 0 }, faction: "f", role: "villager", controller: "bot" });
+    state.agents.set(victim.id, victim);
+    const hits: CombatHitPayload[] = [];
+    victim.eventHandlers.set("combat:hit", [((p: CombatHitPayload) => { hits.push(p); return []; }) as EventHandler<unknown>]);
+
+    applyDamage(victim, 5, null, state);
+    expect(hits).toHaveLength(1);
+    expect(hits[0].attacker).toBeNull();
+    expect(hits[0].damage).toBe(5);
     expect(hits[0].hpAfter).toBe(victim.hp);
   });
 
