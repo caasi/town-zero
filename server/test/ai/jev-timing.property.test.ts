@@ -122,7 +122,7 @@ describe("Jev reply timing (property)", () => {
       { numRuns: 300 },
     );
     // Guard against a property that passes because nothing happened.
-    expect(asks).toBeGreaterThan(500); // ~1000 seen
-    expect(lateReplies).toBeGreaterThan(100); // ~490 seen
+    expect(asks).toBeGreaterThan(500); // ~1350 seen
+    expect(lateReplies).toBeGreaterThan(100); // ~190 seen
   });
 });
