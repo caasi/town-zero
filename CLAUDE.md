@@ -31,8 +31,11 @@ pnpm run dev:server
 # Run client (Vite dev server, port 3000)
 pnpm run dev:client
 
-# Run server tests
+# Run server + client tests
 pnpm run test
+
+# Type-level tests for the script DSL
+pnpm run typecheck:types
 ```
 
 ## Architecture
@@ -47,8 +50,11 @@ pnpm run test
 3. Production facilities convert raw materials → food/material (counter-gated, ~10s)
 4. Agents consume food from personal inventory (counter-gated, ~30s)
 5. Merchant spawning and movement (counter-gated, ~120s)
-6. Vision update (MapMemory per agent)
+6. Vision update (MapMemory per agent), then bubble expiry and NPC event dispatch
 7. Memory merge between adjacent same-faction agents
+8. Trigger evaluation (deferred batch over changed facts)
+
+Source of truth: `processTick` in `server/src/simulation/tick.ts`.
 
 **Information model:** No global omniscience. Each agent has a personal `MapMemory` (sparse grid of observed tiles with timestamps). Agents must be adjacent to exchange information. This creates natural fog of war and makes scouts strategically important.
 
@@ -56,8 +62,7 @@ pnpm run test
 
 ## Key Design Documents
 
-- **Spec:** `docs/superpowers/specs/2026-04-01-town-zero-mvp-design.md`
-- **Plan:** `docs/superpowers/plans/2026-04-01-town-zero-mvp.md` (19 tasks, TDD, full code)
+- **Specs / plans:** `docs/superpowers/specs/` and `docs/superpowers/plans/`. The MVP is `2026-04-01-town-zero-mvp*`. New pairs use a 3-digit prefix (`001-combat-as-interaction`, `002-event-system`); continue from the highest number. The older date-prefixed files stay as they are.
 - **References:** `docs/references.md` — prior art and industry resources for design decisions. Review and update when introducing new patterns or making significant architectural changes.
 
 ## Development Notes
@@ -71,7 +76,7 @@ pnpm run test
 - **Multi-key movement:** Input uses delete+re-add on keydown so Set iteration order reflects recency. `update()` picks the most recently pressed movement key (last in Set). This gives immediate direction switching when pressing a new key while holding another
 - MVP fog of war is client-side only (trusts client, no anti-cheat). Even so, client code must treat unknown tiles as truly unknown — prediction reads from fog snapshots (`fog.tileSource()`), never raw `state.tiles`
 - Player agents use `role: "player"` — `role` is a functional type tag (`"merchant"`, `"scout"`, etc.), not a display name
-- Client modules: `network.ts` (Colyseus connection), `renderer.ts` (Canvas 2D), `camera.ts` (viewport), `fog.ts` (fog of war), `input.ts` (WASD + action keys), `display.ts` (movement prediction + lerp), `main.ts` (game loop + HUD)
+- Client modules: `network.ts` (Colyseus connection), `renderer.ts` (Canvas 2D), `camera.ts` (viewport), `fog.ts` (fog of war), `input.ts` (WASD + action keys), `display.ts` (movement prediction + lerp), `dialogue-ui.ts` (dialogue panel), `main.ts` (game loop + HUD)
 - `NetworkClient.connect()` has a 10s join timeout with full cleanup on expiry, a concurrent-call guard (`isConnecting` in main.ts), and `disconnect()` rejects any in-flight join promise
 - Colyseus Client constructor uses `http://`/`https://` scheme (not `ws://`/`wss://`) — SDK handles WebSocket upgrade internally
 - `SimulationState` includes `nextMerchantId` to avoid module-level mutable state
@@ -80,7 +85,7 @@ pnpm run test
 - Use pnpm, not bun — bun duplicates @colyseus/core instances causing matchmaker state isolation
 - Shared logic between server and client (e.g. `tilesInManhattanRadius` for vision shape) must live in `@town-zero/shared` — duplicating geometry/distance logic across packages causes shape mismatches
 - Client-side movement prediction (`display.ts`): `DisplayState` tracks predicted tile positions (`displayX/Y`) and lerped pixel positions (`renderX/Y`). `reconcileFromServer` accepts server state as baseline, prunes acknowledged `InputFrame[]` by seq, replays direction-only frames (skips action frames). `updateRender(dt)` lerps pixel positions toward display positions
-- Input uses held-key tracking (`keydown`/`keyup` Set) for local prediction and sends per-tick `input` messages (InputFrame with seq + direction) from `update()` while keys are held — not `keydown` repeat events (OS repeat has variable initial delay and rate). Action keys (Q/E/T) send InputFrame with seq + action immediately on keydown
+- Input uses held-key tracking (`keydown`/`keyup` Set) for local prediction and sends per-tick `input` messages (InputFrame with seq + direction) from `update()` while keys are held — not `keydown` repeat events (OS repeat has variable initial delay and rate). Action keys (E/T) send InputFrame with seq + action immediately on keydown
 - Fog memory uses a snapshot model (`TileSnapshot` = terrain + entities + timestamp). Fog level is derived: `predictedVisible` → visible, has snapshot → explored, else → unknown. No `level` field stored — add new tile properties to `TileSnapshot` and they're automatically captured
 - Unknown tiles render as eigengrau (`#16161d`), void outside map boundary renders as true black (`#000`)
 - Dialogue system: `talk` action is processed through the tick pipeline via `executeFrame` → `startDialogue`. `dialogue:advance/choose/close` messages use the session-manager API directly. Dialogue lock: while `agent.talkingToNpcId` is set, all input is rejected (even if the active session was already cleaned up). Timeout is detected in `tickDialogues()` called from the tick loop. Client enters `dialogueMode` which intercepts W/S/E/Esc for dialogue navigation
@@ -104,9 +109,9 @@ pnpm run test
 - [ ] Wire LLM scheduler into GameRoom tick
 - [x] Add facing direction to Agent (needed for dialogue target selection and future combat/animation)
 - [x] Add NPC dialogue system (session manager, Farmer Reed scenario, GameRoom integration, client UI)
-- [ ] **Dialogue eDSL review:** `shared/package.json` subpath export points to `.ts` not `dist/`; `t()` missing `boolean` in type signature; add `not()` to `ExprBuilder`; add `DialogueTreeData.validate()` for build-time graph integrity checks (dangling refs, empty next, action cycles); deduplicate `toExpr()` helper across `expressions.ts` and `builders.ts`
+- [ ] **Dialogue eDSL review:** add `DialogueTreeData.validate()` for build-time graph integrity checks (dangling refs, empty next, action cycles)
 - [ ] **Phase 8 trigger execution:** only `set_fact` supported (others warn); `effect.target` ignored (uses `rule.targets` instead); global omniscience in belief aggregation violates no-global-omniscience principle; add early-exit when no facts changed
-- [ ] **Trigger registry wiring:** `setBelief()` and `mergeBeliefs()` don't call `recordChangedFact()` — triggers only fire from dialogue-session changes; `mergeBeliefs()` should return changed keys `Set<string>`; empty `extractFactKeys` deps means trigger never fires; `loadScenario()` doesn't assign `triggerRegistry` to `SimulationState`
+- [ ] **Trigger registry wiring:** `setBelief()` and `mergeBeliefs()` don't call `recordChangedFact()` — triggers only fire from dialogue-session changes; `mergeBeliefs()` should return changed keys `Set<string>`; empty `extractFactKeys` deps means trigger never fires
 - [ ] **TriggerRule type split:** `fired: boolean` mixes mutable execution state into data type; split into `TriggerRuleData` (immutable) + registry-managed `firedIds: Set<string>`
 - [ ] **Tile object / prop system:** Tiles need an `objectType` layer separate from terrain (bush, box, tree). Currently bush uses a minimal `objectType` field on Tile; future iteration should extract a full TileObject concept with durability, loot tables, and interaction types. Settlement structures remain separate from wild tile objects.
-- [ ] **Trigger-fired damage bypasses combat events.** `server/src/dialogue/executor.ts` calls `Agent.takeDamage` directly; route through `applyDamage` so `combat:hit` / `combat:death` fire for damage dealt by scripted triggers.
+- [ ] **Dialogue-effect damage bypasses combat events.** The `damage` callback in `server/src/dialogue/dialogue-session.ts` (called by `executor.ts`) calls `Agent.takeDamage` directly; route it through `applyDamage` so `combat:hit` / `combat:death` fire for scripted damage.
