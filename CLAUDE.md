@@ -97,7 +97,7 @@ Source of truth: `processTick` in `server/src/simulation/tick.ts`.
 
 - Jev state reads the den food count and enemy HP/role from live server state, not from the agent's memory. A beast away from home should only know the food count from its last visit.
 - AI movement is a greedy step (`stepToward` in `jev-controller.ts`); a beast behind water can get stuck until its goal ends. Upgrade to BFS over passable tiles when maps get obstacles.
-- Player attacks have no cooldown (one per key press, up to 8/s); AI beasts attack once per ~1s.
+- Player attacks have no cooldown (one per key press, up to 8/s). AI beasts wait ~1s between attacks, but the wait lives on the attack goal: a new goal (target left sight and came back) can hit at once.
 - After death the HUD can still show the last HP before 0 (the `death` message arrives before the state patch).
 - `material` and `currency` have no use since production and merchants were removed.
 
