@@ -40,6 +40,11 @@
       padding: 4px 12px; border-radius: 4px;
     }
 
+    #commit {
+      position: absolute; bottom: 12px; right: 12px;
+      font-size: 11px; color: #666;
+    }
+
     /* Overlays */
     .overlay {
       position: absolute; top: 0; left: 0; right: 0; bottom: 0;
@@ -100,6 +105,7 @@
         <div id="inventory">🍖0 🪵0 💰0</div>
       </div>
       <div id="key-hints">WASD:Move  E:Interact  Q:Attack  G:Gather  T:Deposit</div>
+      <div id="commit">%VITE_COMMIT%</div>
     </div>
 
     <div id="connecting-overlay" class="overlay">Connecting...</div>

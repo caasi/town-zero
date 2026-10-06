@@ -17,6 +17,9 @@ RUN pnpm install --frozen-lockfile --ignore-scripts
 COPY shared shared
 COPY server server
 COPY client client
+# The commit shown in the HUD. Declared here, not at the top, so a new SHA
+# does not invalidate the install layers above.
+ARG VITE_COMMIT=dev
 RUN pnpm run build && pnpm --filter @town-zero/client build
 # A self-contained server folder: its dist, production node_modules and the
 # workspace package @town-zero/shared copied in (not linked).
