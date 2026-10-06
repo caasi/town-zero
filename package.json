@@ -1,6 +1,7 @@
 {
   "name": "town-zero",
   "private": true,
+  "packageManager": "pnpm@10.33.0",
   "workspaces": ["shared", "server", "client"],
   "engines": {
     "node": ">= 22"
