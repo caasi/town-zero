@@ -338,6 +338,8 @@ export class JevController {
     this.choose(describeState(agent, state), INSTRUCTIONS, criteria)
       .then((id) => {
         console.log(`[jev] ${agent.id} chose ${id} from ${Object.keys(criteria).join(", ")}`);
+        // Died while waiting: a goal or a roar bubble would outlive the death.
+        if (!agent.isAlive()) return;
         const goal = options.find((o) => o.id === id)!.goal;
         // Deadlines count from the reply: a slow call must not use up the goal.
         if ("untilTick" in goal) goal.untilTick += state.tick - askedTick;

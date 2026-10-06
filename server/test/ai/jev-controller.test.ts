@@ -315,6 +315,19 @@ describe("JevController", () => {
     expect(nextFrame(beast, controller.getGoal("b1")!, state)?.action).toEqual({ type: "idle" });
   });
 
+  it("drops a reply that arrives after the beast died", async () => {
+    const { state, beast, player } = setup();
+    see(beast, player, state.tick);
+    let answer!: (id: string) => void;
+    const controller = new JevController(() => new Promise((r) => (answer = r)));
+    controller.update(state);
+    beast.takeDamage(1000);
+    answer("roar");
+    await flush();
+    expect(controller.getGoal("b1")).toBeUndefined();
+    expect(beast.bubbleText).toBeNull();
+  });
+
   it("moves a beast at most one step per 2 ticks", async () => {
     const { state, beast } = setup();
     beast.addToInventory("food", 3); // fed: no eat option
