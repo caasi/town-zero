@@ -195,7 +195,8 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
   }
 
   private tick() {
-    this.jev.update(this.simState);
+    // Jev calls cost money: with no player in the world, AI NPCs stay frozen.
+    if (this.sessionToAgent.size > 0) this.jev.update(this.simState);
     const talkResults = processTick(this.simState);
 
     // Send dialogue messages for talk actions executed this tick
