@@ -45,3 +45,8 @@ Our `InputFrame` design draws from all three: Valve's single-struct-per-tick, Ov
 - [TypeSafe AI documentation](https://docs.typesafe.ai/llms.txt) — Jev is a "System One" model: it answers typed questions (`choice`, `score`, `noul`) about a given state and returns probabilities, not text. We use one `choice` question per NPC decision (spec 003).
 - [Jev 1.13 known limitations](https://docs.typesafe.ai/model-jaggedness/jev-1.13.md) — weak at spatial, numeric and multi-step reasoning; leans toward the first `choice` option; accuracy drops with unrelated state. These limits set our rules: words instead of coordinates, a short state, and `rest` as the first option.
 - [Jev engineering guide](https://www.aibuilderclub.com/blog/jev-engineering-guide) — "LLM writes, Jev decides, code acts". In town-zero the code also writes the options, so an NPC can only do what the game offers.
+
+## Protocol and Timing Invariants
+
+- [fast-check](https://github.com/dubzzz/fast-check) — property-based testing for TypeScript. Model-based tests (`fc.commands`, `fc.modelRun`) run random sequences of operations against a simple model, and `fc.scheduler()` runs async steps in random order. This is the chosen tool for invariants such as "every input frame is run or acknowledged" and "every offered Jev option yields a frame".
+- [Quint](https://github.com/quint-co/quint) — a specification language based on TLA+, with a syntax close to TypeScript. A model checker explores every order of events in a small model of a protocol and checks that its invariants hold. It checks the model, not our code. Not in use; a possible tool when the protocols grow (client reconnection, information exchange between agents).
