@@ -583,7 +583,7 @@ describe("GameRoom integration", () => {
   describe("key release", () => {
     // The client predicts every move it sends. A key release must not drop
     // moves the server has queued but not run yet, or the player is pulled
-    // back. (A legacy "input:stop" message is ignored.)
+    // back. A legacy "input:stop" from an old tab must be accepted and ignored.
     it("runs every move sent before the release", () => {
       const client = mockClient("session-1");
       joinClient(room, client, { name: "Walker" });
@@ -595,6 +595,7 @@ describe("GameRoom integration", () => {
 
       sendInput(room, client, { seq: 1, direction: "south" });
       sendInput(room, client, { seq: 2, direction: "south" });
+      expect(room._messageHandlers.has("input:stop")).toBe(true); // unregistered types disconnect
       sendMessage(room, client, "input:stop", { seq: 2 });
       expect(agent.lastProcessedInput).toBe(0); // nothing acknowledged before it runs
 

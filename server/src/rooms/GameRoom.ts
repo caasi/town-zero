@@ -44,6 +44,11 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
       agent.enqueueInput(data);
     });
 
+    // Clients no longer send this (it dropped predicted moves). Kept as a no-op:
+    // Colyseus disconnects a client that sends an unregistered type, and tabs
+    // opened before a deploy still send it on key release. Remove when stale.
+    this.onMessage("input:stop", () => {});
+
     this.onMessage("revive", (client: Client) => this.revive(client));
 
     this.onMessage("dialogue:advance", (client: Client) => {
