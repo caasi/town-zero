@@ -1,4 +1,4 @@
-import type { Effect, Value, TriggerRule, ResourceType } from "@town-zero/shared";
+import type { Effect, Value, ResourceType } from "@town-zero/shared";
 import { evaluate, type EvalContext } from "./evaluator.js";
 
 export interface MutableContext extends EvalContext {
@@ -8,7 +8,6 @@ export interface MutableContext extends EvalContext {
   giveItem(ref: string, item: ResourceType, amount: number): void;
   takeItem(ref: string, item: ResourceType, amount: number): boolean;
   damage(ref: string, amount: number): void;
-  registerTrigger(rule: TriggerRule): void;
 }
 
 type EffectHandler = (effect: Effect, ctx: MutableContext) => boolean; // false = short-circuit
@@ -50,12 +49,6 @@ const effectHandlers: Record<string, EffectHandler> = {
     const amount = evaluate(effect.amount, ctx);
     if (typeof amount !== "number") throw new Error(`damage: amount evaluated to ${typeof amount}, expected number`);
     ctx.damage(effect.target, amount);
-    return true;
-  },
-
-  register_trigger(effect, ctx) {
-    if (effect.type !== "register_trigger") return true;
-    ctx.registerTrigger(effect.trigger);
     return true;
   },
 };

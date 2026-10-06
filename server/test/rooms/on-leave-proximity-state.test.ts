@@ -1,14 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { Agent } from "../../src/simulation/agent.js";
 import { Grid } from "../../src/simulation/grid.js";
-import { TriggerRegistry } from "../../src/dialogue/trigger-registry.js";
 import { purgeProximityState } from "../../src/rooms/proximity-state-cleanup.js";
 import type { SimulationState } from "../../src/simulation/tick.js";
 
 function buildState(): SimulationState {
   return {
     grid: new Grid(8, 8), agents: new Map(), settlements: new Map(), tick: 0,
-    nextMerchantId: 0, triggerRegistry: new TriggerRegistry(),
+    nextMerchantId: 0,
     activeSessions: new Map(), dialogueTrees: new Map(),
   };
 }

@@ -100,7 +100,6 @@ export function startDialogue(
     npc: target,
     player,
     currentTick: state.tick,
-    triggerRegistry: state.triggerRegistry,
   });
 
   // Lock both agents and stop any queued actions

@@ -25,7 +25,6 @@ function makeTree(): DialogueTreeData {
       bye: { type: "text", speaker: "npc", content: ["Goodbye."], next: "done" },
       done: { type: "end" },
     },
-    triggers: [],
   };
 }
 
@@ -46,7 +45,6 @@ function makeRequestTree(): DialogueTreeData {
       rejected: { type: "text", speaker: "npc", content: ["Maybe later."], next: "done" },
       done: { type: "end" },
     },
-    triggers: [],
   };
 }
 

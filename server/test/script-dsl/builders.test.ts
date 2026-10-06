@@ -91,12 +91,6 @@ describe("builders", () => {
           d.text("greeting", t`Hello`);
           d.end("done");
         });
-
-        s.trigger(
-          when(fact("x").eq(1)),
-          [setFact("npc_a", "y", true)],
-          { targets: ["npc_a"] },
-        );
       });
 
       expect(data.id).toBe("test-scenario");
@@ -106,7 +100,6 @@ describe("builders", () => {
       expect(data.dialogues).toHaveLength(1);
       expect(data.dialogues[0].id).toBe("talk");
       expect(data.dialogues[0].root).toBe("greeting");
-      expect(data.triggers).toHaveLength(1);
     });
   });
 
@@ -172,24 +165,17 @@ describe("builders", () => {
       }
     });
 
-    it("d.trigger() registers on DialogueTreeData.triggers, not as a node", () => {
-      const data = scenario("trigger-test", (s) => {
+    it("auto-chains text nodes across the dialogue", () => {
+      const data = scenario("chain-test-2", (s) => {
         s.npc("a", { role: "scout", faction: "f", position: { x: 0, y: 0 }, initialBeliefs: [] });
         s.dialogue("a", "d", (d) => {
           d.text("t1", t`Hello`);
-          d.trigger(
-            when(fact("x").eq(true)),
-            [setFact("$npc", "y", true)],
-            { targets: ["a", "$player"] },
-          );
           d.text("t2", t`Goodbye`);
           d.end("done");
         });
       });
 
       const dialogue = data.dialogues[0];
-      expect(dialogue.nodes["trigger"]).toBeUndefined();
-      expect(dialogue.triggers).toHaveLength(1);
       const t1 = dialogue.nodes["t1"];
       if (t1.type === "text") {
         expect(t1.next).toBe("t2");

@@ -27,7 +27,7 @@ export type AgentRef = string; // agent ID, "$player", "$npc", "$faction:xxx"
 
 // --- Effects ---
 
-// Effects emitted by dialogue actions and script-level triggers. The dialogue
+// Effects emitted by dialogue actions. The dialogue
 // executor has a handler for every variant here. `bubble` is deliberately NOT
 // part of this union — it's emitted only from NPC event handlers and executed
 // by the event-dispatch applier. See `EventEffect` in `script-dsl/event-types`.
@@ -36,8 +36,7 @@ export type Effect =
   | { type: "set_local"; key: string; value: Expr }
   | { type: "give_item"; target: AgentRef; item: ResourceType; amount: Expr }
   | { type: "take_item"; target: AgentRef; item: ResourceType; amount: Expr }
-  | { type: "damage"; target: AgentRef; amount: Expr }
-  | { type: "register_trigger"; trigger: TriggerRule };
+  | { type: "damage"; target: AgentRef; amount: Expr };
 
 // --- Facts & Beliefs ---
 
@@ -54,18 +53,6 @@ export interface DialogueProgressEntry {
   visitedNodes: string[];
   selectedOptions: Record<string, string>;
   locals: Record<string, Value>;
-}
-
-// --- Triggers ---
-
-export interface TriggerRule {
-  id: string;
-  when: Expr;
-  then: Effect[];
-  targets: AgentRef[];
-  once: boolean;
-  source: "scenario" | "runtime";
-  fired: boolean;
 }
 
 // --- Dialogue Nodes (Compiled) ---
@@ -88,7 +75,6 @@ export interface DialogueTreeData {
   id: string;
   root: string;
   nodes: Record<string, DialogueNodeData>;
-  triggers: TriggerRule[];
   entryPoints?: Array<{ nodeId: string; condition: Expr }>;
 }
 
@@ -114,5 +100,4 @@ export interface ScenarioData {
   id: string;
   npcs: NpcDefinition[];
   dialogues: DialogueTreeData[];
-  triggers: TriggerRule[];
 }

@@ -127,8 +127,7 @@ export function generateMap(): SimulationState {
   const state: SimulationState = { grid, agents, settlements, tick: 0, nextMerchantId: 0, activeSessions: new Map(), dialogueTrees: new Map() };
 
   // Load Farmer Reed scenario
-  const { triggerRegistry, dialogueTrees } = loadScenario(farmerReedScenario, state);
-  state.triggerRegistry = triggerRegistry;
+  const { dialogueTrees } = loadScenario(farmerReedScenario, state);
   state.dialogueTrees = dialogueTrees;
   village.populationIds.push("farmer-reed");
 

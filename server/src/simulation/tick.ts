@@ -7,8 +7,6 @@ import { executeFrame, type TalkResult } from "./execute-frame.js";
 import { processProduction, processConsumption } from "./resources.js";
 import { updateVision, mergeAdjacentMemories, getVisionRadius } from "./vision.js";
 import { decideBotAction } from "../ai/bot-controller.js";
-import { TriggerRegistry } from "../dialogue/trigger-registry.js";
-import { evaluate } from "../dialogue/evaluator.js";
 import { dispatch, applyEventEffects } from "./event-dispatch.js";
 
 export interface SimulationState {
@@ -17,7 +15,6 @@ export interface SimulationState {
   settlements: Map<string, Settlement>;
   tick: number;
   nextMerchantId: number;
-  triggerRegistry?: TriggerRegistry;
   activeSessions: Map<string, import("../dialogue/dialogue-session.js").DialogueSession>;
   dialogueTrees: Map<string, DialogueTreeData>;
 }
@@ -192,75 +189,6 @@ export function processTick(state: SimulationState): TalkResult[] {
   // Phase 7: Memory merge for adjacent same-faction agents
   const agentList = Array.from(agents.values()).filter((a) => a.isAlive());
   mergeAdjacentMemories(agentList, grid);
-
-  // Phase 8: Trigger evaluation (deferred-batch)
-  // TODO: allBeliefs merges all agents' beliefs into a global view (newest-tick-wins).
-  // This violates the "no global omniscience" principle. Triggers should ideally
-  // evaluate against per-target or per-faction beliefs, not a world-wide merge.
-  if (state.triggerRegistry) {
-    const allBeliefs = new Map<string, Fact>();
-    for (const [, agent] of agents) {
-      if (!agent.isAlive()) continue;
-      for (const [key, fact] of agent.getAllBeliefs()) {
-        const existing = allBeliefs.get(key);
-        if (!existing || fact.tick > existing.tick) {
-          allBeliefs.set(key, fact);
-        }
-      }
-    }
-
-    const fired = state.triggerRegistry.evaluateBatch(allBeliefs, tick);
-
-    for (const { rule, targets } of fired) {
-      for (const targetRef of targets) {
-        let targetAgents: Agent[] = [];
-        if (targetRef.startsWith("$faction:")) {
-          const faction = targetRef.slice("$faction:".length);
-          targetAgents = Array.from(agents.values()).filter(
-            (a) => a.isAlive() && a.faction === faction,
-          );
-        } else {
-          const agent = agents.get(targetRef);
-          if (agent?.isAlive()) targetAgents = [agent];
-        }
-
-        for (const targetAgent of targetAgents) {
-          for (const effect of rule.then) {
-            if (effect.type === "set_fact") {
-              const inv = targetAgent.inventory;
-              const value = evaluate(effect.value, {
-                beliefs: targetAgent.getAllBeliefs(),
-                locals: new Map(),
-                agentState: {
-                  player: { get: () => 0 },
-                  npc: {
-                    get: (p: string) =>
-                      (p in inv ? inv[p as keyof typeof inv] : 0) as Value,
-                  },
-                  settlement: null,
-                },
-                currentTick: tick,
-              });
-              if (value === undefined) {
-                console.warn(`[tick:phase8] Trigger "${rule.id}" set_fact value for key "${effect.key}" evaluated to undefined, skipping`);
-                continue;
-              }
-              targetAgent.setBelief(effect.key, {
-                key: effect.key,
-                value,
-                tick,
-                source: "trigger:" + rule.id,
-              });
-            } else {
-              console.warn(`[tick:phase8] Trigger "${rule.id}" has unhandled effect type "${effect.type}" — only set_fact is supported in trigger execution`);
-            }
-          }
-        }
-      }
-    }
-
-    state.triggerRegistry.clearChangedFacts();
-  }
 
   return talkResults;
 }

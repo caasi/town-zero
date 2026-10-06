@@ -3,7 +3,6 @@ import { DialogueEngine } from "./dialogue-engine.js";
 import { interpolate, type EvalContext, type AgentAccessor } from "./evaluator.js";
 import type { MutableContext } from "./executor.js";
 import type { Agent } from "../simulation/agent.js";
-import type { TriggerRegistry } from "./trigger-registry.js";
 
 export interface DialogueStateMessage {
   treeId: string;
@@ -19,7 +18,6 @@ export class DialogueSession {
   private _npc: Agent;
   private _player: Agent;
   private currentTick: number;
-  private triggerRegistry?: TriggerRegistry;
   private locals: Map<string, Value> = new Map();
   private disposed = false;
 
@@ -32,13 +30,11 @@ export class DialogueSession {
     npc: Agent;
     player: Agent;
     currentTick: number;
-    triggerRegistry?: TriggerRegistry;
   }) {
     this.engine = new DialogueEngine(opts.tree);
     this._npc = opts.npc;
     this._player = opts.player;
     this.currentTick = opts.currentTick;
-    this.triggerRegistry = opts.triggerRegistry;
     this.startTick = opts.currentTick;
     this.lastInteractionTick = opts.currentTick;
 
@@ -213,7 +209,6 @@ export class DialogueSession {
       setFact: (ref: string, key: string, value: Value) => {
         const targetAgent = this.resolveAgentRef(ref);
         targetAgent.setBelief(key, { key, value, tick: this.currentTick, source: this._npc.id });
-        this.triggerRegistry?.recordChangedFact(key);
       },
       setLocal: (key: string, value: Value) => {
         this.locals.set(key, value);
@@ -229,9 +224,6 @@ export class DialogueSession {
       damage: (ref: string, amount: number) => {
         const targetAgent = this.resolveAgentRef(ref);
         targetAgent.takeDamage(amount);
-      },
-      registerTrigger: (rule) => {
-        this.triggerRegistry?.register(rule);
       },
     };
   }

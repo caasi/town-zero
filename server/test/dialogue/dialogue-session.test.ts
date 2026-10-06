@@ -27,7 +27,6 @@ function makePlayer(): Agent {
 const linearTree: DialogueTreeData = {
   id: "greet",
   root: "start",
-  triggers: [],
   nodes: {
     start: { type: "text", speaker: "npc", content: ["Welcome, traveler!"], next: "choices" },
     choices: {
@@ -46,7 +45,6 @@ const linearTree: DialogueTreeData = {
 const interpTree: DialogueTreeData = {
   id: "interp-tree",
   root: "start",
-  triggers: [],
   nodes: {
     start: {
       type: "text",
@@ -62,7 +60,6 @@ const interpTree: DialogueTreeData = {
 const actionTree: DialogueTreeData = {
   id: "action-tree",
   root: "start",
-  triggers: [],
   nodes: {
     start: { type: "text", speaker: "npc", content: ["Let me give you something."], next: "give" },
     give: {
@@ -81,7 +78,6 @@ const actionTree: DialogueTreeData = {
 const requestTree: DialogueTreeData = {
   id: "request-tree",
   root: "start",
-  triggers: [],
   nodes: {
     start: { type: "text", speaker: "npc", content: ["I need a favor."], next: "req" },
     req: { type: "request", label: ["Scout the north?"], gateType: "llm", nextYes: "yes", nextNo: "no" },
@@ -289,7 +285,6 @@ describe("DialogueSession", () => {
     const tree: DialogueTreeData = {
       id: "local-tree",
       root: "start",
-      triggers: [],
       nodes: {
         start: {
           type: "text",
@@ -320,7 +315,6 @@ describe("DialogueSession", () => {
     const tree: DialogueTreeData = {
       id: "accessor-tree",
       root: "start",
-      triggers: [],
       nodes: {
         start: {
           type: "text",

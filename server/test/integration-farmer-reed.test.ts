@@ -23,8 +23,7 @@ function makeState(): SimulationState {
     dialogueTrees: new Map(),
   };
 
-  const { triggerRegistry, dialogueTrees } = loadScenario(farmerReedScenario, state);
-  state.triggerRegistry = triggerRegistry;
+  const { dialogueTrees } = loadScenario(farmerReedScenario, state);
   state.dialogueTrees = dialogueTrees;
 
   return state;

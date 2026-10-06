@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   scenario, belief, setFact, give, take, when, fact, local, player, t,
 } from "@town-zero/shared/script-dsl";
-import type { Fact, DialogueProgressEntry, TriggerRule } from "@town-zero/shared";
+import type { Fact, DialogueProgressEntry } from "@town-zero/shared";
 
 describe("JSON serialization round-trip", () => {
   it("ScenarioData survives JSON round-trip", () => {
@@ -23,18 +23,8 @@ describe("JSON serialization round-trip", () => {
           take("$player", "material", local("cost")),
           setFact("$npc", "done", true),
         ], { next: "end_node" });
-        d.trigger(
-          when(fact("done").eq(true)),
-          [setFact("$npc", "reward_given", true)],
-          { targets: ["a", "$player"] },
-        );
         d.end("end_node");
       });
-      s.trigger(
-        when(fact("global_flag").eq(true)),
-        [give("a", "food", 10)],
-        { targets: ["a"] },
-      );
     });
 
     const json = JSON.stringify(data);
@@ -54,18 +44,5 @@ describe("JSON serialization round-trip", () => {
       locals: { cost: 5, name: "Marcus" },
     };
     expect(JSON.parse(JSON.stringify(entry))).toEqual(entry);
-  });
-
-  it("TriggerRule with runtime source survives round-trip", () => {
-    const rule: TriggerRule = {
-      id: "rt:42:0",
-      when: { type: "compare", op: "eq", left: { type: "fact_ref", key: "x" }, right: { type: "literal", value: true } },
-      then: [{ type: "set_fact", target: "$npc", key: "y", value: { type: "literal", value: true } }],
-      targets: ["a", "$player"],
-      once: true,
-      source: "runtime",
-      fired: false,
-    };
-    expect(JSON.parse(JSON.stringify(rule))).toEqual(rule);
   });
 });

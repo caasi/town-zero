@@ -7,7 +7,6 @@ import type { MutableContext } from "../../src/dialogue/executor.js";
 const testTree: DialogueTreeData = {
   id: "test-tree",
   root: "start",
-  triggers: [],
   nodes: {
     start: { type: "text", speaker: "npc", content: ["Hello traveler!"], next: "choices" },
     choices: {
@@ -93,7 +92,6 @@ describe("DialogueEngine", () => {
     const brokenTree: DialogueTreeData = {
       id: "broken",
       root: "start",
-      triggers: [],
       nodes: {
         start: { type: "text", speaker: "npc", content: ["Hello"], next: "nonexistent" },
       },
@@ -107,7 +105,6 @@ describe("DialogueEngine", () => {
     const tree: DialogueTreeData = {
       id: "interp",
       root: "greet",
-      triggers: [],
       nodes: {
         greet: {
           type: "text",
@@ -127,7 +124,6 @@ describe("DialogueEngine", () => {
     const tree: DialogueTreeData = {
       id: "cond",
       root: "ch",
-      triggers: [],
       nodes: {
         ch: {
           type: "choice",
@@ -160,7 +156,6 @@ describe("DialogueEngine", () => {
     const tree: DialogueTreeData = {
       id: "effects",
       root: "act",
-      triggers: [],
       nodes: {
         act: {
           type: "action",
@@ -189,7 +184,6 @@ describe("DialogueEngine", () => {
       giveItem() {},
       takeItem() { return true; },
       damage() {},
-      registerTrigger() {},
     };
 
     engine.advanceWithEffects(ctx);

@@ -75,7 +75,6 @@ describe("dispatchInteract — priority order", () => {
         start: { type: "text", speaker: "npc", content: ["Hello!"], next: "end" },
         end: { type: "end" },
       },
-      triggers: [],
       entryPoints: [
         {
           condition: { type: "compare", op: "eq", left: { type: "literal", value: 1 }, right: { type: "literal", value: 1 } },

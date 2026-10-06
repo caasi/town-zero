@@ -1,7 +1,7 @@
 import type {
   Value, Expr, Effect, AgentRef, TextTemplate,
   ScenarioData, NpcDefinition, DialogueTreeData, DialogueNodeData,
-  ChoiceOptionData, TriggerRule,
+  ChoiceOptionData,
 } from "../script-types.js";
 import type { NpcHandlerEntry } from "../script-types.js";
 import type { ResourceType } from "../types.js";
@@ -74,21 +74,17 @@ interface DialogueBuilderApi {
   action(id: string, effects: Effect[], opts: { next: string }): void;
   request(id: string, label: TextTemplate, opts: { nextYes: string; nextNo: string }): void;
   end(id: string): void;
-  trigger(whenExpr: Expr, thenEffects: Effect[], opts: { targets: AgentRef[]; once?: boolean }): void;
   option(label: string | TextTemplate): OptionBuilder;
   entry(nodeId: string, condition: ExprBuilder): void;
 }
 
 function createDialogueBuilder(
   dialogueId: string,
-  scenarioId: string,
 ): { api: DialogueBuilderApi; build: () => DialogueTreeData } {
   const nodes: Record<string, DialogueNodeData> = {};
-  const triggers: TriggerRule[] = [];
   const entryPoints: Array<{ nodeId: string; condition: Expr }> = [];
   const nodeOrder: string[] = [];
   const optionBuilders = new Map<OptionBuilder, () => ChoiceOptionData>();
-  let triggerIndex = 0;
 
   const pendingAutoChain: string[] = [];
 
@@ -139,18 +135,6 @@ function createDialogueBuilder(
       registerNode(id, { type: "end" });
     },
 
-    trigger(whenExpr, thenEffects, opts) {
-      triggers.push({
-        id: `scenario:${scenarioId}:dialogue:${dialogueId}:${triggerIndex++}`,
-        when: whenExpr,
-        then: thenEffects,
-        targets: opts.targets,
-        once: opts.once ?? true,
-        source: "scenario",
-        fired: false,
-      });
-    },
-
     option(label) {
       const tpl: TextTemplate = typeof label === "string" ? [label] : label;
       const { builder, getData } = createOptionBuilder(tpl);
@@ -174,7 +158,7 @@ function createDialogueBuilder(
       }
     }
     const root = nodeOrder[0];
-    const tree: DialogueTreeData = { id: dialogueId, root, nodes, triggers };
+    const tree: DialogueTreeData = { id: dialogueId, root, nodes };
     if (entryPoints.length > 0) {
       tree.entryPoints = entryPoints;
     }
@@ -211,16 +195,13 @@ interface ScenarioBuilderApi {
     initialBeliefs: Array<{ key: string; value: Value }>;
   }): NpcBuilder;
   dialogue(npcId: string, dialogueId: string, fn: (d: DialogueBuilderApi) => void): void;
-  trigger(whenExpr: Expr, thenEffects: Effect[], opts: { targets: AgentRef[]; once?: boolean }): void;
 }
 
 export function scenario(id: string, fn: (s: ScenarioBuilderApi) => void): ScenarioData {
   const npcs: NpcDefinition[] = [];
   const dialogues: DialogueTreeData[] = [];
-  const triggers: TriggerRule[] = [];
   const npcDialogueMap = new Map<string, string[]>();
   const dialogueIds = new Set<string>();
-  let triggerIndex = 0;
 
   const api: ScenarioBuilderApi = {
     npc(npcId, opts) {
@@ -257,25 +238,13 @@ export function scenario(id: string, fn: (s: ScenarioBuilderApi) => void): Scena
         throw new Error(`Duplicate dialogueId "${dialogueId}" in scenario "${id}"`);
       }
       dialogueIds.add(dialogueId);
-      const { api: dApi, build } = createDialogueBuilder(dialogueId, id);
+      const { api: dApi, build } = createDialogueBuilder(dialogueId);
       builderFn(dApi);
       dialogues.push(build());
       ids.push(dialogueId);
     },
-
-    trigger(whenExpr, thenEffects, opts) {
-      triggers.push({
-        id: `scenario:${id}:${triggerIndex++}`,
-        when: whenExpr,
-        then: thenEffects,
-        targets: opts.targets,
-        once: opts.once ?? true,
-        source: "scenario",
-        fired: false,
-      });
-    },
   };
 
   fn(api);
-  return { id, npcs, dialogues, triggers };
+  return { id, npcs, dialogues };
 }

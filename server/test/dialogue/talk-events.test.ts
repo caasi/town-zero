@@ -7,7 +7,7 @@ import type { EventHandler, TalkStartPayload, TalkEndPayload } from "@town-zero/
 import type { DialogueTreeData } from "@town-zero/shared";
 
 function trivialTree(npcId: string): DialogueTreeData {
-  return { id: npcId, root: "n1", nodes: { n1: { type: "text", speaker: "npc", content: ["hi"], next: "n2" }, n2: { type: "end" } }, triggers: [] };
+  return { id: npcId, root: "n1", nodes: { n1: { type: "text", speaker: "npc", content: ["hi"], next: "n2" }, n2: { type: "end" } } };
 }
 
 function buildState(npcId: string): SimulationState {
