@@ -39,3 +39,9 @@ Our `InputFrame` design draws from all three: Valve's single-struct-per-tick, Ov
 ## Visual Design
 
 - [Understanding Eigengrau](https://www.oreateai.com/blog/understanding-eigengrau-the-color-of-darkness/9cf9395526f2c25bca22e56ce40e3c76) — Eigengrau (`#16161D`) is the color humans perceive in total darkness due to spontaneous retinal activity. We use it for unseen tiles to distinguish from true black (`#000`) for void outside the map boundary. This specific distinction doesn't appear in game dev literature.
+
+## AI NPC Decisions
+
+- [TypeSafe AI documentation](https://docs.typesafe.ai/llms.txt) — Jev is a "System One" model: it answers typed questions (`choice`, `score`, `noul`) about a given state and returns probabilities, not text. We use one `choice` question per NPC decision (spec 003).
+- [Jev 1.13 known limitations](https://docs.typesafe.ai/model-jaggedness/jev-1.13.md) — weak at spatial, numeric and multi-step reasoning; leans toward the first `choice` option; accuracy drops with unrelated state. These limits set our rules: words instead of coordinates, a short state, and `rest` as the first option.
+- [Jev engineering guide](https://www.aibuilderclub.com/blog/jev-engineering-guide) — "LLM writes, Jev decides, code acts". In town-zero the code also writes the options, so an NPC can only do what the game offers.

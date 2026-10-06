@@ -22,10 +22,6 @@ describe("isValidInputFrame", () => {
     expect(isValidInputFrame({ seq: 1, action: { type: "take", settlementId: "v1", resource: "food", amount: 3 } })).toBe(true);
   });
 
-  it("accepts action-only frame (trade)", () => {
-    expect(isValidInputFrame({ seq: 1, action: { type: "trade", targetId: "a2", offer: "food", offerAmount: 2, want: "material", wantAmount: 1 } })).toBe(true);
-  });
-
   it("accepts action-only frame (talk)", () => {
     expect(isValidInputFrame({ seq: 1, action: { type: "talk", targetId: "a1" } })).toBe(true);
   });

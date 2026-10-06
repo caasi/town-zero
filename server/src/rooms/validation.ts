@@ -28,9 +28,6 @@ function isValidAction(action: unknown): boolean {
     case "take": return typeof a.settlementId === "string" && a.settlementId.length > 0
       && isValidResource(a.resource) && isPositiveInteger(a.amount);
     case "talk": return typeof a.targetId === "string" && a.targetId.length > 0;
-    case "trade": return typeof a.targetId === "string" && a.targetId.length > 0
-      && isValidResource(a.offer) && isPositiveInteger(a.offerAmount)
-      && isValidResource(a.want) && isPositiveInteger(a.wantAmount);
     case "interact": return true;
     case "idle": return true;
     default: return false;

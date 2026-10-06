@@ -99,19 +99,6 @@ function executeAction(action: NonNullable<InputFrame["action"]>, ctx: FrameCont
       }
       break;
     }
-    case "trade": {
-      if (!isValidAmount(action.offerAmount) || !isValidAmount(action.wantAmount)) return;
-      const target = agents.get(action.targetId);
-      if (!target || !target.isAlive()) return;
-      if (!grid.isAdjacent(agent.position, target.position)) return;
-      if (!agent.hasResource(action.offer, action.offerAmount)) return;
-      if (!target.hasResource(action.want, action.wantAmount)) return;
-      agent.removeFromInventory(action.offer, action.offerAmount);
-      target.removeFromInventory(action.want, action.wantAmount);
-      target.addToInventory(action.offer, action.offerAmount);
-      agent.addToInventory(action.want, action.wantAmount);
-      break;
-    }
     case "talk": {
       performTalkOnFacingTarget(action.targetId, ctx);
       break;

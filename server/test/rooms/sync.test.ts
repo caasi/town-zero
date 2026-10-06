@@ -14,7 +14,7 @@ function makeSimState(overrides?: Partial<SimulationState>): SimulationState {
     agents: new Map(),
     settlements: new Map(),
     tick: 0,
-    nextMerchantId: 0, activeSessions: new Map(), dialogueTrees: new Map(),
+   activeSessions: new Map(), dialogueTrees: new Map(),
     ...overrides,
   };
 }
@@ -70,7 +70,7 @@ describe("syncToSchema", () => {
     expect(state.tick).toBe(1);
   });
 
-  it("removes agent schema when agent is removed from sim (merchant despawn)", () => {
+  it("removes agent schema when agent is removed from sim (player left)", () => {
     const agent = makeAgent("m1");
     const sim = makeSimState({ agents: new Map([["m1", agent]]) });
     const state = new WorldStateSchema();
@@ -101,9 +101,8 @@ describe("syncToSchema", () => {
       type: "village",
       territory: [{ x: 10, y: 20 }, { x: 11, y: 20 }],
     });
-    village.addStructure({ id: "c1", type: "core", position: { x: 10, y: 20 }, operatorId: null });
-    village.addStructure({ id: "h1", type: "housing", position: { x: 10, y: 20 }, operatorId: null });
-    village.addStructure({ id: "p1", type: "production", position: { x: 11, y: 20 }, operatorId: "a1" });
+    village.addStructure({ id: "c1", type: "core", position: { x: 10, y: 20 } });
+    village.addStructure({ id: "h1", type: "housing", position: { x: 10, y: 20 } });
     village.populationIds.push("a1", "a2", "a3");
     village.addResource("food", 30);
 
@@ -121,10 +120,9 @@ describe("syncToSchema", () => {
     expect(schema!.population).toBe(3);
     expect(schema!.maxPopulation).toBe(4); // 1 housing × HOUSING_POPULATION_CAP(4)
     expect(schema!.inventory.get("food")).toBe(30);
-    expect(schema!.structures.length).toBe(3); // core + housing + production
+    expect(schema!.structures.length).toBe(2); // core + housing
     expect(schema!.structures.at(0)!.id).toBe("c1");
     expect(schema!.structures.at(1)!.id).toBe("h1");
-    expect(schema!.structures.at(2)!.operatorId).toBe("a1");
   });
 
   it("syncs settlement x,y from core structure position", () => {
@@ -134,8 +132,8 @@ describe("syncToSchema", () => {
       type: "village",
       territory: [{ x: 8, y: 18 }, { x: 9, y: 19 }, { x: 10, y: 20 }],
     });
-    village.addStructure({ id: "vc1", type: "core", position: { x: 10, y: 20 }, operatorId: null });
-    village.addStructure({ id: "vh1", type: "housing", position: { x: 9, y: 19 }, operatorId: null });
+    village.addStructure({ id: "vc1", type: "core", position: { x: 10, y: 20 } });
+    village.addStructure({ id: "vh1", type: "housing", position: { x: 9, y: 19 } });
 
     const sim = makeSimState({ settlements: new Map([["v1", village]]) });
     const state = new WorldStateSchema();
@@ -239,7 +237,7 @@ describe("syncTiles", () => {
     expect(state.tiles.get("0,0")!.objectType).toBe("");
   });
 
-  it("syncs structureId and operatorId from settlements", () => {
+  it("syncs structureId from settlements", () => {
     const grid = new Grid(5, 5);
     grid.setZoneType(2, 2, ZoneType.CORE);
     grid.setZoneType(3, 2, ZoneType.HOUSING);
@@ -252,18 +250,15 @@ describe("syncTiles", () => {
       type: "village",
       territory: [{ x: 2, y: 2 }, { x: 3, y: 2 }],
     });
-    village.addStructure({ id: "v1-core-2-2", type: "core", position: { x: 2, y: 2 }, operatorId: null });
-    village.addStructure({ id: "v1-housing-3-2", type: "housing", position: { x: 3, y: 2 }, operatorId: "npc1" });
+    village.addStructure({ id: "v1-core-2-2", type: "core", position: { x: 2, y: 2 } });
+    village.addStructure({ id: "v1-housing-3-2", type: "housing", position: { x: 3, y: 2 } });
 
     const settlements = new Map([["v1", village]]);
     const state = new WorldStateSchema();
     syncTiles(grid, state, settlements);
 
     expect(state.tiles.get("2,2")!.structureId).toBe("v1-core-2-2");
-    expect(state.tiles.get("2,2")!.operatorId).toBe("");  // null → ""
     expect(state.tiles.get("3,2")!.structureId).toBe("v1-housing-3-2");
-    expect(state.tiles.get("3,2")!.operatorId).toBe("npc1");
     expect(state.tiles.get("0,0")!.structureId).toBe("");
-    expect(state.tiles.get("0,0")!.operatorId).toBe("");
   });
 });

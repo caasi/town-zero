@@ -270,11 +270,6 @@ export class Renderer {
         marker = "H";
         opacity = 0.5;
         break;
-      case ZoneType.PRODUCTION:
-        fillColor = "#5a9e4b";
-        marker = "P";
-        opacity = 0.5;
-        break;
       default:
         return;
     }
@@ -316,13 +311,7 @@ export class Renderer {
 
     ctx.globalAlpha = isDead ? 0.5 : 1;
 
-    if (agent.role === "merchant") {
-      // Circle - merchant
-      ctx.fillStyle = "#da3";
-      ctx.beginPath();
-      ctx.arc(cx, cy, TILE_SIZE / 4, 0, Math.PI * 2);
-      ctx.fill();
-    } else if (isPlayer) {
+    if (isPlayer) {
       // Diamond - player (only on visible tiles)
       ctx.fillStyle = "#4af";
       ctx.beginPath();
@@ -402,22 +391,15 @@ export class Renderer {
     const cy = py + TILE_SIZE / 2;
     ctx.globalAlpha = 0.4;
 
-    if (entity.type === "merchant") {
-      ctx.fillStyle = "#da3";
-      ctx.beginPath();
-      ctx.arc(cx, cy, TILE_SIZE / 4, 0, Math.PI * 2);
-      ctx.fill();
-    } else {
-      // All agents render as triangles in fog (no diamond distinction)
-      const isEnemy = playerFaction !== "" && entity.faction !== playerFaction;
-      ctx.fillStyle = isEnemy ? "#c44" : "#6c6";
-      ctx.beginPath();
-      ctx.moveTo(cx, py + 4);
-      ctx.lineTo(px + TILE_SIZE - 4, py + TILE_SIZE - 4);
-      ctx.lineTo(px + 4, py + TILE_SIZE - 4);
-      ctx.closePath();
-      ctx.fill();
-    }
+    // All agents render as triangles in fog (no diamond distinction)
+    const isEnemy = playerFaction !== "" && entity.faction !== playerFaction;
+    ctx.fillStyle = isEnemy ? "#c44" : "#6c6";
+    ctx.beginPath();
+    ctx.moveTo(cx, py + 4);
+    ctx.lineTo(px + TILE_SIZE - 4, py + TILE_SIZE - 4);
+    ctx.lineTo(px + 4, py + TILE_SIZE - 4);
+    ctx.closePath();
+    ctx.fill();
 
     ctx.globalAlpha = 1;
   }

@@ -37,17 +37,11 @@ export interface Position {
 
 export type Facing = "north" | "south" | "east" | "west";
 
-export interface PendingInput {
-  seq: number;
-  direction: Facing;
-}
-
 export type FrameAction =
   | { type: "gather"; resourceTile: Position }
   | { type: "attack"; targetId: string }
   | { type: "deposit"; settlementId: string }
   | { type: "take"; settlementId: string; resource: ResourceType; amount: number }
-  | { type: "trade"; targetId: string; offer: ResourceType; offerAmount: number; want: ResourceType; wantAmount: number }
   | { type: "talk"; targetId: string }
   | { type: "interact" }
   | { type: "idle" };
@@ -81,7 +75,7 @@ export type FSMState = "idle" | "dead";
 // --- Settlement ---
 
 export type SettlementType = "village" | "den";
-export type StructureType = "housing" | "production" | "core";
+export type StructureType = "housing" | "core";
 
 // --- Agent ---
 
@@ -91,7 +85,7 @@ export type ControllerType = "player" | "llm" | "bot";
 
 export interface EntitySnapshot {
   id: string;
-  type: string;       // "agent" | "merchant" | "monster"
+  type: string;       // "agent" | "monster"
   faction: string;
   position: Position;
 }
@@ -107,7 +101,7 @@ export interface TileMemory {
 export interface DialogueStatePayload {
   npcId: string;
   npcName: string;
-  nodeType: "text" | "choice" | "request_pending";
+  nodeType: "text" | "choice";
   speaker?: string;
   content?: string;
   options?: Array<{ id: string; label: string; enabled: boolean }>;

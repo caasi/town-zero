@@ -2,7 +2,7 @@ import "../../src/polyfill.js";
 import "../../src/encoder-config.js";
 
 import { describe, it, expect, beforeEach } from "vitest";
-import { DIALOGUE_TIMEOUT_TICKS } from "@town-zero/shared";
+import { DIALOGUE_TIMEOUT_TICKS, REVIVE_DELAY_TICKS, TICK_RATE_MS } from "@town-zero/shared";
 import { GameRoom } from "../../src/rooms/GameRoom.js";
 import type { WorldStateSchema } from "../../src/rooms/schemas/WorldStateSchema.js";
 
@@ -28,6 +28,7 @@ function createTestRoom(): { room: GameRoom; state: WorldStateSchema } {
   // Initialize class fields that Object.create skips
   room.sessionToAgent = new Map<string, string>();
   room.nextPlayerId = 0;
+  room.reviveAt = new Map<string, number>();
 
   // Minimal Room internals that GameRoom needs
   room.clients = {
@@ -140,26 +141,55 @@ describe("GameRoom integration", () => {
     expect(playerAgent.x).toBe(origX + 1);
   });
 
-  it("player leaves and agent becomes bot-controlled", () => {
+  it("player leaves and agent is removed from world and village", () => {
     const client = mockClient("session-1");
     joinClient(room, client, { name: "Leaver" });
     tick(room);
 
-    let playerId: string | undefined;
-    state.agents.forEach((agent: any) => {
-      if (agent.controller === "player") playerId = agent.id;
-    });
-    expect(playerId).toBeDefined();
+    const joined = client.messages.find((m: any) => m.type === "joined");
+    const playerId = joined.data.agentId;
+    const village = Array.from(room.simState.settlements.values()).find((s: any) => s.type === "village") as any;
+    expect(village.populationIds).toContain(playerId);
 
     leaveClient(room, client);
     tick(room);
 
-    let leftAgent: any;
-    state.agents.forEach((agent: any) => {
-      if (agent.id === playerId) leftAgent = agent;
-    });
-    expect(leftAgent).toBeDefined();
-    expect(leftAgent.controller).toBe("bot");
+    expect(room.simState.agents.has(playerId)).toBe(false);
+    expect(state.agents.has(playerId)).toBe(false);
+    expect(village.populationIds).not.toContain(playerId);
+  });
+
+  it("repeated join/leave cycles never hit the population cap", () => {
+    for (let i = 0; i < 20; i++) {
+      const client = mockClient(`session-${i}`);
+      joinClient(room, client, { name: `P${i}` });
+      expect(client.messages.some((m: any) => m.type === "joined")).toBe(true);
+      leaveClient(room, client);
+    }
+  });
+
+  it("dead agents do not count toward the population cap", () => {
+    const village = Array.from(room.simState.settlements.values()).find((s: any) => s.type === "village") as any;
+    for (const id of village.populationIds) room.simState.agents.get(id)?.takeDamage(10_000);
+    tick(room);
+
+    expect(village.populationIds).toEqual([]);
+  });
+
+  it("freezes llm beasts while no player is in the world", () => {
+    const beast = room.simState.agents.get("mnpc-0")!;
+    beast.removeFromInventory("food", beast.inventory.food);
+    for (let i = 0; i < 3; i++) tick(room);
+    expect(beast.inventory.food).toBe(0);
+    expect(beast.planBacklog).toEqual([]);
+  });
+
+  it("drives llm beasts each tick (fallback rules without a Jev key)", () => {
+    joinClient(room, mockClient("session-1"), { name: "Watcher" });
+    const beast = room.simState.agents.get("mnpc-0")!;
+    beast.removeFromInventory("food", beast.inventory.food);
+    for (let i = 0; i < 3; i++) tick(room);
+    expect(beast.inventory.food).toBeGreaterThan(0); // took food from the den
   });
 
   it("multiple players join and appear in state", () => {
@@ -270,6 +300,72 @@ describe("GameRoom integration", () => {
     expect(deathMsgs[0].data.agentId).toBe(agentId);
   });
 
+  describe("revive", () => {
+    function joinAndKill() {
+      const client = mockClient("session-1");
+      joinClient(room, client, { name: "Doomed" });
+      tick(room);
+      const agentId = client.messages.find((m: any) => m.type === "joined").data.agentId;
+      const agent = room.simState.agents.get(agentId);
+      agent.addToInventory("material", 2);
+      agent.position = { x: 25, y: 20 }; // away from the village
+      agent.takeDamage(200);
+      tick(room);
+      return { client, agentId, agent };
+    }
+
+    it("death message says when revive is allowed, and is sent once", () => {
+      const { client } = joinAndKill();
+      tick(room);
+      const deaths = client.messages.filter((m: any) => m.type === "death");
+      expect(deaths).toHaveLength(1);
+      expect(deaths[0].data.reviveInMs).toBe(REVIVE_DELAY_TICKS * TICK_RATE_MS);
+    });
+
+    it("rejects revive before the delay", () => {
+      const { client, agent } = joinAndKill();
+      sendMessage(room, client, "revive");
+      expect(agent.isAlive()).toBe(false);
+    });
+
+    it("revives the same agent in the village with full HP, keeping its inventory", () => {
+      const { client, agentId, agent } = joinAndKill();
+      for (let i = 0; i < REVIVE_DELAY_TICKS; i++) tick(room);
+      sendMessage(room, client, "revive");
+
+      expect(room.simState.agents.get(agentId)).toBe(agent);
+      expect(agent.isAlive()).toBe(true);
+      expect(agent.hp).toBe(agent.maxHp);
+      expect(agent.inventory.material).toBe(2);
+      const village = Array.from(room.simState.settlements.values()).find((s: any) => s.type === "village") as any;
+      expect(village.isInTerritory(agent.position)).toBe(true);
+      expect(village.populationIds).toContain(agentId);
+      expect(client.messages.some((m: any) => m.type === "revived")).toBe(true);
+
+      // Input works again.
+      sendInput(room, client, { seq: 1, direction: "north" });
+      tick(room);
+      expect(agent.facing).toBe("north");
+    });
+  });
+
+  it("a dead player keeps its village slot, so revive works when the village fills up", () => {
+    const c0 = mockClient("s0");
+    joinClient(room, c0, { name: "Dead" });
+    tick(room);
+    const id = c0.messages.find((m: any) => m.type === "joined").data.agentId;
+    room.simState.agents.get(id).takeDamage(500);
+    tick(room);
+    for (let i = 0; i < 10; i++) joinClient(room, mockClient("x" + i), { name: "F" + i });
+    for (let i = 0; i < REVIVE_DELAY_TICKS; i++) tick(room);
+
+    sendMessage(room, c0, "revive");
+    expect(room.simState.agents.get(id).isAlive()).toBe(true);
+    const village = Array.from(room.simState.settlements.values()).find((s: any) => s.type === "village") as any;
+    expect(village.populationIds.filter((p: string) => p === id)).toHaveLength(1);
+    expect(village.populationIds.length).toBeLessThanOrEqual(village.getPopulationCap());
+  });
+
   it("ignores commands from dead agents", () => {
     const client = mockClient("session-1");
     joinClient(room, client, { name: "DeadPlayer" });
@@ -363,6 +459,24 @@ describe("GameRoom integration", () => {
       // Player should have dialogue lock
       const simAgent = room.simState.agents.get(agentId!);
       expect(simAgent.talkingToNpcId).toBe("farmer-reed");
+    });
+
+    it("a player who dies in dialogue is released and can act after revive", () => {
+      const { client, agentId } = setupDialogue(room);
+      sendInput(room, client, { seq: 1, action: { type: "talk", targetId: "farmer-reed" } });
+      tick(room);
+      const agent = room.simState.agents.get(agentId!);
+      agent.takeDamage(500);
+      tick(room);
+      expect(agent.talkingToNpcId).toBeNull();
+      expect(room.simState.agents.get("farmer-reed").currentTalkingTo).toBeNull();
+
+      for (let i = 0; i < REVIVE_DELAY_TICKS; i++) tick(room);
+      sendMessage(room, client, "revive");
+      const turnTo = agent.facing === "north" ? "south" : "north";
+      sendInput(room, client, { seq: 2, direction: turnTo });
+      tick(room);
+      expect(agent.facing).toBe(turnTo);
     });
 
     it("dialogue:advance sends updated state", () => {

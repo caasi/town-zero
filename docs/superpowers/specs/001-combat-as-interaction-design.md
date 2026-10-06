@@ -4,6 +4,11 @@ Status: Draft
 Date: 2026-04-18
 Depends on: `2026-04-05-unified-input-frame-design.md`, `2026-04-04-facing-npc-dialogue-design.md`
 
+> **Status (spec 003, `feat/jev-beasts`): parts of this spec no longer describe the code.** The original text below is kept as a record. Where it disagrees with the code, the code and the later specs win:
+>
+> - Interact rule 1 (merchant → client-side trade modal) → removed with merchants and trade. The interact priority now has 5 rules: dialogue entry → talk, hostile → attack, same faction → noop, resource tile → gather, else noop.
+> - "LLM plans" now means AI NPC goals from `JevController` (spec 003). Attack stays facing-only for them.
+
 ## Summary
 
 Fold attack into the existing facing-tile interaction pipeline. A single `interact` verb replaces the specialised client-side KeyQ attack path. The server owns dispatch: given the player's facing tile and its contents, it resolves to `attack`, `talk`, `gather`, or `trade` via existing sub-handlers. Attack becomes facing-only, eliminating the known debt that KeyQ operates on any adjacent enemy.

@@ -56,11 +56,10 @@ describe("generateMap", () => {
     expect(roadCount).toBeGreaterThan(0);
   });
 
-  it("village has housing and production structures", () => {
+  it("village has housing structures", () => {
     const state = generateMap();
     const village = Array.from(state.settlements.values()).find((s) => s.type === "village")!;
     expect(village.structures.some((s) => s.type === "housing")).toBe(true);
-    expect(village.structures.some((s) => s.type === "production")).toBe(true);
   });
 
   it("gives village starting resources", () => {

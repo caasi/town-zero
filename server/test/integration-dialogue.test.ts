@@ -28,12 +28,6 @@ describe("Bridge crisis integration", () => {
         d.text("farewell", t`Safe travels.`);
         d.end("done");
       });
-
-      s.trigger(
-        when(fact("bridge_status").eq("destroyed")),
-        [setFact("elder", "bridge_crisis", true)],
-        { targets: ["elder", "scout"] },
-      );
     });
 
     const state: SimulationState = {
@@ -41,7 +35,7 @@ describe("Bridge crisis integration", () => {
       agents: new Map(),
       settlements: new Map(),
       tick: 0,
-      nextMerchantId: 0, activeSessions: new Map(), dialogueTrees: new Map(),
+     activeSessions: new Map(), dialogueTrees: new Map(),
     };
 
     const result = loadScenario(data, state);
@@ -67,10 +61,5 @@ describe("Bridge crisis integration", () => {
 
     expect(scout.getBelief("bridge_status")?.value).toBe("intact");
     expect(elder.getBelief("patrol_route")?.value).toBe("north");
-  });
-
-  it("trigger registry detects changed facts", () => {
-    const { triggerRegistry } = setup();
-    expect(triggerRegistry.getAll()).toHaveLength(1);
   });
 });

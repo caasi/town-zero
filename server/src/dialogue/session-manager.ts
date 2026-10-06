@@ -12,7 +12,6 @@ export type DialogueResult =
 
 function nodeTypeFromMsg(type: string): DialogueStatePayload["nodeType"] {
   if (type === "choice") return "choice";
-  if (type === "request_pending") return "request_pending";
   return "text";
 }
 
@@ -100,7 +99,6 @@ export function startDialogue(
     npc: target,
     player,
     currentTick: state.tick,
-    triggerRegistry: state.triggerRegistry,
   });
 
   // Lock both agents and stop any queued actions

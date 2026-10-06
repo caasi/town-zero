@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { executeEffects, type MutableContext } from "../../src/dialogue/executor.js";
-import type { Effect, Fact, Value, TriggerRule, ResourceType } from "@town-zero/shared";
+import type { Effect, Fact, Value, ResourceType } from "@town-zero/shared";
 
 function makeMutableCtx(): {
   ctx: MutableContext;
@@ -8,7 +8,6 @@ function makeMutableCtx(): {
   localStore: Map<string, Value>;
   items: Map<string, Map<string, number>>;
   damages: Array<{ ref: string; amount: number }>;
-  triggers: TriggerRule[];
 } {
   const facts = new Map<string, Map<string, Fact>>();
   const localStore = new Map<string, Value>();
@@ -17,7 +16,6 @@ function makeMutableCtx(): {
     ["$npc", new Map([["food", 3], ["material", 0], ["currency", 0]])],
   ]);
   const damages: Array<{ ref: string; amount: number }> = [];
-  const triggers: TriggerRule[] = [];
 
   const ctx: MutableContext = {
     beliefs: new Map(),
@@ -51,12 +49,9 @@ function makeMutableCtx(): {
     damage(ref, amount) {
       damages.push({ ref, amount });
     },
-    registerTrigger(rule) {
-      triggers.push(rule);
-    },
   };
 
-  return { ctx, facts, localStore, items, damages, triggers };
+  return { ctx, facts, localStore, items, damages };
 }
 
 describe("executeEffects()", () => {
@@ -113,24 +108,6 @@ describe("executeEffects()", () => {
     ];
     executeEffects(effects, ctx);
     expect(damages).toEqual([{ ref: "$player", amount: 10 }]);
-  });
-
-  it("executes register_trigger", () => {
-    const { ctx, triggers } = makeMutableCtx();
-    const rule: TriggerRule = {
-      id: "rt:10:0",
-      when: { type: "fact_ref", key: "x" },
-      then: [],
-      targets: ["$npc"],
-      once: true,
-      source: "runtime",
-      fired: false,
-    };
-    const effects: Effect[] = [
-      { type: "register_trigger", trigger: rule },
-    ];
-    executeEffects(effects, ctx);
-    expect(triggers).toHaveLength(1);
   });
 
   it("throws on unknown effect type", () => {

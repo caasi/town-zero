@@ -17,32 +17,20 @@ export const DEFAULT_INVENTORY_CAPACITY = 20;
 
 // --- Settlement ---
 export const HOUSING_POPULATION_CAP = 4;      // population per housing structure
-export const PRODUCTION_INPUT_COST = 2;       // raw materials consumed per production cycle
-export const PRODUCTION_OUTPUT = 3;           // food/material produced per cycle
-export const PRODUCTION_CYCLE_TICKS = 80;     // ticks per production cycle (~10s)
 
 // --- Zone ---
 export enum ZoneType {
   EMPTY = "",
   CORE = "core",
   HOUSING = "housing",
-  PRODUCTION = "production",
 }
 
 // --- Combat ---
 export const BASE_ATTACK_DAMAGE = 20;
-
-// --- Merchant ---
-export const MERCHANT_SPAWN_INTERVAL = 960;   // ticks between merchant spawns (~120s)
-export const MERCHANT_TRADE_RATE = 2;         // food/material per currency
+export const REVIVE_DELAY_TICKS = 40;          // ticks before a dead player may revive (~5s)
 
 // --- Dialogue ---
 export const DIALOGUE_TIMEOUT_TICKS = 240;    // ticks before dialogue timeout (~30s)
-
-// --- LLM ---
-export const LLM_CALL_INTERVAL_MS = 20_000; // 20 seconds default
-export const LLM_MIN_INTERVAL_MS = 10_000;  // 10 seconds for important NPCs
-export const LLM_MAX_INTERVAL_MS = 30_000;  // 30 seconds for common NPCs
 
 // --- Movement reconciliation ---
 export const INPUT_QUEUE_CAP = 3;       // server-side per-agent input buffer depth

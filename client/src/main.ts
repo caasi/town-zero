@@ -1,5 +1,5 @@
 // client/src/main.ts
-import { MERCHANT_TRADE_RATE, DEFAULT_VISION_RADIUS, TICK_RATE_MS } from "@town-zero/shared";
+import { DEFAULT_VISION_RADIUS, TICK_RATE_MS } from "@town-zero/shared";
 import { NetworkClient } from "./network.js";
 import { FogManager } from "./fog.js";
 import { Camera } from "./camera.js";
@@ -8,15 +8,15 @@ import { InputHandler, getKeyLabels, formatKeyHints, formatDialogueKeyHints } fr
 import { DisplayState } from "./display.js";
 import { DialogueUI } from "./dialogue-ui.js";
 import { TILE_SIZE } from "./constants.js";
-import type { GameState, ModalRequest } from "./types.js";
+import type { GameState } from "./types.js";
 
 // DOM elements
 const canvas = document.getElementById("game-canvas") as HTMLCanvasElement;
 const connectingOverlay = document.getElementById("connecting-overlay")!;
 const deathOverlay = document.getElementById("death-overlay")!;
+const reviveBtn = document.getElementById("revive-btn") as HTMLButtonElement;
 const errorOverlay = document.getElementById("error-overlay")!;
 const errorText = document.getElementById("error-text")!;
-const tradeModal = document.getElementById("trade-modal")!;
 const hpText = document.getElementById("hp-text")!;
 const hpBar = document.getElementById("hp-bar")!;
 const inventoryEl = document.getElementById("inventory")!;
@@ -30,8 +30,8 @@ const displayState = new DisplayState();
 
 let gameState: GameState = "connecting";
 let input: InputHandler | null = null;
-let currentTradeTarget: string | null = null;
 let isConnecting = false;
+let reviveTimer: ReturnType<typeof setInterval> | null = null;
 
 const dialogueUI = new DialogueUI("dialogue-overlay");
 let dialogueTimeoutAt: number | null = null;
@@ -65,23 +65,12 @@ function updateHUD(): void {
   inventoryEl.textContent = `🍖${food} 🪵${material} 💰${currency}`;
 }
 
-// Get nearby entities for input handler
+// Player context for input handler
 function updateInputContext(): void {
   if (!input || !network.state || !network.playerId) return;
   const state = network.state;
   const player = state.agents?.get(network.playerId);
   if (!player) return;
-
-  const nearby: any[] = [];
-  state.agents?.forEach((agent: any) => {
-    if (agent.id !== network.playerId) {
-      nearby.push({
-        id: agent.id, x: agent.x, y: agent.y,
-        faction: agent.faction, role: agent.role,
-        controller: agent.controller, hp: agent.hp,
-      });
-    }
-  });
 
   // Find settlement at player position
   let settlementId: string | null = null;
@@ -94,65 +83,9 @@ function updateInputContext(): void {
 
   input.setPlayerInfo(
     { x: player.x, y: player.y, faction: player.faction },
-    nearby,
     settlementId,
     player.state,  // FSM state for prediction gating
   );
-}
-
-// Trade modal
-function openTradeModal(merchantId: string): void {
-  currentTradeTarget = merchantId;
-  tradeModal.classList.remove("hidden");
-  input?.setEnabled(false);
-}
-
-function closeTradeModal(): void {
-  currentTradeTarget = null;
-  tradeModal.classList.add("hidden");
-  input?.setEnabled(true);
-}
-
-document.getElementById("sell-food-btn")!.addEventListener("click", () => {
-  if (currentTradeTarget && input) {
-    ++input.inputSeq;
-    network.sendInput({
-      seq: input.inputSeq,
-      action: {
-        type: "trade", targetId: currentTradeTarget,
-        offer: "food", offerAmount: MERCHANT_TRADE_RATE,
-        want: "currency", wantAmount: 1,
-      },
-    });
-    closeTradeModal();
-  }
-});
-
-document.getElementById("sell-material-btn")!.addEventListener("click", () => {
-  if (currentTradeTarget && input) {
-    ++input.inputSeq;
-    network.sendInput({
-      seq: input.inputSeq,
-      action: {
-        type: "trade", targetId: currentTradeTarget,
-        offer: "material", offerAmount: MERCHANT_TRADE_RATE,
-        want: "currency", wantAmount: 1,
-      },
-    });
-    closeTradeModal();
-  }
-});
-
-document.getElementById("close-trade-btn")!.addEventListener("click", closeTradeModal);
-window.addEventListener("keydown", (e) => {
-  if (e.code === "Escape") closeTradeModal();
-});
-
-// Modal handler for input
-function handleModal(req: ModalRequest): void {
-  if (req.type === "trade") {
-    openTradeModal(req.merchantId);
-  }
 }
 
 // Overlay management
@@ -255,7 +188,6 @@ async function connect(): Promise<void> {
     }
 
     input = new InputHandler();
-    input.setModalHandler(handleModal);
     input.onSendInput = (frame) => network.sendInput(frame);
     input.onSendInputStop = (seq) => network.sendInputStop(seq);
     input.onDialogueAdvance = () => network.sendDialogueAdvance();
@@ -269,12 +201,23 @@ async function connect(): Promise<void> {
     input.setPredictionContext(displayState, fog.tileSource());
 
     network.onVision((vision) => fog.update(vision));
-    network.onDeath(() => {
+    network.onDeath(({ reviveInMs }) => {
       gameState = "dead";
       setOverlay("dead");
       input?.setEnabled(false);
       dialogueUI.hide();
       input?.exitDialogueMode();
+      startReviveCountdown(reviveInMs);
+    });
+    network.onRevived(() => {
+      // Snap to the village instead of gliding from the corpse. clear() also drops
+      // the local player and tile source, which prediction needs.
+      displayState.clear();
+      displayState.setLocalPlayer(network.playerId);
+      displayState.setTileSource(fog.tileSource());
+      gameState = "playing";
+      setOverlay("playing");
+      input?.setEnabled(true);
     });
 
     // Dialogue wiring
@@ -305,13 +248,24 @@ async function connect(): Promise<void> {
   }
 }
 
-// Rejoin / retry buttons
-document.getElementById("rejoin-btn")!.addEventListener("click", () => {
-  network.disconnect();
-  input?.destroy();
-  displayState.clear();
-  connect();
-});
+// The server checks the delay too; the countdown only keeps the button honest.
+function startReviveCountdown(ms: number): void {
+  if (reviveTimer) clearInterval(reviveTimer);
+  const readyAt = Date.now() + ms;
+  const update = () => {
+    const left = Math.ceil((readyAt - Date.now()) / 1000);
+    reviveBtn.disabled = left > 0;
+    reviveBtn.textContent = left > 0 ? `Revive (${left})` : "Revive";
+    if (left <= 0 && reviveTimer) {
+      clearInterval(reviveTimer);
+      reviveTimer = null;
+    }
+  };
+  update();
+  reviveTimer = setInterval(update, 250);
+}
+
+reviveBtn.addEventListener("click", () => network.sendRevive());
 
 document.getElementById("retry-btn")!.addEventListener("click", () => {
   network.disconnect();

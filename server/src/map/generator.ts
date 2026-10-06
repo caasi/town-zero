@@ -51,7 +51,7 @@ export function generateMap(): SimulationState {
     grid.setTerrain(x, 29, "water");
   }
 
-  // Trade route
+  // Road
   for (let x = 0; x <= villageCx; x++) {
     grid.setTerrain(x, villageCy, "road");
   }
@@ -124,11 +124,10 @@ export function generateMap(): SimulationState {
     den.populationIds.push(id);
   }
 
-  const state: SimulationState = { grid, agents, settlements, tick: 0, nextMerchantId: 0, activeSessions: new Map(), dialogueTrees: new Map() };
+  const state: SimulationState = { grid, agents, settlements, tick: 0, activeSessions: new Map(), dialogueTrees: new Map() };
 
   // Load Farmer Reed scenario
-  const { triggerRegistry, dialogueTrees } = loadScenario(farmerReedScenario, state);
-  state.triggerRegistry = triggerRegistry;
+  const { dialogueTrees } = loadScenario(farmerReedScenario, state);
   state.dialogueTrees = dialogueTrees;
   village.populationIds.push("farmer-reed");
 

@@ -142,7 +142,7 @@ describe("FogManager", () => {
       expect(snapshot?.ownerFaction).toBe("village-1");
     });
 
-    it("snapshots structureId and operatorId from live state", () => {
+    it("snapshots structureId from live state", () => {
       const fog = new FogManager();
       const tiles = new Map([
         ["3,3", {
@@ -151,14 +151,12 @@ describe("FogManager", () => {
           zoneType: ZoneType.HOUSING,
           ownerFaction: "village-1",
           structureId: "village-1-housing-3-3",
-          operatorId: "npc1",
         }],
       ]);
       fog.revealAround(3, 3, 0, tiles, [], null);
 
       const snapshot = fog.getSnapshot(3, 3);
       expect(snapshot?.structureId).toBe("village-1-housing-3-3");
-      expect(snapshot?.operatorId).toBe("npc1");
     });
 
     it("does not snapshot tiles not in live state", () => {
@@ -196,7 +194,7 @@ describe("FogManager", () => {
       expect(snapshot?.objectType).toBe("bush");
     });
 
-    it("preserves zoneType, ownerFaction, structureId, operatorId after server vision tick", () => {
+    it("preserves zoneType, ownerFaction, structureId after server vision tick", () => {
       const fog = new FogManager();
 
       // Player sees a tile with zone/structure data via revealAround
@@ -207,7 +205,6 @@ describe("FogManager", () => {
           zoneType: ZoneType.HOUSING,
           ownerFaction: "village-1",
           structureId: "village-1-housing-2-2",
-          operatorId: "npc1",
         }],
       ]);
       fog.revealAround(2, 2, 0, tiles, [], null);
@@ -228,7 +225,6 @@ describe("FogManager", () => {
       expect(snapshot?.zoneType).toBe(ZoneType.HOUSING);
       expect(snapshot?.ownerFaction).toBe("village-1");
       expect(snapshot?.structureId).toBe("village-1-housing-2-2");
-      expect(snapshot?.operatorId).toBe("npc1");
     });
   });
 

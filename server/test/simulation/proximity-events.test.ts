@@ -8,7 +8,7 @@ import type { EventHandler, ProximityEnterPayload, ProximityStayPayload, Proximi
 function buildWorld(): SimulationState {
   return {
     grid: new Grid(20, 20), agents: new Map(), settlements: new Map(), tick: 0,
-    nextMerchantId: 0, activeSessions: new Map(), dialogueTrees: new Map(),
+   activeSessions: new Map(), dialogueTrees: new Map(),
   };
 }
 

@@ -33,20 +33,12 @@ describe("StructureSchema", () => {
   it("creates a structure with all fields", () => {
     const s = new StructureSchema();
     s.id = "vh1";
-    s.type = "production";
+    s.type = "housing";
     s.x = 10;
     s.y = 20;
-    s.operatorId = "agent-1";
 
     expect(s.id).toBe("vh1");
-    expect(s.type).toBe("production");
-    expect(s.operatorId).toBe("agent-1");
-  });
-
-  it("uses empty string for no operator", () => {
-    const s = new StructureSchema();
-    s.operatorId = "";
-    expect(s.operatorId).toBe("");
+    expect(s.type).toBe("housing");
   });
 });
 
@@ -96,7 +88,6 @@ describe("SettlementSchema", () => {
     st.type = "housing";
     st.x = 10;
     st.y = 20;
-    st.operatorId = "";
     s.structures.push(st);
 
     expect(s.structures.length).toBe(1);

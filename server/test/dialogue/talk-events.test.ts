@@ -7,13 +7,13 @@ import type { EventHandler, TalkStartPayload, TalkEndPayload } from "@town-zero/
 import type { DialogueTreeData } from "@town-zero/shared";
 
 function trivialTree(npcId: string): DialogueTreeData {
-  return { id: npcId, root: "n1", nodes: { n1: { type: "text", speaker: "npc", content: ["hi"], next: "n2" }, n2: { type: "end" } }, triggers: [] };
+  return { id: npcId, root: "n1", nodes: { n1: { type: "text", speaker: "npc", content: ["hi"], next: "n2" }, n2: { type: "end" } } };
 }
 
 function buildState(npcId: string): SimulationState {
   const state: SimulationState = {
     grid: new Grid(8, 8), agents: new Map(), settlements: new Map(), tick: 0,
-    nextMerchantId: 0, activeSessions: new Map(),
+   activeSessions: new Map(),
     dialogueTrees: new Map([[npcId, trivialTree(npcId)]]),
   };
   return state;

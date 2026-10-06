@@ -1,5 +1,10 @@
 # Unified InputFrame Architecture
 
+> **Status (spec 003, `feat/jev-beasts`): parts of this spec no longer describe the code.** The original text below is kept as a record. Where it disagrees with the code, the code and the later specs win:
+>
+> - The `trade` FrameAction → removed. Tick phases after the removals: input → bot controller → consumption → vision/events → memory merge (production, merchants and triggers are gone).
+> - "Bot / LLM Integration": LLM agents now get frames from `JevController` (spec 003), which also does the pathing. The free-form LLM plan path was removed.
+
 **Date:** 2026-04-05
 **Status:** Draft
 **Replaces:** Dual-channel model (moveQueue + plan) from input-sequence-reconciliation

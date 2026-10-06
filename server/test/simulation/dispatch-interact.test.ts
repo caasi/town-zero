@@ -14,7 +14,6 @@ function makeState(overrides?: Partial<SimulationState>): SimulationState {
     agents: new Map(),
     settlements: new Map(),
     tick: 0,
-    nextMerchantId: 0,
     activeSessions: new Map(),
     dialogueTrees: new Map(),
     ...overrides,
@@ -38,26 +37,7 @@ function makeCtx(
 }
 
 describe("dispatchInteract — priority order", () => {
-  it("rule 1: merchant on facing tile — returns silently (client opens modal; server noop)", () => {
-    const state = makeState();
-    // Agent at (5,5) facing south → facing tile is (5,6)
-    const agent = new Agent({ id: "p1", position: { x: 5, y: 5 }, faction: "v1", role: "player", controller: "player" });
-    agent.facing = "south";
-    const merchant = new Agent({ id: "merchant-1", position: { x: 5, y: 6 }, faction: "merchant", role: "merchant", controller: "bot" });
-    merchant.addToInventory("currency", 5);
-    state.agents.set("p1", agent);
-    state.agents.set("merchant-1", merchant);
-
-    const talkResults: TalkResult[] = [];
-    dispatchInteract(makeCtx(agent, state, talkResults));
-
-    // No state changes: merchant HP unchanged, no dialogue, no damage
-    expect(merchant.hp).toBe(100);
-    expect(talkResults).toHaveLength(0);
-    expect(state.activeSessions.size).toBe(0);
-  });
-
-  it("rule 2: alive target with matching dialogue entry → talk", () => {
+  it("rule 1: alive target with matching dialogue entry → talk", () => {
     const state = makeState();
     // Agent at (5,5) facing south → facing tile is (5,6)
     const agent = new Agent({ id: "p1", position: { x: 5, y: 5 }, faction: "v1", role: "player", controller: "player" });
@@ -75,7 +55,6 @@ describe("dispatchInteract — priority order", () => {
         start: { type: "text", speaker: "npc", content: ["Hello!"], next: "end" },
         end: { type: "end" },
       },
-      triggers: [],
       entryPoints: [
         {
           condition: { type: "compare", op: "eq", left: { type: "literal", value: 1 }, right: { type: "literal", value: 1 } },
@@ -97,7 +76,7 @@ describe("dispatchInteract — priority order", () => {
     expect(npc.hp).toBe(100);
   });
 
-  it("rule 3: alive target, different faction, no entry → attack", () => {
+  it("rule 2: alive target, different faction, no entry → attack", () => {
     const state = makeState();
     // Agent at (1,1) facing east → facing tile is (2,1)
     const agent = new Agent({ id: "p1", position: { x: 1, y: 1 }, faction: "v1", role: "player", controller: "player" });
@@ -114,7 +93,7 @@ describe("dispatchInteract — priority order", () => {
     expect(talkResults).toHaveLength(0);
   });
 
-  it("rule 4: alive target, same faction, no entry → noop (no HP change, no dialogue)", () => {
+  it("rule 3: alive target, same faction, no entry → noop (no HP change, no dialogue)", () => {
     const state = makeState();
     // Agent at (3,3) facing north → facing tile is (3,2)
     const agent = new Agent({ id: "p1", position: { x: 3, y: 3 }, faction: "v1", role: "player", controller: "player" });
@@ -132,7 +111,7 @@ describe("dispatchInteract — priority order", () => {
     expect(state.activeSessions.size).toBe(0);
   });
 
-  it("rule 5: resource tile (bush) → gather adds inventory", () => {
+  it("rule 4: resource tile (bush) → gather adds inventory", () => {
     const state = makeState();
     // Agent at (5,5) facing south → facing tile is (5,6) with food resource
     const agent = new Agent({ id: "p1", position: { x: 5, y: 5 }, faction: "v1", role: "player", controller: "player" });
@@ -146,7 +125,7 @@ describe("dispatchInteract — priority order", () => {
     expect(agent.inventory.food).toBe(1);
   });
 
-  it("rule 6: empty tile → noop", () => {
+  it("rule 5: empty tile → noop", () => {
     const state = makeState();
     // Agent at (5,5) facing south → facing tile is (5,6) — nothing there
     const agent = new Agent({ id: "p1", position: { x: 5, y: 5 }, faction: "v1", role: "player", controller: "player" });

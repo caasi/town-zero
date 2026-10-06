@@ -12,7 +12,6 @@ export interface TileSnapshot {
   zoneType?: ZoneType;
   ownerFaction?: string;
   structureId?: string;
-  operatorId?: string | null;
   objectType?: string;
 }
 
@@ -31,8 +30,5 @@ export interface Viewport {
 }
 
 export type GameState = "connecting" | "playing" | "dead" | "error";
-
-export type ModalRequest =
-  | { type: "trade"; merchantId: string };
 
 export type { TerrainType, EntitySnapshot };

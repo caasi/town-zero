@@ -40,14 +40,14 @@ describe("stampTemplate", () => {
     const grid = new Grid(20, 20);
     const template = [
       [ZoneType.EMPTY, ZoneType.HOUSING],
-      [ZoneType.CORE, ZoneType.PRODUCTION],
+      [ZoneType.CORE, ZoneType.HOUSING],
     ];
     const result = stampTemplate(grid, template, 10, 10, "village-1");
 
     // Core is at [1][0], so world position = (10 + 0 - 0, 10 + 1 - 1) = (10, 10)
     expect(grid.getZoneType(10, 10)).toBe(ZoneType.CORE);
     expect(grid.getZoneType(11, 9)).toBe(ZoneType.HOUSING);
-    expect(grid.getZoneType(11, 10)).toBe(ZoneType.PRODUCTION);
+    expect(grid.getZoneType(11, 10)).toBe(ZoneType.HOUSING);
     expect(grid.getZoneType(10, 9)).toBe(ZoneType.EMPTY);
 
     // All tiles have ownerFaction set
@@ -57,7 +57,7 @@ describe("stampTemplate", () => {
 
     // Returns territory and structures
     expect(result.territory).toHaveLength(4);
-    expect(result.structures).toHaveLength(3); // core + housing + production
+    expect(result.structures).toHaveLength(3); // core + 2 housing
     const core = result.structures.find((s) => s.type === "core");
     expect(core).toBeDefined();
     expect(core!.id).toBe("village-1-core-10-10"); // deterministic ID from faction + zone + position

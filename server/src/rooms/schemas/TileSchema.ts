@@ -8,7 +8,6 @@ export const TileSchema = schema({
   ownerFaction: "string",
   zoneType: "string",
   structureId: "string",
-  operatorId: "string",
   objectType: "string",
 }, "TileSchema");
 

@@ -47,7 +47,6 @@ function syncSettlement(settlement: Settlement, schema: SettlementSchema): void 
     ss.type = structure.type;
     ss.x = structure.position.x;
     ss.y = structure.position.y;
-    ss.operatorId = structure.operatorId ?? "";
     schema.structures.push(ss);
   }
 }
@@ -65,7 +64,7 @@ export function syncToSchema(simState: SimulationState, roomState: WorldStateSch
     syncAgent(agent, agentSchema);
   }
 
-  // Remove agents no longer in sim (merchant despawn)
+  // Remove agents no longer in sim (players who left)
   const agentKeys: string[] = [];
   roomState.agents.forEach((_value, key) => { agentKeys.push(key); });
   for (const key of agentKeys) {
@@ -93,12 +92,12 @@ export function syncTiles(
   settlements?: Map<string, Settlement>,
 ): void {
   // Build position → structure lookup from settlements
-  const structureByPos = new Map<string, { id: string; operatorId: string | null }>();
+  const structureIdByPos = new Map<string, string>();
   if (settlements) {
     for (const [, settlement] of settlements) {
       for (const structure of settlement.structures) {
         const key = `${structure.position.x},${structure.position.y}`;
-        structureByPos.set(key, { id: structure.id, operatorId: structure.operatorId });
+        structureIdByPos.set(key, structure.id);
       }
     }
   }
@@ -114,9 +113,7 @@ export function syncTiles(
       tile.ownerFaction = grid.getOwner(x, y) ?? "";
       tile.zoneType = grid.getZoneType(x, y);
       tile.objectType = grid.getObjectType(x, y);
-      const structure = structureByPos.get(key);
-      tile.structureId = structure?.id ?? "";
-      tile.operatorId = structure?.operatorId ?? "";
+      tile.structureId = structureIdByPos.get(key) ?? "";
       roomState.tiles.set(key, tile);
     }
   }

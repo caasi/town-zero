@@ -5,7 +5,6 @@ export const StructureSchema = schema({
   type: "string",
   x: "number",
   y: "number",
-  operatorId: "string",
 }, "StructureSchema");
 
 export type StructureSchema = SchemaType<typeof StructureSchema>;

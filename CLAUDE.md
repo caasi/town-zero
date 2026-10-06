@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-town-zero is a multiplayer real-time ecosystem simulation .io game with LLM-driven NPCs. Players coexist with autonomous NPC villagers and monsters in a persistent world. Village destruction = defeat; cooperation possible but betrayal allowed. The long-term goal is to use this as a testbed for civilian C4ISR systems.
+town-zero is a multiplayer real-time ecosystem simulation .io game with AI-driven NPCs (code-built option menus, decisions by the Jev model). Players coexist with autonomous NPC villagers and monsters in a persistent world. Village destruction = defeat; cooperation possible but betrayal allowed. The long-term goal is to use this as a testbed for civilian C4ISR systems.
 
 ## Tech Stack
 
@@ -40,25 +40,23 @@ pnpm run typecheck:types
 
 ## Architecture
 
-**Settlement-centric model:** Villages and monster dens are the same `Settlement` abstraction with different parameters. Both have population, inventory, structures (housing + production), and territory.
+**Settlement-centric model:** Villages and monster dens are the same `Settlement` abstraction with different parameters. Both have population, inventory, structures (core + housing), and territory.
 
-**Unified InputFrame:** All entities (players, LLM-driven NPCs, bots) produce the same `InputFrame` type (`{ seq, direction?, action? }`). The simulation loop does not distinguish command sources. This enables seamless player disconnect → bot takeover → reconnect. All actions are instant (1 tick) — no multi-tick FSM states. FSMState is reduced to `"idle" | "dead"`.
+**Unified InputFrame:** All entities (players, AI NPCs, bots) produce the same `InputFrame` type (`{ seq, direction?, action? }`). The simulation loop does not distinguish command sources. All actions are instant (1 tick) — no multi-tick FSM states. FSMState is reduced to `"idle" | "dead"`.
 
 **Simulation flow (per tick at 8 ticks/s = 125ms):**
+0. Before the tick, `GameRoom` calls `JevController.update` → one frame into `planBacklog` of each `"llm"` agent (see below)
 1. Consume one InputFrame per alive agent from `inputQueue` (player) or `planBacklog` (bot/LLM); execute via `executeFrame` (direction → turn-before-move, action → instant effect)
 2. Bot controller decides for idle bot agents → fills `planBacklog` with `InputFrame[]`
-3. Production facilities convert raw materials → food/material (counter-gated, ~10s)
-4. Agents consume food from personal inventory (counter-gated, ~30s)
-5. Merchant spawning and movement (counter-gated, ~120s)
-6. Vision update (MapMemory per agent), then bubble expiry and NPC event dispatch
-7. Memory merge between adjacent same-faction agents
-8. Trigger evaluation (deferred batch over changed facts)
+3. Agents consume food from personal inventory (counter-gated, ~30s)
+4. Vision update (MapMemory per agent), then bubble expiry and NPC event dispatch; dead members leave `populationIds` (a dead player keeps its slot until it leaves)
+5. Memory merge between adjacent same-faction agents
 
 Source of truth: `processTick` in `server/src/simulation/tick.ts`.
 
 **Information model:** No global omniscience. Each agent has a personal `MapMemory` (sparse grid of observed tiles with timestamps). Agents must be adjacent to exchange information. This creates natural fog of war and makes scouts strategically important.
 
-**LLM integration:** Natural language prompt in (agent state + MapMemory) → structured JSON FrameAction array out → wrapped as `InputFrame[]` in `planBacklog`. Haiku-tier model, 10-30s intervals, skipped when agent is busy. Dialogue system uses pre-written RPG-style trees; LLM only decides y/n on player requests.
+**AI NPC decisions (Jev, spec 003):** "Code lists the options, Jev picks one, code acts." `server/src/ai/jev-controller.ts` drives every alive `controller: "llm"` agent (now: the den beasts). Code builds a short option list (`rest`, `wander`, `eat_at_den`, `flee_to_den`, `attack:<id>`), Jev (TypeSafe AI `choice` question, `server/src/ai/jev.ts`) picks one, and `nextFrame` turns the goal into one `InputFrame` per tick. Rules: offer only options that yield at least one frame (else the agent re-asks at once, limited to one call per 8 ticks); state and options are words, never coordinates (Jev is weak at spatial/numeric reasoning); keep `rest` first (Jev leans toward the first option); one call in flight per agent, and at most one call per 8 ticks per agent; no `JevController.update` while no player session is in the room, so no Jev calls (they cost money); `processTick` itself still runs. Without `TYPESAFE_API_KEY`, or when a call fails, a fallback rule decides. Each decision is logged as `[jev] <agent> chose <id> from <options>`. Dialogue uses pre-written RPG-style trees; no model writes dialogue text.
 
 ## Key Design Documents
 
@@ -75,11 +73,10 @@ Source of truth: `processTick` in `server/src/simulation/tick.ts`.
 - **Seq invariants:** `isValidInputFrame` requires `Number.isSafeInteger(seq) && seq >= 0`. GameRoom ingress rejects `seq < 1` from clients (seq=0 reserved for bot/planBacklog). `Agent.enqueueInput` rejects `seq <= lastProcessedInput` (stale) and `seq <= lastQueued` (duplicate). `lastProcessedInput` only advances via `Math.max`
 - **Multi-key movement:** Input uses delete+re-add on keydown so Set iteration order reflects recency. `update()` picks the most recently pressed movement key (last in Set). This gives immediate direction switching when pressing a new key while holding another
 - MVP fog of war is client-side only (trusts client, no anti-cheat). Even so, client code must treat unknown tiles as truly unknown — prediction reads from fog snapshots (`fog.tileSource()`), never raw `state.tiles`
-- Player agents use `role: "player"` — `role` is a functional type tag (`"merchant"`, `"scout"`, etc.), not a display name
+- Player agents use `role: "player"` — `role` is a functional type tag (`"beast"`, `"scout"`, etc.), not a display name
 - Client modules: `network.ts` (Colyseus connection), `renderer.ts` (Canvas 2D), `camera.ts` (viewport), `fog.ts` (fog of war), `input.ts` (WASD + action keys), `display.ts` (movement prediction + lerp), `dialogue-ui.ts` (dialogue panel), `main.ts` (game loop + HUD)
 - `NetworkClient.connect()` has a 10s join timeout with full cleanup on expiry, a concurrent-call guard (`isConnecting` in main.ts), and `disconnect()` rejects any in-flight join promise
 - Colyseus Client constructor uses `http://`/`https://` scheme (not `ws://`/`wss://`) — SDK handles WebSocket upgrade internally
-- `SimulationState` includes `nextMerchantId` to avoid module-level mutable state
 - Food consumption is from agent personal inventory, not settlement (agents must `take` from settlement)
 - Server runs on Node.js via tsx
 - Use pnpm, not bun — bun duplicates @colyseus/core instances causing matchmaker state isolation
@@ -87,31 +84,38 @@ Source of truth: `processTick` in `server/src/simulation/tick.ts`.
 - Client-side movement prediction (`display.ts`): `DisplayState` tracks predicted tile positions (`displayX/Y`) and lerped pixel positions (`renderX/Y`). `reconcileFromServer` accepts server state as baseline, prunes acknowledged `InputFrame[]` by seq, replays direction-only frames (skips action frames). `updateRender(dt)` lerps pixel positions toward display positions
 - Input uses held-key tracking (`keydown`/`keyup` Set) for local prediction and sends per-tick `input` messages (InputFrame with seq + direction) from `update()` while keys are held — not `keydown` repeat events (OS repeat has variable initial delay and rate). Action keys (E/T) send InputFrame with seq + action immediately on keydown
 - Fog memory uses a snapshot model (`TileSnapshot` = terrain + entities + timestamp). Fog level is derived: `predictedVisible` → visible, has snapshot → explored, else → unknown. No `level` field stored — add new tile properties to `TileSnapshot` and they're automatically captured
+- **Player lifecycle:** a player who leaves is removed (agent and `populationIds`); a new join always creates a new agent. A dead player keeps its session and its population slot, and death ends its dialogue; after `REVIVE_DELAY_TICKS` (~5s, checked on the server) the client's `Revive` button sends `revive`, and the same agent comes back in a free village tile with full HP, its inventory and its MapMemory
+- Tests never call the real Jev API: `server/vitest.config.ts` clears `TYPESAFE_API_KEY`. To run the server with Jev, export `TYPESAFE_API_KEY` before `pnpm run dev:server`
 - Unknown tiles render as eigengrau (`#16161d`), void outside map boundary renders as true black (`#000`)
 - Dialogue system: `talk` action is processed through the tick pipeline via `executeFrame` → `startDialogue`. `dialogue:advance/choose/close` messages use the session-manager API directly. Dialogue lock: while `agent.talkingToNpcId` is set, all input is rejected (even if the active session was already cleaned up). Timeout is detected in `tickDialogues()` called from the tick loop. Client enters `dialogueMode` which intercepts W/S/E/Esc for dialogue navigation
 - `DialogueBuilderApi.entry()` adds conditional entry points to dialogue trees. `entryPoints` are evaluated in `startDialogue()` against NPC beliefs to select the starting node
 - **Turn-before-move:** `executeFrame` for direction input only updates `agent.facing` when the intended direction differs from current facing (no position change). A second input in the same direction actually moves. Client `DisplayState.predictMove` mirrors this logic. Interact (KeyE) checks only the tile directly in front of the player (predicted facing), not any adjacent tile
-- **Facing-based interaction:** KeyE sends a single `{ type: "interact" }` frame. Server-side `dispatchInteract` resolves the agent's facing tile against a 6-rule priority (merchant modal client-side; dialogue-entry-matching agent → talk; hostile agent → attack; same-faction no-entry → noop; resource tile → gather; else noop). Attack is facing-only for all callers including LLM plans. KeyQ is not bound.
-- **NPC event system:** NPCs expose typed events via `s.npc(id).on(event, handler)`. Event map: `proximity:{enter,stay,leave}`, `talk:{start,end}`, `combat:{hit,death}` (see `shared/src/script-dsl/event-types.ts`). Handlers return `EventEffect[]` — a standalone type (not part of the shared `Effect` union) containing only `bubble` in MVP; `setFact`/`give`/`damage`/etc. live in the separate `Effect` union and are deliberately not allowed from event handlers (emitting them is a compile-time error; if you need them, script-level triggers are the right tool). Multiple handlers per event compose via `flatMap` in registration order. A throwing handler is isolated (logged, others still run). Dispatch is snapshot-at-dispatch: a handler that registers more handlers mid-dispatch does not observe them this tick. `bubble(target, text, { durationTicks })` sets/clears the NPC speech bubble; special refs `$npc`/`$self`/`$player` are resolved against the payload. Event dispatch is independent of the dialogue input-lock: a locked NPC still receives events and its handlers still run.
+- **Facing-based interaction:** KeyE sends a single `{ type: "interact" }` frame. Server-side `dispatchInteract` resolves the agent's facing tile against a 5-rule priority (dialogue-entry-matching agent → talk; hostile agent → attack; same-faction no-entry → noop; resource tile → gather; else noop). Attack is facing-only for all callers including AI NPC goals. KeyQ is not bound.
+- **NPC event system:** NPCs expose typed events via `s.npc(id).on(event, handler)`. Event map: `proximity:{enter,stay,leave}`, `talk:{start,end}`, `combat:{hit,death}` (see `shared/src/script-dsl/event-types.ts`). Handlers return `EventEffect[]` — a standalone type (not part of the shared `Effect` union) containing only `bubble` in MVP; `setFact`/`give`/`damage`/etc. live in the separate `Effect` union and are deliberately not allowed from event handlers (emitting them is a compile-time error; dialogue `action` nodes can run them). There is no trigger system: it was removed in spec 003, and quests should build on events plus dialogue actions. Multiple handlers per event compose via `flatMap` in registration order. A throwing handler is isolated (logged, others still run). Dispatch is snapshot-at-dispatch: a handler that registers more handlers mid-dispatch does not observe them this tick. `bubble(target, text, { durationTicks })` sets/clears the NPC speech bubble; special refs `$npc`/`$self`/`$player` are resolved against the payload. Event dispatch is independent of the dialogue input-lock: a locked NPC still receives events and its handlers still run.
 
 ## Known Debt
 
-- `PRODUCTION_OUTPUT` constant comment says "food/material produced per cycle" but `processProduction` only converts material→food. Update comment or extend production to support material output when adding new production types.
+- Jev state reads the den food count and enemy HP/role from live server state, not from the agent's memory. A beast away from home should only know the food count from its last visit.
+- AI movement is a greedy step (`stepToward` in `jev-controller.ts`); a beast behind water gets no step and re-asks Jev at most once per second. Upgrade to BFS over passable tiles when maps get obstacles.
+- Player attacks have no cooldown (one per key press, up to 8/s). AI beasts wait ~1s between attacks, but the wait lives on the attack goal: a new goal (target left sight and came back) can hit at once.
+- After death the HUD can still show the last HP before 0 (the `death` message arrives before the state patch).
+- `material` and `currency` have no use since production and merchants were removed.
 
 ## TODO
 
 - [x] Create Colyseus schemas for WorldState, Agent, Settlement, Tile, Structure (use `schema()` API)
 - [x] Create GameRoom that wraps SimulationState with tick loop (`setSimulationInterval`)
 - [x] Sync simulation state → Colyseus schemas each tick
-- [x] Handle player join/leave with Agent creation and bot takeover
+- [x] Handle player join/leave with Agent creation (leave removes the agent)
 - [x] Handle player commands via `onMessage`
 - [x] Restore Canvas 2D client with renderer, input, fog of war, HUD
-- [ ] Wire LLM scheduler into GameRoom tick
+- [x] AI NPC decisions with Jev for den beasts (spec 003)
+- [x] Player revive in the village after death
 - [x] Add facing direction to Agent (needed for dialogue target selection and future combat/animation)
 - [x] Add NPC dialogue system (session manager, Farmer Reed scenario, GameRoom integration, client UI)
 - [ ] **Dialogue eDSL review:** add `DialogueTreeData.validate()` for build-time graph integrity checks (dangling refs, empty next, action cycles)
-- [ ] **Phase 8 trigger execution:** only `set_fact` supported (others warn); `effect.target` ignored (uses `rule.targets` instead); global omniscience in belief aggregation violates no-global-omniscience principle; add early-exit when no facts changed
-- [ ] **Trigger registry wiring:** `setBelief()` and `mergeBeliefs()` don't call `recordChangedFact()` — triggers only fire from dialogue-session changes; `mergeBeliefs()` should return changed keys `Set<string>`; empty `extractFactKeys` deps means trigger never fires
-- [ ] **TriggerRule type split:** `fired: boolean` mixes mutable execution state into data type; split into `TriggerRuleData` (immutable) + registry-managed `firedIds: Set<string>`
 - [ ] **Tile object / prop system:** Tiles need an `objectType` layer separate from terrain (bush, box, tree). Currently bush uses a minimal `objectType` field on Tile; future iteration should extract a full TileObject concept with durability, loot tables, and interaction types. Settlement structures remain separate from wild tile objects.
 - [ ] **Dialogue-effect damage bypasses combat events.** The `damage` callback in `server/src/dialogue/dialogue-session.ts` (called by `executor.ts`) calls `Agent.takeDamage` directly; route it through `applyDamage` so `combat:hit` / `combat:death` fire for scripted damage.
+- [ ] **Downed NPCs instead of removal.** When a town NPC is killed, do not remove it: it stays down, and a player or another NPC can carry it back to town and heal it there. The same must work for enemy NPCs that are not beasts. Beasts keep the current death.
+- [ ] **Personality for AI NPCs:** add a trait to the Jev state and check with real runs that it changes choices (demo: random quests + NPCs with personality).
+- [ ] **Quests:** generate quests; build them on NPC events plus dialogue actions (event handlers will need more than `bubble`); quest acceptance as a Jev `noul` question.

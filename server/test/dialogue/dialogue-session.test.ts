@@ -27,7 +27,6 @@ function makePlayer(): Agent {
 const linearTree: DialogueTreeData = {
   id: "greet",
   root: "start",
-  triggers: [],
   nodes: {
     start: { type: "text", speaker: "npc", content: ["Welcome, traveler!"], next: "choices" },
     choices: {
@@ -46,7 +45,6 @@ const linearTree: DialogueTreeData = {
 const interpTree: DialogueTreeData = {
   id: "interp-tree",
   root: "start",
-  triggers: [],
   nodes: {
     start: {
       type: "text",
@@ -62,7 +60,6 @@ const interpTree: DialogueTreeData = {
 const actionTree: DialogueTreeData = {
   id: "action-tree",
   root: "start",
-  triggers: [],
   nodes: {
     start: { type: "text", speaker: "npc", content: ["Let me give you something."], next: "give" },
     give: {
@@ -73,20 +70,6 @@ const actionTree: DialogueTreeData = {
       next: "after",
     },
     after: { type: "text", speaker: "npc", content: ["There you go."], next: "end" },
-    end: { type: "end" },
-  },
-};
-
-// Tree with request node
-const requestTree: DialogueTreeData = {
-  id: "request-tree",
-  root: "start",
-  triggers: [],
-  nodes: {
-    start: { type: "text", speaker: "npc", content: ["I need a favor."], next: "req" },
-    req: { type: "request", label: ["Scout the north?"], gateType: "llm", nextYes: "yes", nextNo: "no" },
-    yes: { type: "text", speaker: "npc", content: ["Great, I'll do it."], next: "end" },
-    no: { type: "text", speaker: "npc", content: ["Sorry, no can do."], next: "end" },
     end: { type: "end" },
   },
 };
@@ -235,48 +218,6 @@ describe("DialogueSession", () => {
     expect(belief!.value).toBe(true);
   });
 
-  it("handles request nodes", () => {
-    const session = new DialogueSession({
-      tree: requestTree,
-      npc: makeNpc(),
-      player: makePlayer(),
-      currentTick: 10,
-    });
-
-    session.advance(); // -> req
-    const reqState = session.getState();
-    expect(reqState.type).toBe("request_pending");
-    expect(reqState.text).toBe("Scout the north?");
-  });
-
-  it("resolveRequest(true) advances past request", () => {
-    const session = new DialogueSession({
-      tree: requestTree,
-      npc: makeNpc(),
-      player: makePlayer(),
-      currentTick: 10,
-    });
-
-    session.advance(); // -> req
-    const state = session.resolveRequest(true);
-    expect(state.type).toBe("text");
-    expect(state.text).toBe("Great, I'll do it.");
-  });
-
-  it("resolveRequest(false) takes the no path", () => {
-    const session = new DialogueSession({
-      tree: requestTree,
-      npc: makeNpc(),
-      player: makePlayer(),
-      currentTick: 10,
-    });
-
-    session.advance(); // -> req
-    const state = session.resolveRequest(false);
-    expect(state.type).toBe("text");
-    expect(state.text).toBe("Sorry, no can do.");
-  });
-
   it("loads existing dialogue progress locals on construction", () => {
     const npc = makeNpc();
     // Pre-set progress with a local variable
@@ -289,7 +230,6 @@ describe("DialogueSession", () => {
     const tree: DialogueTreeData = {
       id: "local-tree",
       root: "start",
-      triggers: [],
       nodes: {
         start: {
           type: "text",
@@ -320,7 +260,6 @@ describe("DialogueSession", () => {
     const tree: DialogueTreeData = {
       id: "accessor-tree",
       root: "start",
-      triggers: [],
       nodes: {
         start: {
           type: "text",

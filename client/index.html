@@ -53,21 +53,7 @@
       background: #333; color: #eee; border: 1px solid #666;
     }
     .overlay button:hover { background: #555; }
-
-    /* Trade modal */
-    #trade-modal {
-      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-      background: #222; border: 1px solid #555; padding: 20px;
-      font: 14px monospace; color: #eee; min-width: 240px;
-    }
-    #trade-modal.hidden { display: none; }
-    #trade-modal h3 { margin-bottom: 12px; }
-    #trade-modal button {
-      display: block; width: 100%; margin-bottom: 8px;
-      font: 14px monospace; padding: 8px; cursor: pointer;
-      background: #333; color: #eee; border: 1px solid #555;
-    }
-    #trade-modal button:hover { background: #555; }
+    .overlay button:disabled { opacity: 0.5; cursor: default; }
 
     /* Dialogue overlay */
     #dialogue-overlay {
@@ -119,7 +105,7 @@
     <div id="connecting-overlay" class="overlay">Connecting...</div>
     <div id="death-overlay" class="overlay hidden">
       <div>You Died</div>
-      <button id="rejoin-btn">Rejoin</button>
+      <button id="revive-btn" disabled>Revive</button>
     </div>
     <div id="error-overlay" class="overlay hidden">
       <div id="error-text">Connection failed</div>
@@ -132,14 +118,6 @@
       <div class="dlg-options"></div>
       <span class="dlg-timer hidden"></span>
       <span class="dlg-hint">W/S:Select  E:Confirm  Esc:Close</span>
-    </div>
-
-    <div id="trade-modal" class="hidden">
-      <h3>Trade with Merchant</h3>
-      <p style="margin-bottom:12px;font-size:12px;color:#aaa">Exchange rate: 2 resources → 1 currency</p>
-      <button id="sell-food-btn">Sell Food (2 → 1💰)</button>
-      <button id="sell-material-btn">Sell Material (2 → 1💰)</button>
-      <button id="close-trade-btn">Close (Esc)</button>
     </div>
   </div>
   <script type="module" src="/src/main.ts"></script>

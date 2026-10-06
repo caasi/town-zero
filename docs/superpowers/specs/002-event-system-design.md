@@ -3,6 +3,10 @@
 **Status:** design
 **Prerequisites:** 001 (combat-as-interaction) merged — relies on the proximity-bubble machinery landed there as a starting point.
 
+> **Status (spec 003, `feat/jev-beasts`): parts of this spec no longer describe the code.** The original text below is kept as a record. Where it disagrees with the code, the code and the later specs win:
+>
+> - References to `TriggerRule` as the declarative path for state → state reactions are out of date: the trigger system was removed in spec 003. Reactions now come from NPC events and dialogue `action` nodes.
+
 ## Goal
 
 Let scenario authors register typed event handlers on NPCs — `s.npc(id).on("proximity:enter", h)` — instead of configuring each reactive behaviour via a purpose-built field. One typed surface for proximity, talk, combat, and future event kinds. Composable, unsubscribable, TSC-checked at the call site.

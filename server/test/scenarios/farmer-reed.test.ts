@@ -14,7 +14,6 @@ function makeState(): SimulationState {
     agents,
     settlements: new Map(),
     tick: 0,
-    nextMerchantId: 0,
     activeSessions: new Map(),
     dialogueTrees: new Map(),
   };
@@ -58,8 +57,7 @@ describe("farmer-reed scenario", () => {
     beforeEach(() => {
       state = makeState();
       // Load scenario (creates farmer-reed agent)
-      const { triggerRegistry, dialogueTrees } = loadScenario(farmerReedScenario, state);
-      state.triggerRegistry = triggerRegistry;
+      const { dialogueTrees } = loadScenario(farmerReedScenario, state);
       state.dialogueTrees = dialogueTrees;
 
       // Create player adjacent to Reed
