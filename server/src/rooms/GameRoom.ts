@@ -44,18 +44,6 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
       agent.enqueueInput(data);
     });
 
-    this.onMessage("input:stop", (client: Client, data: unknown) => {
-      const agentId = this.sessionToAgent.get(client.sessionId);
-      if (!agentId) return;
-      const agent = this.simState.agents.get(agentId);
-      if (!agent) return;
-      agent.inputQueue = [];
-      const seq = typeof data === "object" && data !== null ? (data as any).seq : undefined;
-      if (typeof seq === "number" && Number.isSafeInteger(seq) && seq >= 0) {
-        agent.lastProcessedInput = Math.max(agent.lastProcessedInput, seq);
-      }
-    });
-
     this.onMessage("revive", (client: Client) => this.revive(client));
 
     this.onMessage("dialogue:advance", (client: Client) => {

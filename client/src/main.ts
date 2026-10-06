@@ -189,7 +189,6 @@ async function connect(): Promise<void> {
 
     input = new InputHandler();
     input.onSendInput = (frame) => network.sendInput(frame);
-    input.onSendInputStop = (seq) => network.sendInputStop(seq);
     input.onDialogueAdvance = () => network.sendDialogueAdvance();
     input.onDialogueChoose = (optionId) => network.sendDialogueChoose(optionId);
     input.onDialogueClose = () => network.sendDialogueClose();

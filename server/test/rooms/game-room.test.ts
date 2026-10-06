@@ -580,81 +580,28 @@ describe("GameRoom integration", () => {
     });
   });
 
-  describe("input:stop handler", () => {
-    it("uses Math.max — does not roll back lastProcessedInput", () => {
+  describe("key release", () => {
+    // The client predicts every move it sends. A key release must not drop
+    // moves the server has queued but not run yet, or the player is pulled
+    // back. (A legacy "input:stop" message is ignored.)
+    it("runs every move sent before the release", () => {
       const client = mockClient("session-1");
-      joinClient(room, client, { name: "Stopper" });
+      joinClient(room, client, { name: "Walker" });
       tick(room);
-
       const agentId = client.messages.find((m: any) => m.type === "joined")?.data.agentId;
-      const simAgent = room.simState.agents.get(agentId!);
-
-      // Advance lastProcessedInput via normal input
-      sendInput(room, client, { seq: 10, direction: "south" });
-      tick(room);
-      expect(simAgent.lastProcessedInput).toBe(10);
-
-      // Send input:stop with a LOWER seq — should NOT roll back
-      sendMessage(room, client, "input:stop", { seq: 5 });
-      expect(simAgent.lastProcessedInput).toBe(10);
-    });
-
-    it("rejects NaN, Infinity, and negative seq", () => {
-      const client = mockClient("session-1");
-      joinClient(room, client, { name: "BadStop" });
-      tick(room);
-
-      const agentId = client.messages.find((m: any) => m.type === "joined")?.data.agentId;
-      const simAgent = room.simState.agents.get(agentId!);
-
-      sendInput(room, client, { seq: 3, direction: "south" });
-      tick(room);
-      expect(simAgent.lastProcessedInput).toBe(3);
-
-      sendMessage(room, client, "input:stop", { seq: NaN });
-      expect(simAgent.lastProcessedInput).toBe(3);
-
-      sendMessage(room, client, "input:stop", { seq: Infinity });
-      expect(simAgent.lastProcessedInput).toBe(3);
-
-      sendMessage(room, client, "input:stop", { seq: -1 });
-      expect(simAgent.lastProcessedInput).toBe(3);
-    });
-
-    it("flushes inputQueue even when seq is invalid", () => {
-      const client = mockClient("session-1");
-      joinClient(room, client, { name: "BadFlush" });
-      tick(room);
-
-      const agentId = client.messages.find((m: any) => m.type === "joined")?.data.agentId;
-      const simAgent = room.simState.agents.get(agentId!);
+      const agent = room.simState.agents.get(agentId!);
+      agent.facing = "south";
+      const startY = agent.position.y;
 
       sendInput(room, client, { seq: 1, direction: "south" });
       sendInput(room, client, { seq: 2, direction: "south" });
-      expect(simAgent.inputQueue.length).toBeGreaterThan(0);
+      sendMessage(room, client, "input:stop", { seq: 2 });
+      expect(agent.lastProcessedInput).toBe(0); // nothing acknowledged before it runs
 
-      // Send input:stop with invalid seq — queue should still be flushed
-      sendMessage(room, client, "input:stop", { seq: NaN });
-      expect(simAgent.inputQueue).toEqual([]);
-    });
-
-    it("flushes inputQueue on input:stop", () => {
-      const client = mockClient("session-1");
-      joinClient(room, client, { name: "Flusher" });
       tick(room);
-
-      const agentId = client.messages.find((m: any) => m.type === "joined")?.data.agentId;
-      const simAgent = room.simState.agents.get(agentId!);
-
-      // Enqueue multiple inputs without ticking
-      sendInput(room, client, { seq: 1, direction: "south" });
-      sendInput(room, client, { seq: 2, direction: "south" });
-      sendInput(room, client, { seq: 3, direction: "south" });
-      expect(simAgent.inputQueue.length).toBeGreaterThan(0);
-
-      // input:stop should flush the queue
-      sendMessage(room, client, "input:stop", { seq: 3 });
-      expect(simAgent.inputQueue).toEqual([]);
+      tick(room);
+      expect(agent.position.y).toBe(startY + 2);
+      expect(agent.lastProcessedInput).toBe(2);
     });
   });
 

@@ -80,7 +80,6 @@ export class InputHandler {
 
   // Network send callbacks
   onSendInput: ((frame: InputFrame) => void) | null = null;
-  onSendInputStop: ((seq: number) => void) | null = null;
 
   // Dialogue mode
   private _dialogueMode = false;
@@ -91,13 +90,10 @@ export class InputHandler {
   onDialogueGetSelectedId: (() => string | null) | null = null;
   onDialogueIsText: (() => boolean) | null = null;
 
+  // Moves already sent stay in pendingInputs: the server still runs them, and
+  // reconciliation drops each one once lastProcessedInput covers it.
   private handleBlur = (): void => {
-    const hadMovement = [...this.heldKeys].some((k) => k in MOVE_KEYS);
     this.heldKeys.clear();
-    if (hadMovement) {
-      this.onSendInputStop?.(this.inputSeq);
-      this.pendingInputs = [];
-    }
   };
 
   constructor() {
@@ -137,12 +133,9 @@ export class InputHandler {
 
   enterDialogueMode(): void {
     this._dialogueMode = true;
-    const hadMovement = [...this.heldKeys].some((k) => k in MOVE_KEYS);
+    // Queued moves are acknowledged by the server without moving while the
+    // dialogue lock holds, so reconciliation clears them; no stop needed.
     this.heldKeys.clear();
-    if (hadMovement) {
-      this.onSendInputStop?.(this.inputSeq);
-      this.pendingInputs = [];
-    }
   }
 
   exitDialogueMode(): void {
@@ -273,15 +266,6 @@ export class InputHandler {
 
   private handleKeyUp(e: KeyboardEvent): void {
     this.heldKeys.delete(e.code);
-
-    // When the last movement key is released, send stop
-    if (e.code in MOVE_KEYS) {
-      const hasMovement = [...this.heldKeys].some((k) => k in MOVE_KEYS);
-      if (!hasMovement) {
-        this.onSendInputStop?.(this.inputSeq);
-        this.pendingInputs = [];
-      }
-    }
   }
 
   destroy(): void {
