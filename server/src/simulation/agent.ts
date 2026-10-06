@@ -106,6 +106,9 @@ export class Agent {
     this.position = { ...position };
     this.inputQueue = [];
     this.planBacklog = [];
+    // The proximity loop skips the dead, so this map is stale: clear it, or
+    // a player who stood near the body gets no proximity:enter greeting.
+    this.proximityState.clear();
   }
 
   takeDamage(damage: number): void {

@@ -29,6 +29,7 @@ function createTestRoom(): { room: GameRoom; state: WorldStateSchema } {
   room.sessionToAgent = new Map<string, string>();
   room.nextPlayerId = 0;
   room.reviveAt = new Map<string, number>();
+  room.respawnAt = new Map<string, number>();
 
   // Minimal Room internals that GameRoom needs
   room.clients = {
@@ -39,7 +40,6 @@ function createTestRoom(): { room: GameRoom; state: WorldStateSchema } {
   room.onMessage = function (type: string, handler: (client: any, data: any) => void) {
     room._messageHandlers.set(type, handler);
   };
-  room.setState = function (state: any) { room.state = state; };
   room.setSimulationInterval = function (fn: () => void, _interval: number) {
     room._tickFn = fn;
   };
