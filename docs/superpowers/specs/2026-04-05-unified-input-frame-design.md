@@ -160,7 +160,9 @@ New:
   "input:stop" (seq)             — key release, stops held-key frame generation
 ```
 
-**`input:stop` semantics:** Client stops generating frames from held keys. Server sets `agent.lastProcessedInput = seq` so the client can prune its pending buffer. Server does **not** clear `inputQueue` — frames already enqueued are still processed normally. This differs from the predecessor `move:stop` which cleared `moveQueue`; in the unified model, flushing would risk discarding intentional action frames.
+> **Status (fix/movement-and-beast-speed):** the client no longer sends `input:stop`, and the server keeps a no-op handler only so tabs from older builds are not disconnected. Setting `lastProcessedInput = seq` on release acknowledged frames that had not run yet and pulled the player back one step. Every frame the server receives is now either run or acknowledged when it runs (or when the dialogue lock or death drops it).
+
+**`input:stop` semantics (original design):** Client stops generating frames from held keys. Server sets `agent.lastProcessedInput = seq` so the client can prune its pending buffer. Server does **not** clear `inputQueue` — frames already enqueued are still processed normally. This differs from the predecessor `move:stop` which cleared `moveQueue`; in the unified model, flushing would risk discarding intentional action frames.
 
 ### DisplayState Reconciliation
 

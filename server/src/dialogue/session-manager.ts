@@ -101,8 +101,9 @@ export function startDialogue(
     currentTick: state.tick,
   });
 
-  // Lock both agents and stop any queued actions
-  player.inputQueue = [];
+  // Lock both agents and stop any queued actions. The player's queue stays:
+  // the lock acknowledges those frames without running them, and the client
+  // needs that acknowledgement to drop the moves it already predicted.
   target.inputQueue = [];
   target.planBacklog = [];
   player.talkingToNpcId = targetId;

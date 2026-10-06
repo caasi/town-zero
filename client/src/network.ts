@@ -92,10 +92,6 @@ export class NetworkClient {
     this.room?.send("input", frame);
   }
 
-  sendInputStop(seq: number): void {
-    this.room?.send("input:stop", { seq });
-  }
-
   onVision(cb: (data: VisionData) => void): void {
     this.visionCallbacks.push(cb);
   }

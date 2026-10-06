@@ -28,6 +28,9 @@ const ATTACK_COOLDOWN_TICKS = 8; // ~1 attack/s
 // Backstop for the "every option yields a frame" rule: a goal that ends at
 // once (blocked path, bad option) must not turn into a paid call every tick.
 const ASK_INTERVAL_TICKS = 8; // ~1 Jev call/s per agent at most
+// Players move one step per tick at most and lose a tick to turn; beasts at
+// the same pace could not be outrun. One step (or turn) per 2 ticks: ~4 tiles/s.
+const MOVE_INTERVAL_TICKS = 2;
 
 const distance = (a: Position, b: Position) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 
@@ -192,6 +195,7 @@ export class JevController {
   private goals = new Map<string, Goal>();
   private pending = new Set<string>();
   private lastAskTick = new Map<string, number>();
+  private nextMoveTick = new Map<string, number>();
 
   constructor(private choose: ChooseFn | null, private rand = Math.random) {}
 
@@ -203,6 +207,10 @@ export class JevController {
       const goal = this.goals.get(agent.id);
       const frame = goal && nextFrame(agent, goal, state);
       if (frame) {
+        if (frame.direction) {
+          if (state.tick < (this.nextMoveTick.get(agent.id) ?? 0)) continue; // keep the goal, wait
+          this.nextMoveTick.set(agent.id, state.tick + MOVE_INTERVAL_TICKS);
+        }
         agent.planBacklog = [frame];
         continue;
       }

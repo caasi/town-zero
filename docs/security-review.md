@@ -81,6 +81,8 @@ Performed 2026-04-08 against `main` at `c2375fe`.
 
 ### 10. `input:stop` Seq Advancement
 
+> **Status (fix/movement-and-beast-speed):** the `input:stop` handler is now a no-op, so this path is gone. The same self-only effect remains through normal `input` frames and through the acknowledgement of frames sent by a dead agent: a client that sends a huge seq makes the server treat its later frames as stale. It affects only that client, so it stays Info.
+
 - **Category:** A05:2025 Injection
 - **Severity:** Info
 - **Location:** `server/src/rooms/GameRoom.ts` — lines ~36-46

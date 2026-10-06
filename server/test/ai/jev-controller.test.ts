@@ -200,6 +200,22 @@ describe("JevController", () => {
     expect(nextFrame(beast, controller.getGoal("b1")!, state)?.action).toEqual({ type: "idle" });
   });
 
+  it("moves a beast at most one step per 2 ticks", async () => {
+    const { state, beast } = setup();
+    beast.addToInventory("food", 3); // fed: no eat option
+    const controller = new JevController(vi.fn().mockResolvedValue("wander"), () => 0.99);
+    controller.update(state); // asks Jev
+    await flush();
+    let moves = 0;
+    for (let i = 0; i < 8; i++) {
+      state.tick++;
+      controller.update(state);
+      if (beast.planBacklog[0]?.direction) moves++;
+      beast.planBacklog = []; // the tick consumes the frame
+    }
+    expect(moves).toBe(4);
+  });
+
   it("falls back to a rule when the call fails", async () => {
     const { state } = setup();
     const controller = new JevController(vi.fn().mockRejectedValue(new Error("down")));

@@ -366,6 +366,19 @@ describe("GameRoom integration", () => {
     expect(village.populationIds.length).toBeLessThanOrEqual(village.getPopulationCap());
   });
 
+  it("acknowledges moves dropped by death, so the client does not replay them after revive", () => {
+    const client = mockClient("s-dead");
+    joinClient(room, client, { name: "Doomed" });
+    tick(room);
+    const id = client.messages.find((m: any) => m.type === "joined").data.agentId;
+    const agent = room.simState.agents.get(id);
+    sendInput(room, client, { seq: 1, direction: "west" });   // queued when death comes
+    agent.takeDamage(500);
+    expect(agent.lastProcessedInput).toBe(1);                 // death acknowledged the queued frame
+    sendInput(room, client, { seq: 2, direction: "west" });   // in flight, arrives while dead
+    expect(agent.lastProcessedInput).toBe(2);
+  });
+
   it("ignores commands from dead agents", () => {
     const client = mockClient("session-1");
     joinClient(room, client, { name: "DeadPlayer" });
@@ -444,6 +457,21 @@ describe("GameRoom integration", () => {
 
       return { client, agentId };
     }
+
+    it("acknowledges moves queued behind a talk frame instead of dropping them", () => {
+      // The client predicted those moves; a frame that is neither run nor
+      // acknowledged stays in its pending buffer and is replayed in dialogue.
+      const { client, agentId } = setupDialogue(room);
+      const agent = room.simState.agents.get(agentId!);
+      agent.facing = "south";
+      sendInput(room, client, { seq: 1, action: { type: "talk", targetId: "farmer-reed" } });
+      sendInput(room, client, { seq: 2, direction: "west" });
+      tick(room);
+      tick(room);
+      expect(agent.talkingToNpcId).toBe("farmer-reed");
+      expect(agent.lastProcessedInput).toBe(2);
+      expect(agent.position).toEqual({ x: 9, y: 18 }); // locked: acknowledged, not moved
+    });
 
     it("talk command creates session and sends dialogue:state", () => {
       const { client, agentId } = setupDialogue(room);
@@ -580,81 +608,29 @@ describe("GameRoom integration", () => {
     });
   });
 
-  describe("input:stop handler", () => {
-    it("uses Math.max — does not roll back lastProcessedInput", () => {
+  describe("key release", () => {
+    // The client predicts every move it sends. A key release must not drop
+    // moves the server has queued but not run yet, or the player is pulled
+    // back. A legacy "input:stop" from an old tab must be accepted and ignored.
+    it("runs every move sent before the release", () => {
       const client = mockClient("session-1");
-      joinClient(room, client, { name: "Stopper" });
+      joinClient(room, client, { name: "Walker" });
       tick(room);
-
       const agentId = client.messages.find((m: any) => m.type === "joined")?.data.agentId;
-      const simAgent = room.simState.agents.get(agentId!);
-
-      // Advance lastProcessedInput via normal input
-      sendInput(room, client, { seq: 10, direction: "south" });
-      tick(room);
-      expect(simAgent.lastProcessedInput).toBe(10);
-
-      // Send input:stop with a LOWER seq — should NOT roll back
-      sendMessage(room, client, "input:stop", { seq: 5 });
-      expect(simAgent.lastProcessedInput).toBe(10);
-    });
-
-    it("rejects NaN, Infinity, and negative seq", () => {
-      const client = mockClient("session-1");
-      joinClient(room, client, { name: "BadStop" });
-      tick(room);
-
-      const agentId = client.messages.find((m: any) => m.type === "joined")?.data.agentId;
-      const simAgent = room.simState.agents.get(agentId!);
-
-      sendInput(room, client, { seq: 3, direction: "south" });
-      tick(room);
-      expect(simAgent.lastProcessedInput).toBe(3);
-
-      sendMessage(room, client, "input:stop", { seq: NaN });
-      expect(simAgent.lastProcessedInput).toBe(3);
-
-      sendMessage(room, client, "input:stop", { seq: Infinity });
-      expect(simAgent.lastProcessedInput).toBe(3);
-
-      sendMessage(room, client, "input:stop", { seq: -1 });
-      expect(simAgent.lastProcessedInput).toBe(3);
-    });
-
-    it("flushes inputQueue even when seq is invalid", () => {
-      const client = mockClient("session-1");
-      joinClient(room, client, { name: "BadFlush" });
-      tick(room);
-
-      const agentId = client.messages.find((m: any) => m.type === "joined")?.data.agentId;
-      const simAgent = room.simState.agents.get(agentId!);
+      const agent = room.simState.agents.get(agentId!);
+      agent.facing = "south";
+      const startY = agent.position.y;
 
       sendInput(room, client, { seq: 1, direction: "south" });
       sendInput(room, client, { seq: 2, direction: "south" });
-      expect(simAgent.inputQueue.length).toBeGreaterThan(0);
+      expect(room._messageHandlers.has("input:stop")).toBe(true); // unregistered types disconnect
+      sendMessage(room, client, "input:stop", { seq: 2 });
+      expect(agent.lastProcessedInput).toBe(0); // nothing acknowledged before it runs
 
-      // Send input:stop with invalid seq — queue should still be flushed
-      sendMessage(room, client, "input:stop", { seq: NaN });
-      expect(simAgent.inputQueue).toEqual([]);
-    });
-
-    it("flushes inputQueue on input:stop", () => {
-      const client = mockClient("session-1");
-      joinClient(room, client, { name: "Flusher" });
       tick(room);
-
-      const agentId = client.messages.find((m: any) => m.type === "joined")?.data.agentId;
-      const simAgent = room.simState.agents.get(agentId!);
-
-      // Enqueue multiple inputs without ticking
-      sendInput(room, client, { seq: 1, direction: "south" });
-      sendInput(room, client, { seq: 2, direction: "south" });
-      sendInput(room, client, { seq: 3, direction: "south" });
-      expect(simAgent.inputQueue.length).toBeGreaterThan(0);
-
-      // input:stop should flush the queue
-      sendMessage(room, client, "input:stop", { seq: 3 });
-      expect(simAgent.inputQueue).toEqual([]);
+      tick(room);
+      expect(agent.position.y).toBe(startY + 2);
+      expect(agent.lastProcessedInput).toBe(2);
     });
   });
 

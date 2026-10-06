@@ -38,23 +38,22 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
       const agentId = this.sessionToAgent.get(client.sessionId);
       if (!agentId) return;
       const agent = this.simState.agents.get(agentId);
-      if (!agent || !agent.isAlive()) return;
+      if (!agent) return;
       if (!isValidInputFrame(data)) return;
       if (data.seq < 1) return;
+      // A dead agent does not act, but the frame is still acknowledged: the
+      // client predicted it and drops it only once lastProcessedInput covers it.
+      if (!agent.isAlive()) {
+        agent.lastProcessedInput = Math.max(agent.lastProcessedInput, data.seq);
+        return;
+      }
       agent.enqueueInput(data);
     });
 
-    this.onMessage("input:stop", (client: Client, data: unknown) => {
-      const agentId = this.sessionToAgent.get(client.sessionId);
-      if (!agentId) return;
-      const agent = this.simState.agents.get(agentId);
-      if (!agent) return;
-      agent.inputQueue = [];
-      const seq = typeof data === "object" && data !== null ? (data as any).seq : undefined;
-      if (typeof seq === "number" && Number.isSafeInteger(seq) && seq >= 0) {
-        agent.lastProcessedInput = Math.max(agent.lastProcessedInput, seq);
-      }
-    });
+    // Clients no longer send this (it dropped predicted moves). Kept as a no-op:
+    // Colyseus disconnects a client that sends an unregistered type, and tabs
+    // opened before a deploy still send it on key release. Remove when stale.
+    this.onMessage("input:stop", () => {});
 
     this.onMessage("revive", (client: Client) => this.revive(client));
 

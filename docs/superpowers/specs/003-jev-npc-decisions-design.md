@@ -72,6 +72,7 @@ Information sources:
 
 - Movement is a greedy step along the longer axis, then the other axis, and impassable tiles are skipped. A beast behind water gets no step; its goal ends and it re-asks at most once per second. The upgrade is a breadth-first search (BFS) over passable tiles.
 - Turn-before-move applies: a direction frame toward an adjacent target only turns the agent.
+- A beast emits at most one direction frame (step or turn) per 2 ticks, about 4 tiles/s, so a player who holds a key can outrun it.
 - `attack` waits 8 ticks between hits. Without the wait, three beasts killed a player in under 1 s. The wait is stored on the goal: when the target leaves sight, the goal ends, and a new `attack` goal can hit at once. So "about 1 attack per second" is not a strict limit.
 
 ### Failure and no key
