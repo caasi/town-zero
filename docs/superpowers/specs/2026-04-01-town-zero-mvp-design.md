@@ -1,5 +1,14 @@
 # town-zero MVP Design Spec
 
+> **Status (spec 003, `feat/jev-beasts`): parts of this spec no longer describe the code.**
+> The text below is kept as the original design record. Where it disagrees with the code, the code and the later specs win:
+>
+> - Section 3 "ActionCommand" and the FSM execution layer → replaced by the unified `InputFrame` (unified-input-frame spec) and facing-based interaction (spec 001). There is no `move` action and no multi-tick FSM.
+> - Section 2 production structures, the ecosystem loop, Section 4 production flow and external merchants, and the `trade` action → removed. None of them worked as described.
+> - Section 5 "LLM Integration" (LLM input/output, Dialogue Gate, `request` nodes) → replaced by spec 003: AI NPCs pick from a code-built option list with Jev.
+> - Section 6 client "click tile → move" and the interaction menu → replaced by the canvas-client and input-reconciliation specs.
+> - Player disconnect → bot takeover and reconnect → not built. A player who leaves is removed. A dead player can revive in the village after 5 s.
+
 ## Overview
 
 Multiplayer real-time ecosystem simulation .io game. Each world is a persistent small-scale ecosystem where players coexist with LLM-driven NPCs. Players can act directly or influence NPCs through dialogue. Village destruction = defeat.
