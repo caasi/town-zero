@@ -46,7 +46,7 @@ pnpm run typecheck:types
 
 **Simulation flow (per tick at 8 ticks/s = 125ms):**
 0. Before the tick, `GameRoom` calls `JevController.update` → one frame into `planBacklog` of each `"llm"` agent (see below)
-1. Consume one InputFrame per alive agent from `inputQueue` (player) or `planBacklog` (bot/LLM); execute via `executeFrame` (direction → turn-before-move, action → instant effect)
+1. Consume one InputFrame per alive agent from `inputQueue` (player) or `planBacklog` (bot/AI NPC); execute via `executeFrame` (direction → turn-before-move, action → instant effect)
 2. Bot controller decides for idle bot agents → fills `planBacklog` with `InputFrame[]`
 3. Agents consume food from personal inventory (counter-gated, ~30s)
 4. Vision update (MapMemory per agent), then bubble expiry and NPC event dispatch; dead members leave `populationIds` (a dead player keeps its slot until it leaves)
@@ -86,6 +86,7 @@ Source of truth: `processTick` in `server/src/simulation/tick.ts`.
 - Fog memory uses a snapshot model (`TileSnapshot` = terrain + entities + timestamp). Fog level is derived: `predictedVisible` → visible, has snapshot → explored, else → unknown. No `level` field stored — add new tile properties to `TileSnapshot` and they're automatically captured
 - **Player lifecycle:** a player who leaves is removed (agent and `populationIds`); a new join always creates a new agent. A dead player keeps its session and its population slot, and death ends its dialogue; after `REVIVE_DELAY_TICKS` (~5s, checked on the server) the client's `Revive` button sends `revive`, and the same agent comes back in a free village tile with full HP, its inventory and its MapMemory. Dead NPCs come back on their own (`processRespawns`, called by `GameRoom` after each tick): village NPCs after ~30s; den beasts after ~30s when the den pays food, free when no beast of the den is alive
 - Tests never call the real Jev API: `server/vitest.config.ts` clears `TYPESAFE_API_KEY`. To run the server with Jev, export `TYPESAFE_API_KEY` before `pnpm run dev:server`
+- The HUD shows the build commit (`#commit` in `client/index.html`, Vite `%VITE_COMMIT%`). CI passes `github.sha` as the `VITE_COMMIT` Docker build arg; `client/vite.config.ts` shortens it to 7 characters and uses `dev` when it is not set
 - Unknown tiles render as eigengrau (`#16161d`), void outside map boundary renders as true black (`#000`)
 - Dialogue system: `talk` action is processed through the tick pipeline via `executeFrame` → `startDialogue`. `dialogue:advance/choose/close` messages use the session-manager API directly. Dialogue lock: while `agent.talkingToNpcId` is set, all input is rejected (even if the active session was already cleaned up). Timeout is detected in `tickDialogues()` called from the tick loop. Client enters `dialogueMode` which intercepts W/S/E/Esc for dialogue navigation
 - `DialogueBuilderApi.entry()` adds conditional entry points to dialogue trees. `entryPoints` are evaluated in `startDialogue()` against NPC beliefs to select the starting node
@@ -100,6 +101,7 @@ Source of truth: `processTick` in `server/src/simulation/tick.ts`.
 - Player attacks have no cooldown (one per key press, up to 8/s). AI beasts wait ~1s between attacks, but the wait lives on the attack goal: a new goal (target left sight and came back) can hit at once.
 - After death the HUD can still show the last HP before 0 (the `death` message arrives before the state patch).
 - `material` and `currency` have no use since production and merchants were removed.
+- A respawned village NPC is added back to `populationIds` without a cap check: if a player took the freed slot, the village is one over its cap until someone leaves. It also respawns on the first free territory tile, not at its post (Farmer Reed starts at (9,19)).
 - Resource tiles never run out (`gather` is unlimited), and a beast's food knowledge reads the yield from the grid for tiles in its MapMemory. Store the yield in `TileMemory` when tiles can be used up.
 
 ## TODO
@@ -117,6 +119,6 @@ Source of truth: `processTick` in `server/src/simulation/tick.ts`.
 - [ ] **Dialogue eDSL review:** add `DialogueTreeData.validate()` for build-time graph integrity checks (dangling refs, empty next, action cycles)
 - [ ] **Tile object / prop system:** Tiles need an `objectType` layer separate from terrain (bush, box, tree). Currently bush uses a minimal `objectType` field on Tile; future iteration should extract a full TileObject concept with durability, loot tables, and interaction types. Settlement structures remain separate from wild tile objects.
 - [ ] **Dialogue-effect damage bypasses combat events.** The `damage` callback in `server/src/dialogue/dialogue-session.ts` (called by `executor.ts`) calls `Agent.takeDamage` directly; route it through `applyDamage` so `combat:hit` / `combat:death` fire for scripted damage.
-- [ ] **Downed NPCs instead of removal.** When a town NPC is killed, do not remove it: it stays down, and a player or another NPC can carry it back to town and heal it there. The same must work for enemy NPCs that are not beasts. Beasts keep the current death.
+- [ ] **Downed NPCs instead of removal.** Until then, `processRespawns` brings dead NPCs back after ~30s (a stopgap). When a town NPC is killed, do not remove it: it stays down, and a player or another NPC can carry it back to town and heal it there. The same must work for enemy NPCs that are not beasts. Beasts keep the current death.
 - [ ] **Personality for AI NPCs:** add a trait to the Jev state and check with real runs that it changes choices (demo: random quests + NPCs with personality).
 - [ ] **Quests:** generate quests; build them on NPC events plus dialogue actions (event handlers will need more than `bubble`); quest acceptance as a Jev `noul` question.
