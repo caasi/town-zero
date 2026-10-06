@@ -29,7 +29,7 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
     this.jev = new JevController(jevKey ? jevChooser(jevKey) : null);
     console.log(jevKey ? "AI NPCs: Jev" : "AI NPCs: fallback rules (TYPESAFE_API_KEY not set)");
 
-    this.setState(new WorldStateSchema());
+    this.state = new WorldStateSchema();
     this.state.width = this.simState.grid.width;
     this.state.height = this.simState.grid.height;
     syncTiles(this.simState.grid, this.state, this.simState.settlements);

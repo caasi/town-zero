@@ -40,7 +40,6 @@ function createTestRoom(): { room: GameRoom; state: WorldStateSchema } {
   room.onMessage = function (type: string, handler: (client: any, data: any) => void) {
     room._messageHandlers.set(type, handler);
   };
-  room.setState = function (state: any) { room.state = state; };
   room.setSimulationInterval = function (fn: () => void, _interval: number) {
     room._tickFn = fn;
   };
