@@ -210,7 +210,11 @@ async function connect(): Promise<void> {
       startReviveCountdown(reviveInMs);
     });
     network.onRevived(() => {
-      displayState.clear(); // snap to the village instead of gliding from the corpse
+      // Snap to the village instead of gliding from the corpse. clear() also drops
+      // the local player and tile source, which prediction needs.
+      displayState.clear();
+      displayState.setLocalPlayer(network.playerId);
+      displayState.setTileSource(fog.tileSource());
       gameState = "playing";
       setOverlay("playing");
       input?.setEnabled(true);
