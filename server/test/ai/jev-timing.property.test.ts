@@ -43,7 +43,7 @@ const answer = fc.oneof(fc.nat(9), fc.constant("fail" as const));
 describe("Jev reply timing (property)", () => {
   it("one call in flight, asks spaced, no goal for the dead", async () => {
     let asks = 0;
-    let lateReplies = 0; // replies resolved while their beast was dead
+    let lateReplies = 0; // replies that arrived while their own beast was dead
     vi.spyOn(console, "log").mockImplementation(() => {});
     vi.spyOn(console, "error").mockImplementation(() => {});
     await fc.assert(
@@ -73,7 +73,10 @@ describe("Jev reply timing (property)", () => {
             const last = ticks[ticks.length - 1];
             if (last !== undefined) expect(state.tick - last, `${id}: asked again too soon`).toBeGreaterThanOrEqual(ASK_INTERVAL_TICKS);
             askTicks.set(id, [...ticks, state.tick]);
-            return reply(criteria).finally(() => inFlight.set(id, inFlight.get(id)! - 1));
+            return reply(criteria).finally(() => {
+              inFlight.set(id, inFlight.get(id)! - 1);
+              if (!state.agents.get(id)!.isAlive()) lateReplies++;
+            });
           });
           // The chooser is not told which agent asks; update() asks in agent order,
           // so record the caller by wrapping the per-agent decision.
@@ -100,8 +103,10 @@ describe("Jev reply timing (property)", () => {
               // The controller's .then/.catch run a few microtasks after the reply.
               await new Promise((r) => setTimeout(r, 0));
               beasts.forEach((b, i) => {
+                // Not checked: a beast that died and came back before its reply.
+                // The controller would take that reply. It cannot happen in the
+                // game: a beast respawns after ~30 s, a Jev call times out after 5 s.
                 if (!before[i].dead || b.isAlive()) return;
-                lateReplies++;
                 if (before[i].goal === undefined) expect(controller.getGoal(b.id), `${b.id}: goal set while dead`).toBeUndefined();
                 if (before[i].bubble === null) expect(b.bubbleText, `${b.id}: roars while dead`).toBeNull();
               });
