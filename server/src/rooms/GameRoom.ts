@@ -195,7 +195,8 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
   }
 
   private tick() {
-    // Jev calls cost money: with no player in the world, AI NPCs stay frozen.
+    // Jev calls cost money: with no player in the world, no AI NPC gets a new
+    // frame or decision. processTick still runs (hunger, vision) for everyone.
     if (this.sessionToAgent.size > 0) this.jev.update(this.simState);
     const talkResults = processTick(this.simState);
 
