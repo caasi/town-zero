@@ -223,12 +223,16 @@ export class JevController {
     this.pending.add(agent.id);
     this.lastAskTick.set(agent.id, state.tick);
 
+    const askedTick = state.tick;
     const options = buildOptions(agent, state, this.rand);
     const criteria = Object.fromEntries(options.map((o) => [o.id, o.description]));
     this.choose(describeState(agent, state), INSTRUCTIONS, criteria)
       .then((id) => {
         console.log(`[jev] ${agent.id} chose ${id} from ${Object.keys(criteria).join(", ")}`);
-        this.goals.set(agent.id, options.find((o) => o.id === id)!.goal);
+        const goal = options.find((o) => o.id === id)!.goal;
+        // Deadlines count from the reply: a slow call must not use up the goal.
+        if ("untilTick" in goal) goal.untilTick += state.tick - askedTick;
+        this.goals.set(agent.id, goal);
       })
       .catch((err) => {
         console.error(`[jev] decision failed for ${agent.id}:`, err);

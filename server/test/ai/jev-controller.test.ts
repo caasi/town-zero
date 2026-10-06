@@ -189,6 +189,17 @@ describe("JevController", () => {
     expect(choose).toHaveBeenCalledTimes(2); // ticks 10 and 18
   });
 
+  it("starts goal deadlines when the reply arrives, not when it was asked", async () => {
+    const { state, beast } = setup();
+    let answer!: (id: string) => void;
+    const controller = new JevController(() => new Promise((r) => (answer = r)));
+    controller.update(state);
+    state.tick += 30; // slow reply: longer than a rest goal (24 ticks)
+    answer("rest");
+    await flush();
+    expect(nextFrame(beast, controller.getGoal("b1")!, state)?.action).toEqual({ type: "idle" });
+  });
+
   it("falls back to a rule when the call fails", async () => {
     const { state } = setup();
     const controller = new JevController(vi.fn().mockRejectedValue(new Error("down")));
