@@ -374,6 +374,7 @@ describe("GameRoom integration", () => {
     const agent = room.simState.agents.get(id);
     sendInput(room, client, { seq: 1, direction: "west" });   // queued when death comes
     agent.takeDamage(500);
+    expect(agent.lastProcessedInput).toBe(1);                 // death acknowledged the queued frame
     sendInput(room, client, { seq: 2, direction: "west" });   // in flight, arrives while dead
     expect(agent.lastProcessedInput).toBe(2);
   });
