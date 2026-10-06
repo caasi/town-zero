@@ -12,7 +12,7 @@ export default defineConfig({
     passWithNoTests: true,
     // Tests must never call the real Jev API, even when the shell has a key.
     env: { TYPESAFE_API_KEY: "" },
-    include: props ? ["test/**/*.property.test.ts"] : configDefaults.include,
+    include: props ? ["**/*.property.test.ts"] : configDefaults.include,
     exclude: props ? configDefaults.exclude : [...configDefaults.exclude, "**/*.property.test.ts"],
     testTimeout: props ? 120_000 : configDefaults.testTimeout,
   },
