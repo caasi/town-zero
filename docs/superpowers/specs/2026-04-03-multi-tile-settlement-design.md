@@ -1,5 +1,9 @@
 # Multi-Tile Settlement Design
 
+> **Status (spec 003, `feat/jev-beasts`): parts of this spec no longer describe the code.** The original text below is kept as a record. Where it disagrees with the code, the code and the later specs win:
+>
+> - The `PRODUCTION` zone, the `production` StructureType and `operatorId` → removed. Production never ran, because nothing set an operator. Templates keep `CORE` and `HOUSING`, so the population cap is unchanged.
+
 ## Problem
 
 Settlements currently render as a single tile marker (gold/purple square) despite having a 5×5 territory. Players cannot see individual buildings or settlement layout on the map. The data model syncs only the first territory tile's coordinates, and structures have positions that the client never renders.

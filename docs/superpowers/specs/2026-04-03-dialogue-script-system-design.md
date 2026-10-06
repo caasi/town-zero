@@ -1,5 +1,11 @@
 # Dialogue Script System with Beliefs and Triggers
 
+> **Status (spec 003, `feat/jev-beasts`): parts of this spec no longer describe the code.** The original text below is kept as a record. Where it disagrees with the code, the code and the later specs win:
+>
+> - §4 Trigger System, the trigger parts of §5 (`s.trigger()`, `d.trigger()`, `register_trigger`) and §8 trigger evaluation → removed. Triggers had no live use, supported only `set_fact`, and merged the beliefs of all agents into one global view.
+> - `request` nodes, the LLM dialogue gate and §7 LLM Prompt Integration → removed. AI NPC decisions use Jev (spec 003); a quest yes/no decision can come back as a Jev `noul` question.
+> - Facts, beliefs, the expression AST, the evaluator/executor, the eDSL for text/choice/action/end nodes and keyless i18n are still in use.
+
 ## Problem
 
 The current dialogue system (`DialogueEngine`) traverses static JSON trees with five node types (`text`, `choice`, `request`, `action`, `end`). The types define `condition` and `effect` string fields, but neither is evaluated. Text content is static strings with no variable interpolation. There is no mechanism for dialogue scripts to read or write game state, no cross-dialogue communication, and no way for NPCs to propagate narrative information through the same information-flow model that `MapMemory` already provides for spatial knowledge.

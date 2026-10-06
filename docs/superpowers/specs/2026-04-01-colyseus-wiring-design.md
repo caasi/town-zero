@@ -1,5 +1,10 @@
 # Colyseus Wiring Design Spec
 
+> **Status (spec 003, `feat/jev-beasts`): parts of this spec no longer describe the code.** The original text below is kept as a record. Where it disagrees with the code, the code and the later specs win:
+>
+> - `ChatRoom` → removed. `operatorId` on structures and tiles, the `production` structure type, `nextMerchantId` and merchant despawn → removed.
+> - Player leave → bot takeover → replaced: a player who leaves is removed from the world and from `populationIds`. A dead player keeps its session and can revive.
+
 Wire the tested simulation engine (98 tests, 7 tick phases) back into Colyseus networking. Server-side only — no client rendering.
 
 ## Scope

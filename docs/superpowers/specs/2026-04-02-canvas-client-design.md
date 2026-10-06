@@ -1,5 +1,10 @@
 # Canvas 2D Client Design Spec
 
+> **Status (spec 003, `feat/jev-beasts`): parts of this spec no longer describe the code.** The original text below is kept as a record. Where it disagrees with the code, the code and the later specs win:
+>
+> - Merchant rendering, "adjacent merchant → open trade modal" and the Trade Modal section → removed with merchants and trade.
+> - The death overlay's `Rejoin` button → replaced by `Revive`: the same agent comes back in the village after ~5 s, with its inventory and explored map.
+
 > **Goal:** Replace the minimal ChatRoom client with a playable Canvas 2D game client that connects to the GameRoom, renders the world with fog of war, and lets players control their agent via keyboard.
 
 **Architecture:** Thin Client. All game state comes from the server via Colyseus schema sync and messages. No client-side prediction. The client only renders and sends commands.
