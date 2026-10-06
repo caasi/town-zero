@@ -85,7 +85,7 @@ Information sources:
 
 ### Failure and no key
 
-If `TYPESAFE_API_KEY` is not set, or a call fails, the controller uses a rule, in this order: hungry and the den has food → `eat`; a threat in sight → attack it; a full load and the den is low → `store`; a known food tile and not full → `forage`; else `rest`. The reply from Jev is accepted only if it is one of the offered ids. Tests clear `TYPESAFE_API_KEY` in `server/vitest.config.ts`, so tests never call the real API.
+If `TYPESAFE_API_KEY` is not set, or a call fails, the controller uses a rule, in this order: hungry and the den has food → `eat`; a threat in sight → attack it; a full load and the den is low → `store`; a known food tile and not full → `forage`; else walk to the den core and wait there (`rest` if the agent has no den). The reply from Jev is accepted only if it is one of the offered ids. Tests clear `TYPESAFE_API_KEY` in `server/vitest.config.ts`, so tests never call the real API.
 
 ### Observability
 

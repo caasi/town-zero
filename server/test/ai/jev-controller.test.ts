@@ -331,6 +331,15 @@ describe("JevController", () => {
     expect(moves).toBe(4);
   });
 
+  it("falls back to waiting at the den core when there is nothing to do", () => {
+    const { state, beast } = setup();
+    beast.addToInventory("food", 5); // full, den not low, no threat
+    beast.position = { x: 6, y: 6 };
+    const controller = new JevController(null);
+    controller.update(state);
+    expect(controller.getGoal("b1")).toMatchObject({ kind: "wander", to: { x: 2, y: 2 } });
+  });
+
   it("falls back to a rule when the call fails", async () => {
     const { state } = setup();
     const controller = new JevController(vi.fn().mockRejectedValue(new Error("down")));
@@ -345,7 +354,7 @@ describe("JevController", () => {
     beast.addToInventory("food", 2);
     const controller = new JevController(null);
     controller.update(state);
-    expect(controller.getGoal("b1")?.kind).toBe("rest");
+    expect(controller.getGoal("b1")?.kind).toBe("wander"); // waits at the den core
   });
 
   it("ignores agents that are not llm-controlled", () => {

@@ -184,6 +184,8 @@ export function fallbackGoal(agent: Agent, state: SimulationState): Goal {
   if (threat) return { kind: "attack", targetId: threat.id };
   if (home && food >= CARRY_FULL && home.inventory.food < DEN_FOOD_LOW) return { kind: "store" };
   if (foodTile && food < CARRY_FULL) return { kind: "forage", tile: foodTile };
+  // Idle beasts wait at the den core, not where the last goal left them.
+  if (home) return { kind: "wander", to: homeCenter(home), untilTick: state.tick + WANDER_TICKS };
   return { kind: "rest", untilTick: state.tick + REST_TICKS };
 }
 
