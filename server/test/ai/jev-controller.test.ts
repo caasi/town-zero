@@ -174,6 +174,21 @@ describe("JevController", () => {
     expect(beast.planBacklog).toEqual([{ seq: 0, direction: "east" }]);
   });
 
+  it("asks Jev at most once per 8 ticks per agent, even when goals end at once", async () => {
+    const { state, beast, player } = setup();
+    // Blocked: the attack target is in sight but every step is water.
+    for (const [x, y] of [[3, 2], [1, 2], [2, 3], [2, 1]]) state.grid.setTerrain(x, y, "water");
+    const choose = vi.fn().mockResolvedValue("attack:p1");
+    const controller = new JevController(choose);
+    for (let i = 0; i < 16; i++) {
+      see(beast, player, state.tick);
+      controller.update(state);
+      await flush();
+      state.tick++;
+    }
+    expect(choose).toHaveBeenCalledTimes(2); // ticks 10 and 18
+  });
+
   it("falls back to a rule when the call fails", async () => {
     const { state } = setup();
     const controller = new JevController(vi.fn().mockRejectedValue(new Error("down")));

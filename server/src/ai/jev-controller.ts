@@ -25,6 +25,9 @@ const REST_TICKS = 24;   // ~3s
 const TAKE_FOOD = 3;
 // One attack per frame would be 8 hits/s; three beasts killed a player in under 1 s.
 const ATTACK_COOLDOWN_TICKS = 8; // ~1 attack/s
+// Backstop for the "every option yields a frame" rule: a goal that ends at
+// once (blocked path, bad option) must not turn into a paid call every tick.
+const ASK_INTERVAL_TICKS = 8; // ~1 Jev call/s per agent at most
 
 const distance = (a: Position, b: Position) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 
@@ -184,6 +187,7 @@ export function nextFrame(agent: Agent, goal: Goal, state: SimulationState): Inp
 export class JevController {
   private goals = new Map<string, Goal>();
   private pending = new Set<string>();
+  private lastAskTick = new Map<string, number>();
 
   constructor(private choose: ChooseFn | null, private rand = Math.random) {}
 
@@ -214,7 +218,10 @@ export class JevController {
     }
     // One call in flight per agent: the agent idles until the answer arrives.
     if (this.pending.has(agent.id)) return;
+    const last = this.lastAskTick.get(agent.id);
+    if (last !== undefined && state.tick - last < ASK_INTERVAL_TICKS) return;
     this.pending.add(agent.id);
+    this.lastAskTick.set(agent.id, state.tick);
 
     const options = buildOptions(agent, state, this.rand);
     const criteria = Object.fromEntries(options.map((o) => [o.id, o.description]));
