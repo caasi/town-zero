@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { JevController, buildOptions, nextFrame, describeState } from "../../src/ai/jev-controller.js";
+import { JevController, buildOptions, nextFrame, describeState, type Goal } from "../../src/ai/jev-controller.js";
 import { jevChooser } from "../../src/ai/jev.js";
 import { Agent } from "../../src/simulation/agent.js";
 import { Settlement } from "../../src/simulation/settlement.js";
@@ -35,11 +35,36 @@ describe("buildOptions", () => {
   it("offers attack only for enemies seen this tick", () => {
     const { state, beast, player } = setup();
     see(beast, player, state.tick);
-    expect(buildOptions(beast, state).map((o) => o.id))
-      .toEqual(["attack:p1", "eat_at_den", "flee_to_den", "wander", "rest"]);
+    expect(buildOptions(beast, state).map((o) => o.id)).toContain("attack:p1");
 
     see(beast, player, state.tick - 1); // remembered, not seen now
     expect(buildOptions(beast, state).map((o) => o.id)).not.toContain("attack:p1");
+  });
+
+  it("offers only options that make sense now, rest first", () => {
+    const { state, beast, player } = setup();
+    // Hungry, at home, no enemy in sight.
+    expect(buildOptions(beast, state).map((o) => o.id)).toEqual(["rest", "wander", "eat_at_den"]);
+
+    // Fed, outside the den, enemy in sight.
+    beast.addToInventory("food", 3);
+    beast.position = { x: 5, y: 2 };
+    see(beast, player, state.tick);
+    expect(buildOptions(beast, state).map((o) => o.id)).toEqual(["rest", "wander", "flee_to_den", "attack:p1"]);
+  });
+
+  it("every offered option yields a frame (no instant re-ask loop)", () => {
+    const { state, beast, player } = setup();
+    for (const food of [0, 3]) {
+      for (const pos of [{ x: 2, y: 2 }, { x: 5, y: 2 }]) {
+        beast.inventory.food = food;
+        beast.position = pos;
+        see(beast, player, state.tick);
+        for (const option of buildOptions(beast, state, () => 0.9)) {
+          expect(nextFrame(beast, option.goal, state), `${option.id} food=${food} at ${pos.x}`).not.toBeNull();
+        }
+      }
+    }
   });
 
   it("describes state in words, without coordinates", () => {
@@ -55,7 +80,7 @@ describe("buildOptions", () => {
 describe("nextFrame", () => {
   it("attack: walks toward, turns to face, then attacks", () => {
     const { state, beast, player } = setup();
-    const goal = { kind: "attack" as const, targetId: "p1" };
+    const goal: Goal = { kind: "attack", targetId: "p1" };
     see(beast, player, state.tick);
     beast.facing = "east";
     expect(nextFrame(beast, goal, state)).toEqual({ seq: 0, direction: "east" });
@@ -66,6 +91,13 @@ describe("nextFrame", () => {
 
     beast.facing = "south";
     expect(nextFrame(beast, goal, state)).toEqual({ seq: 0, action: { type: "attack", targetId: "p1" } });
+    // Cooldown: idles until ~1s later, then attacks again.
+    state.tick += 1;
+    see(beast, player, state.tick);
+    expect(nextFrame(beast, goal, state)?.action).toEqual({ type: "idle" });
+    state.tick += 7;
+    see(beast, player, state.tick);
+    expect(nextFrame(beast, goal, state)?.action).toEqual({ type: "attack", targetId: "p1" });
 
     player.takeDamage(1000);
     expect(nextFrame(beast, goal, state)).toBeNull();

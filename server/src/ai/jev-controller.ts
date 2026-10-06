@@ -6,7 +6,7 @@ import type { SimulationState } from "../simulation/tick.js";
 import type { ChooseFn } from "./jev.js";
 
 export type Goal =
-  | { kind: "attack"; targetId: string }
+  | { kind: "attack"; targetId: string; readyTick?: number }
   | { kind: "eat" }
   | { kind: "flee" }
   | { kind: "wander"; to: Position; untilTick: number }
@@ -23,6 +23,8 @@ const WANDER_RADIUS = 4;
 const WANDER_TICKS = 40; // ~5s
 const REST_TICKS = 24;   // ~3s
 const TAKE_FOOD = 3;
+// One attack per frame would be 8 hits/s; three beasts killed a player in under 1 s.
+const ATTACK_COOLDOWN_TICKS = 8; // ~1 attack/s
 
 const distance = (a: Position, b: Position) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 
@@ -45,30 +47,38 @@ function visibleEnemies(agent: Agent, state: SimulationState): Agent[] {
 }
 
 /**
- * The options a beast may pick from. Descriptions are words, not coordinates:
- * Jev is weak at spatial and numeric reasoning (jev-1.13 known limitations).
+ * The options a beast may pick from. Rules:
+ * - Offer only what makes sense now, and every option must yield at least one
+ *   frame. An option that is done at once makes the agent ask again at once,
+ *   which loops on the API.
+ * - Words, not coordinates: Jev is weak at spatial and numeric reasoning.
+ * - "rest" goes first: Jev leans toward the first option (jev-1.13 known
+ *   limitations), so that bias lands on the safest choice.
  */
 export function buildOptions(agent: Agent, state: SimulationState, rand = Math.random): Option[] {
-  const options: Option[] = visibleEnemies(agent, state).map((enemy) => ({
-    id: `attack:${enemy.id}`,
-    description: `Walk to ${enemy.id} and attack it.`,
-    goal: { kind: "attack", targetId: enemy.id },
-  }));
-  const home = homeOf(agent, state);
-  if (home) {
-    options.push(
-      { id: "eat_at_den", description: "Go back to the den and take food.", goal: { kind: "eat" } },
-      { id: "flee_to_den", description: "Run away from enemies to the den.", goal: { kind: "flee" } },
-    );
-  }
   const to = {
     x: agent.position.x + Math.round((rand() * 2 - 1) * WANDER_RADIUS),
     y: agent.position.y + Math.round((rand() * 2 - 1) * WANDER_RADIUS),
   };
-  options.push(
-    { id: "wander", description: "Walk around to look for something.", goal: { kind: "wander", to, untilTick: state.tick + WANDER_TICKS } },
+  const options: Option[] = [
     { id: "rest", description: "Stay where you are.", goal: { kind: "rest", untilTick: state.tick + REST_TICKS } },
-  );
+    { id: "wander", description: "Walk around to look for something.", goal: { kind: "wander", to, untilTick: state.tick + WANDER_TICKS } },
+  ];
+  const home = homeOf(agent, state);
+  const enemies = visibleEnemies(agent, state);
+  if (home && agent.inventory.food === 0 && home.inventory.food > 0) {
+    options.push({ id: "eat_at_den", description: "Go back to the den and take food.", goal: { kind: "eat" } });
+  }
+  if (home && enemies.length > 0 && !home.isInTerritory(agent.position)) {
+    options.push({ id: "flee_to_den", description: "Run away from enemies to the den.", goal: { kind: "flee" } });
+  }
+  for (const enemy of enemies) {
+    options.push({
+      id: `attack:${enemy.id}`,
+      description: `Walk to ${enemy.id} and attack it.`,
+      goal: { kind: "attack", targetId: enemy.id },
+    });
+  }
   return options;
 }
 
@@ -91,7 +101,8 @@ export function describeState(agent: Agent, state: SimulationState): Record<stri
 
 /** Used when no Jev key is set or a call fails, so the game still runs. */
 export function fallbackGoal(agent: Agent, state: SimulationState): Goal {
-  if (agent.inventory.food === 0 && homeOf(agent, state)) return { kind: "eat" };
+  const home = homeOf(agent, state);
+  if (agent.inventory.food === 0 && home && home.inventory.food > 0) return { kind: "eat" };
   return { kind: "rest", untilTick: state.tick + REST_TICKS };
 }
 
@@ -131,6 +142,8 @@ export function nextFrame(agent: Agent, goal: Goal, state: SimulationState): Inp
         const dir = stepToward(agent, target.position, state) ?? agent.facing;
         // Turn-before-move: a direction frame toward an adjacent tile only turns.
         if (dir !== agent.facing) return move(dir);
+        if (state.tick < (goal.readyTick ?? 0)) return { seq: 0, action: { type: "idle" } };
+        goal.readyTick = state.tick + ATTACK_COOLDOWN_TICKS;
         return { seq: 0, action: { type: "attack", targetId: target.id } };
       }
       const dir = stepToward(agent, target.position, state);
@@ -204,6 +217,7 @@ export class JevController {
     const criteria = Object.fromEntries(options.map((o) => [o.id, o.description]));
     this.choose(describeState(agent, state), INSTRUCTIONS, criteria)
       .then((id) => {
+        console.log(`[jev] ${agent.id} chose ${id} from ${Object.keys(criteria).join(", ")}`);
         this.goals.set(agent.id, options.find((o) => o.id === id)!.goal);
       })
       .catch((err) => {
