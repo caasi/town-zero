@@ -15,6 +15,7 @@
     "dev:client": "pnpm --filter @town-zero/client dev",
     "test": "pnpm --filter @town-zero/server test && pnpm --filter @town-zero/client test",
     "test:props": "pnpm --filter @town-zero/server test:props",
-    "typecheck:types": "pnpm --filter @town-zero/shared typecheck:types"
+    "typecheck:types": "pnpm --filter @town-zero/shared typecheck:types",
+    "typecheck": "pnpm --recursive --no-bail run typecheck"
   }
 }

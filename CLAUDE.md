@@ -37,7 +37,12 @@ pnpm run test
 # Run the fast-check property tests (*.property.test.ts); CI runs both
 pnpm run test:props
 
-# Type-level tests for the script DSL
+# Type-check src and test files (server, client) and the script DSL type tests.
+# Vitest strips types, so a test can drift from the code it tests without
+# this. Needs shared built first (pnpm run build). Run it before committing.
+pnpm run typecheck
+
+# Only the type-level tests for the script DSL
 pnpm run typecheck:types
 ```
 

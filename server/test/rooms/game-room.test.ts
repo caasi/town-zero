@@ -9,6 +9,7 @@ import type { WorldStateSchema } from "../../src/rooms/schemas/WorldStateSchema.
 // The pure functions (sync, validation, vision) are fully tested in other files;
 // these tests focus on the wiring between Colyseus lifecycle and simulation.
 
+import type { SimulationState } from "../../src/simulation/tick.js";
 import { mockClient, createTestRoom, joinClient, leaveClient, sendInput, sendMessage, tick } from "./room-harness.js";
 
 describe("GameRoom integration", () => {
@@ -339,8 +340,8 @@ describe("GameRoom integration", () => {
 
   it("rejects player when village is at population cap", () => {
     // Fill village to capacity
-    const village = Array.from(room.simState.settlements.values())
-      .find((s: any) => s.type === "village")!;
+    const village = Array.from((room.simState as SimulationState).settlements.values())
+      .find((s) => s.type === "village")!;
     const cap = village.getPopulationCap();
     const existingPop = village.populationIds.length;
     const spotsLeft = cap - existingPop;
