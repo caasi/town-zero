@@ -36,6 +36,8 @@ jobs:
       - run: pnpm run build
       - run: pnpm --filter @town-zero/client build
       - run: pnpm run test
+      # Property tests (fast-check): skipped by `test` to keep the local loop fast.
+      - run: pnpm run test:props
       - run: pnpm run typecheck:types
 
   image:
