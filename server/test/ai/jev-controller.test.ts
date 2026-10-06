@@ -130,6 +130,18 @@ describe("buildOptions", () => {
     }
   });
 
+  it("offers no option whose first step is blocked", () => {
+    const { state, beast, player } = setup();
+    // Beast outside the den, enemy next to the den; water on every side of the beast.
+    beast.position = { x: 6, y: 6 };
+    player.position = { x: 4, y: 2 };
+    see(beast, player, state.tick);
+    for (const [x, y] of [[7, 6], [5, 6], [6, 7], [6, 5]]) state.grid.setTerrain(x, y, "water");
+    for (const option of buildOptions(beast, state, () => 0.9)) {
+      expect(nextFrame(beast, option.goal, state), option.id).not.toBeNull();
+    }
+  });
+
   it("describes state in words, without coordinates", () => {
     const { state, beast, player } = setup();
     see(beast, player, state.tick);

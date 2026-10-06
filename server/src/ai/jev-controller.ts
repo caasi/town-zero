@@ -111,9 +111,10 @@ export function buildOptions(agent: Agent, state: SimulationState, rand = Math.r
   const options: Option[] = [
     { id: "rest", description: "Stay where you are.", goal: { kind: "rest", untilTick: state.tick + REST_TICKS } },
   ];
-  // Only options whose first frame exists: see the rule above.
+  // Only options whose first frame exists: see the rule above. A copy, as
+  // nextFrame starts the attack cooldown on the goal it is given.
   const offer = (id: string, description: string, goal: Goal) => {
-    if (nextFrame(agent, goal, state)) options.push({ id, description, goal });
+    if (nextFrame(agent, { ...goal }, state)) options.push({ id, description, goal });
   };
   const home = homeOf(agent, state);
   const enemies = visibleEnemies(agent, state).filter((e) => isThreat(agent, e, state));
@@ -136,20 +137,16 @@ export function buildOptions(agent: Agent, state: SimulationState, rand = Math.r
     offer("bring_food_home", "Carry your food back and store it in the den.", { kind: "store" });
   }
   if (home && food === 0 && home.inventory.food > 0) {
-    options.push({ id: "eat_at_den", description: "Go back to the den and take food.", goal: { kind: "eat" } });
+    offer("eat_at_den", "Go back to the den and take food.", { kind: "eat" });
   }
   if (home && enemies.length > 0 && !home.isInTerritory(agent.position)) {
-    options.push({ id: "flee_to_den", description: "Run away from enemies to the den.", goal: { kind: "flee" } });
+    offer("flee_to_den", "Run away from enemies to the den.", { kind: "flee" });
   }
   if (enemies.length > 0) {
-    options.push({ id: "roar", description: "Roar to warn the enemies away from the den.", goal: { kind: "roar", untilTick: state.tick + ROAR_TICKS } });
+    offer("roar", "Roar to warn the enemies away from the den.", { kind: "roar", untilTick: state.tick + ROAR_TICKS });
   }
   for (const enemy of enemies) {
-    options.push({
-      id: `attack:${enemy.id}`,
-      description: `Walk to ${enemy.id} and attack it.`,
-      goal: { kind: "attack", targetId: enemy.id },
-    });
+    offer(`attack:${enemy.id}`, `Walk to ${enemy.id} and attack it.`, { kind: "attack", targetId: enemy.id });
   }
   return options;
 }
