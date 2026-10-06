@@ -54,7 +54,7 @@ pnpm run test
 
 - **WASD** or **arrow keys**: move. The first press in a new direction only turns you.
 - **E**: interact with the tile in front of you. You talk to an NPC, attack an enemy, or gather from a resource tile.
-- **T**: deposit what you carry at your settlement.
+- **T**: deposit what you carry at the settlement you stand in.
 - In a dialogue: **W/S** to select, **E** to confirm, **Esc** to close.
 
 The keys use physical positions, so they work on any keyboard layout.
@@ -63,9 +63,9 @@ The keys use physical positions, so they work on any keyboard layout.
 
 Players join a 40x40 grid world with a **village** and a **monster den**. Both are settlements with population, inventory, structures and territory.
 
-- **Players** send one input frame per tick. A player who leaves is removed from the world. The room closes when the last player leaves, and the next player gets a new world.
+- **Players** send one input frame per tick. A player who leaves is removed from the world. The room closes when the last player leaves, and the next player starts in a fresh world.
 - **AI NPCs** (the den beasts) use the Jev model through `server/src/ai/jev-controller.ts`. Without `TYPESAFE_API_KEY`, or when a call fails, a fixed rule decides. With no player in the room, no Jev calls are made.
-- **Food:** every agent eats one food from its own inventory about every 30 seconds. Players take food from the village store. Beasts gather it at the berry bushes near the den.
+- **Food:** every agent eats one food from its own inventory about every 30 seconds. A player without food loses HP. Players gather food at the bushes east of the village (face a bush and press E). Beasts gather it at the berry bushes near the den.
 - **Fog of war:** each agent sees only a Manhattan-distance radius and remembers what it saw. Agents of the same faction share memory only when they stand next to each other.
 
 ### Simulation Loop (8 ticks/s = 125 ms)
