@@ -22,6 +22,7 @@ describe("loadScenario()", () => {
       npcs: [
         {
           id: "elder",
+          name: "Elder",
           role: "merchant",
           faction: "v1",
           position: { x: 5, y: 5 },
@@ -61,6 +62,7 @@ describe("loadScenario()", () => {
       npcs: [
         {
           id: "a",
+          name: "A",
           role: "scout",
           faction: "v1",
           position: { x: 0, y: 0 },
@@ -111,6 +113,7 @@ describe("loadScenario()", () => {
       npcs: [
         {
           id: "guard",
+          name: "Guard",
           role: "scout",
           faction: "v2",
           position: { x: 10, y: 15 },
