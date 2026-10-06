@@ -234,6 +234,13 @@ describe("jevChooser", () => {
       .rejects.toThrow("unknown choice");
   });
 
+  it("rejects inherited property names as a choice", async () => {
+    for (const choice of ["toString", "constructor", "__proto__"]) {
+      await expect(jevChooser("k", reply({ answers: { next: { choice } } }))({}, "Pick.", options))
+        .rejects.toThrow("unknown choice");
+    }
+  });
+
   it("rejects an HTTP error", async () => {
     await expect(jevChooser("k", reply({}, false))({}, "Pick.", options)).rejects.toThrow("HTTP 500");
   });

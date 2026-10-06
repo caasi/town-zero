@@ -25,7 +25,7 @@ export function jevChooser(apiKey: string, fetchFn: typeof fetch = fetch): Choos
     const body = (await res.json()) as { answers?: { next?: { choice?: unknown } } };
     const choice = body.answers?.next?.choice;
     // The answer comes from outside the server: accept only an id we offered.
-    if (typeof choice !== "string" || !(choice in options)) {
+    if (typeof choice !== "string" || !Object.hasOwn(options, choice)) {
       throw new Error(`Jev returned an unknown choice: ${String(choice)}`);
     }
     return choice;
