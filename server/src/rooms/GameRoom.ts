@@ -149,16 +149,18 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
     if (!agentId) return;
 
     const agent = this.simState.agents.get(agentId);
-    if (agent) {
-      if (agent.talkingToNpcId) {
-        endDialogue(agent.talkingToNpcId, this.simState, "player_left");
-      }
-      agent.controller = "bot";
+    if (agent?.talkingToNpcId) {
+      endDialogue(agent.talkingToNpcId, this.simState, "player_left");
+    }
+    // A new join always creates a new agent, so a left agent would only hold a population slot.
+    this.simState.agents.delete(agentId);
+    for (const settlement of this.simState.settlements.values()) {
+      settlement.populationIds = settlement.populationIds.filter((id) => id !== agentId);
     }
 
     this.sessionToAgent.delete(client.sessionId);
     purgeProximityState(this.simState, agentId);
-    console.log(`${agentId} left, now bot-controlled (${client.sessionId})`);
+    console.log(`${agentId} left and was removed (${client.sessionId})`);
   }
 
   private tick() {

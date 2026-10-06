@@ -184,6 +184,11 @@ export function processTick(state: SimulationState): TalkResult[] {
     }
   }
 
+  // Dead members must not hold population slots, or joins are refused at the cap.
+  for (const settlement of settlements.values()) {
+    settlement.populationIds = settlement.populationIds.filter((id) => agents.get(id)?.isAlive());
+  }
+
   // Phase 7: Memory merge for adjacent same-faction agents
   const agentList = Array.from(agents.values()).filter((a) => a.isAlive());
   mergeAdjacentMemories(agentList, grid);

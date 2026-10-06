@@ -140,26 +140,39 @@ describe("GameRoom integration", () => {
     expect(playerAgent.x).toBe(origX + 1);
   });
 
-  it("player leaves and agent becomes bot-controlled", () => {
+  it("player leaves and agent is removed from world and village", () => {
     const client = mockClient("session-1");
     joinClient(room, client, { name: "Leaver" });
     tick(room);
 
-    let playerId: string | undefined;
-    state.agents.forEach((agent: any) => {
-      if (agent.controller === "player") playerId = agent.id;
-    });
-    expect(playerId).toBeDefined();
+    const joined = client.messages.find((m: any) => m.type === "joined");
+    const playerId = joined.data.agentId;
+    const village = Array.from(room.simState.settlements.values()).find((s: any) => s.type === "village") as any;
+    expect(village.populationIds).toContain(playerId);
 
     leaveClient(room, client);
     tick(room);
 
-    let leftAgent: any;
-    state.agents.forEach((agent: any) => {
-      if (agent.id === playerId) leftAgent = agent;
-    });
-    expect(leftAgent).toBeDefined();
-    expect(leftAgent.controller).toBe("bot");
+    expect(room.simState.agents.has(playerId)).toBe(false);
+    expect(state.agents.has(playerId)).toBe(false);
+    expect(village.populationIds).not.toContain(playerId);
+  });
+
+  it("repeated join/leave cycles never hit the population cap", () => {
+    for (let i = 0; i < 20; i++) {
+      const client = mockClient(`session-${i}`);
+      joinClient(room, client, { name: `P${i}` });
+      expect(client.messages.some((m: any) => m.type === "joined")).toBe(true);
+      leaveClient(room, client);
+    }
+  });
+
+  it("dead agents do not count toward the population cap", () => {
+    const village = Array.from(room.simState.settlements.values()).find((s: any) => s.type === "village") as any;
+    for (const id of village.populationIds) room.simState.agents.get(id)?.takeDamage(10_000);
+    tick(room);
+
+    expect(village.populationIds).toEqual([]);
   });
 
   it("multiple players join and appear in state", () => {
