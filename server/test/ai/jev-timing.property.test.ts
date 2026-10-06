@@ -53,11 +53,16 @@ describe("Jev reply timing (property)", () => {
           const inFlight = new Map<string, number>();
           const askTicks = new Map<string, number[]>();
           let caller = "";
-          const reply = s.scheduleFunction(async (criteria: Record<string, string>) => {
+          // scheduleFunction calls the function at once and holds its promise:
+          // a rejection made there is unhandled until release. So the
+          // scheduled value says "fail", and the rejection is made after release.
+          const scheduled = s.scheduleFunction(async (criteria: Record<string, string>) => {
             const a = answers.next().value;
-            if (a === "fail") throw new Error("Jev down");
-            const ids = Object.keys(criteria);
-            return ids[a % ids.length];
+            return a === "fail" ? null : Object.keys(criteria)[a % Object.keys(criteria).length];
+          });
+          const reply = (criteria: Record<string, string>) => scheduled(criteria).then((id) => {
+            if (id === null) throw new Error("Jev down");
+            return id;
           });
           const controller = new JevController((_state, _instructions, criteria) => {
             asks++;
