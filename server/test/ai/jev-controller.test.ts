@@ -53,6 +53,25 @@ describe("buildOptions", () => {
     expect(buildOptions(beast, state).map((o) => o.id)).toEqual(["rest", "wander", "flee_to_den", "attack:p1"]);
   });
 
+  it("offers wander only when its first step is possible", () => {
+    const { state, beast } = setup();
+    // rand 0.5 → offset (0,0): the target is the beast's own tile.
+    expect(buildOptions(beast, state, () => 0.5).map((o) => o.id)).not.toContain("wander");
+    // Walled in by water: no step in any direction.
+    for (const [x, y] of [[3, 2], [1, 2], [2, 3], [2, 1]]) state.grid.setTerrain(x, y, "water");
+    expect(buildOptions(beast, state, Math.random).map((o) => o.id)).not.toContain("wander");
+  });
+
+  it("every offered wander yields a frame for any rand value", () => {
+    const { state, beast } = setup();
+    beast.position = { x: 0, y: 0 }; // corner: many targets are out of bounds
+    for (let i = 0; i < 100; i++) {
+      const r = i / 100;
+      const wander = buildOptions(beast, state, () => r).find((o) => o.id === "wander");
+      if (wander) expect(nextFrame(beast, wander.goal, state), `rand=${r}`).not.toBeNull();
+    }
+  });
+
   it("every offered option yields a frame (no instant re-ask loop)", () => {
     const { state, beast, player } = setup();
     for (const food of [0, 3]) {

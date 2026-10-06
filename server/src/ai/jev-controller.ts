@@ -56,14 +56,17 @@ function visibleEnemies(agent: Agent, state: SimulationState): Agent[] {
  *   limitations), so that bias lands on the safest choice.
  */
 export function buildOptions(agent: Agent, state: SimulationState, rand = Math.random): Option[] {
+  const clamp = (v: number, max: number) => Math.min(Math.max(v, 0), max - 1);
   const to = {
-    x: agent.position.x + Math.round((rand() * 2 - 1) * WANDER_RADIUS),
-    y: agent.position.y + Math.round((rand() * 2 - 1) * WANDER_RADIUS),
+    x: clamp(agent.position.x + Math.round((rand() * 2 - 1) * WANDER_RADIUS), state.grid.width),
+    y: clamp(agent.position.y + Math.round((rand() * 2 - 1) * WANDER_RADIUS), state.grid.height),
   };
   const options: Option[] = [
     { id: "rest", description: "Stay where you are.", goal: { kind: "rest", untilTick: state.tick + REST_TICKS } },
-    { id: "wander", description: "Walk around to look for something.", goal: { kind: "wander", to, untilTick: state.tick + WANDER_TICKS } },
   ];
+  if (stepToward(agent, to, state)) {
+    options.push({ id: "wander", description: "Walk around to look for something.", goal: { kind: "wander", to, untilTick: state.tick + WANDER_TICKS } });
+  }
   const home = homeOf(agent, state);
   const enemies = visibleEnemies(agent, state);
   if (home && agent.inventory.food === 0 && home.inventory.food > 0) {
