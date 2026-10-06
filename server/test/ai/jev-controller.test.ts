@@ -328,6 +328,28 @@ describe("JevController", () => {
     expect(beast.bubbleText).toBeNull();
   });
 
+  it("drops the fallback when a failed call ends after the beast died", async () => {
+    const { state, beast } = setup();
+    let fail!: (err: Error) => void;
+    const controller = new JevController(() => new Promise((_, reject) => (fail = reject)));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    controller.update(state);
+    beast.takeDamage(1000);
+    fail(new Error("timeout"));
+    await flush();
+    expect(controller.getGoal("b1")).toBeUndefined();
+  });
+
+  it("forgets the goal of a dead beast, so a respawn asks again", () => {
+    const { state, beast } = setup();
+    const controller = new JevController(null);
+    controller.update(state);
+    expect(controller.getGoal("b1")).toBeDefined();
+    beast.takeDamage(1000);
+    controller.update(state);
+    expect(controller.getGoal("b1")).toBeUndefined();
+  });
+
   it("moves a beast at most one step per 2 ticks", async () => {
     const { state, beast } = setup();
     beast.addToInventory("food", 3); // fed: no eat option

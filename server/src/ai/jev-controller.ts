@@ -298,7 +298,9 @@ export class JevController {
 
   update(state: SimulationState): void {
     for (const agent of state.agents.values()) {
-      if (agent.controller !== "llm" || !agent.isAlive()) continue;
+      if (agent.controller !== "llm") continue;
+      // A dead agent's goal must not survive into its respawn.
+      if (!agent.isAlive()) { this.goals.delete(agent.id); continue; }
       if (agent.planBacklog.length > 0) continue;
 
       const goal = this.goals.get(agent.id);
@@ -349,6 +351,7 @@ export class JevController {
       })
       .catch((err) => {
         console.error(`[jev] decision failed for ${agent.id}:`, err);
+        if (!agent.isAlive()) return;
         this.goals.set(agent.id, fallbackGoal(agent, state));
       })
       .finally(() => this.pending.delete(agent.id));
