@@ -71,3 +71,13 @@ describe("processRespawns", () => {
     expect(player.isAlive()).toBe(false);
   });
 });
+
+describe("Agent.revive", () => {
+  it("forgets who was near, so proximity:enter fires again", () => {
+    const npc = new Agent({ id: "farmer", position: { x: 5, y: 5 }, faction: "village-1", role: "farmer", controller: "bot" });
+    npc.proximityState.set("p1", 3);
+    npc.takeDamage(1000);
+    npc.revive({ x: 1, y: 1 });
+    expect(npc.proximityState.size).toBe(0);
+  });
+});
