@@ -133,9 +133,12 @@ export class InputHandler {
 
   enterDialogueMode(): void {
     this._dialogueMode = true;
-    // Queued moves are acknowledged by the server without moving while the
-    // dialogue lock holds, so reconciliation clears them; no stop needed.
     this.heldKeys.clear();
+    // The talk frame has run, so every earlier frame is acknowledged; every
+    // later one is refused by the dialogue lock (the server acknowledges it a
+    // tick or two later, one frame per tick). Drop them now so the player is
+    // not drawn moving during that gap.
+    this.pendingInputs = [];
   }
 
   exitDialogueMode(): void {
