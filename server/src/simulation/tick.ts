@@ -139,8 +139,12 @@ export function processTick(state: SimulationState): TalkResult[] {
   }
 
   // Dead members must not hold population slots, or joins are refused at the cap.
+  // A dead player keeps its slot so it can revive; GameRoom.onLeave frees it.
   for (const settlement of settlements.values()) {
-    settlement.populationIds = settlement.populationIds.filter((id) => agents.get(id)?.isAlive());
+    settlement.populationIds = settlement.populationIds.filter((id) => {
+      const member = agents.get(id);
+      return member?.isAlive() || member?.controller === "player";
+    });
   }
 
   // Phase 5: Memory merge for adjacent same-faction agents

@@ -165,11 +165,11 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
     const readyTick = this.reviveAt.get(agentId);
     if (!agent || agent.isAlive() || readyTick === undefined || this.simState.tick < readyTick) return;
 
-    const village = Array.from(this.simState.settlements.values()).find((s) => s.type === "village");
-    if (!village || village.populationIds.length >= village.getPopulationCap()) return;
+    // The dead player kept its population slot (processTick), so no cap check here.
+    const village = Array.from(this.simState.settlements.values()).find((s) => s.populationIds.includes(agentId));
+    if (!village) return;
 
     agent.revive(this.findSpawnTile(village));
-    village.populationIds.push(agentId);
     this.reviveAt.delete(agentId);
     client.send("revived", { agentId });
   }

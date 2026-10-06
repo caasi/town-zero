@@ -349,6 +349,23 @@ describe("GameRoom integration", () => {
     });
   });
 
+  it("a dead player keeps its village slot, so revive works when the village fills up", () => {
+    const c0 = mockClient("s0");
+    joinClient(room, c0, { name: "Dead" });
+    tick(room);
+    const id = c0.messages.find((m: any) => m.type === "joined").data.agentId;
+    room.simState.agents.get(id).takeDamage(500);
+    tick(room);
+    for (let i = 0; i < 10; i++) joinClient(room, mockClient("x" + i), { name: "F" + i });
+    for (let i = 0; i < REVIVE_DELAY_TICKS; i++) tick(room);
+
+    sendMessage(room, c0, "revive");
+    expect(room.simState.agents.get(id).isAlive()).toBe(true);
+    const village = Array.from(room.simState.settlements.values()).find((s: any) => s.type === "village") as any;
+    expect(village.populationIds.filter((p: string) => p === id)).toHaveLength(1);
+    expect(village.populationIds.length).toBeLessThanOrEqual(village.getPopulationCap());
+  });
+
   it("ignores commands from dead agents", () => {
     const client = mockClient("session-1");
     joinClient(room, client, { name: "DeadPlayer" });
