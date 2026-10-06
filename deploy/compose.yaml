@@ -1,0 +1,27 @@
+# Copy next to update.sh on the server. update.sh pulls new images; see README.md.
+services:
+  game:
+    image: ghcr.io/caasi/town-zero:main
+    restart: unless-stopped
+    # TYPESAFE_API_KEY lives only in .env on the server (chmod 600).
+    env_file: .env
+    ports:
+      # Loopback only: nginx is the public entry.
+      - "127.0.0.1:2567:2567"
+      - "127.0.0.1:2568:2568"
+    mem_limit: 512m
+    # The server writes no files and needs no privileges.
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    # Node is not built to be PID 1: forward signals and reap children.
+    init: true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

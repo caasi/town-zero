@@ -26,8 +26,13 @@ export class NetworkClient {
   }
 
   async connect(name: string): Promise<void> {
+    // Dev: Vite on :3000, game server on :2567. Production: nginx serves both
+    // under one origin and routes matchmaking and WebSocket upgrades to the game.
     const protocol = window.location.protocol === "https:" ? "https" : "http";
-    this.client = new Client(`${protocol}://${window.location.hostname}:2567`);
+    const endpoint = import.meta.env.DEV
+      ? `${protocol}://${window.location.hostname}:2567`
+      : window.location.origin;
+    this.client = new Client(endpoint);
     this.room = await this.client.joinOrCreate("game", { name });
 
     const joinedPromise = new Promise<string>((resolve, reject) => {
