@@ -241,6 +241,13 @@ describe("nextFrame", () => {
     expect(nextFrame(beast, goal, state)).toBeNull();
   });
 
+  it("wander: a threat in sight ends the hold", () => {
+    const { state, beast, player } = setup();
+    player.position = { x: 4, y: 2 };
+    see(beast, player, state.tick);
+    expect(nextFrame(beast, { kind: "wander", to: { x: 2, y: 2 }, untilTick: 99 }, state)).toBeNull();
+  });
+
   it("rest: idles until its tick", () => {
     const { state, beast } = setup();
     expect(nextFrame(beast, { kind: "rest", untilTick: 11 }, state)?.action).toEqual({ type: "idle" });

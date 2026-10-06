@@ -44,9 +44,9 @@ JevController.update(state)            // GameRoom, once per tick, before proces
 | id | Offered when | Goal |
 |----|--------------|------|
 | `rest` | always (first, so the first-option bias lands on the safest choice) | idle ~3 s |
-| `guard_den` | the agent has a den, and the first step toward a random tile within 3 steps of the den core is possible | walk there, ~5 s at most |
+| `guard_den` | the agent has a den, and the first frame toward a random tile within 3 steps of the den core exists (a step, or a wait when the agent is already there) | walk there, then wait there; ends after ~5 s, or when a threat is in sight while waiting |
 | `forage` | the agent carries less than 5 food and remembers a food tile (MapMemory) | walk to the nearest one, face it, `gather` until it carries 5 |
-| `explore` | the agent remembers no food tile, and the first step toward a random tile within 8 steps of the den core is possible | walk there, ~5 s at most |
+| `explore` | the agent remembers no food tile, and the first frame toward a random tile within 8 steps of the den core exists | like `guard_den` |
 | `bring_food_home` | the agent carries 5 food (a full load) and the den holds less than 10 | walk home, `deposit` |
 | `eat_at_den` | food is 0 and the den has food | walk home, `take` food |
 | `flee_to_den` | a threat is in sight and the agent is outside the den | walk home |
