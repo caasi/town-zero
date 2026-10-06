@@ -200,6 +200,13 @@ async function connect(): Promise<void> {
     input.setPredictionContext(displayState, fog.tileSource());
 
     network.onVision((vision) => fog.update(vision));
+    network.onLeft((code) => {
+      gameState = "error";
+      errorText.textContent = `Disconnected from the server (code ${code}). The game may have been updated.`;
+      setOverlay("error");
+      input?.setEnabled(false);
+      dialogueUI.hide();
+    });
     network.onDeath(({ reviveInMs }) => {
       gameState = "dead";
       setOverlay("dead");

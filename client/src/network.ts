@@ -13,6 +13,7 @@ export class NetworkClient {
   private dialogueStateCallbacks: Array<(data: DialogueStatePayload) => void> = [];
   private dialogueEndCallbacks: Array<(data: { reason: string }) => void> = [];
   private dialogueErrorCallbacks: Array<(data: { error: string }) => void> = [];
+  private leftCallbacks: Array<(code: number) => void> = [];
   private joinedResolve: ((agentId: string) => void) | null = null;
   private joinedReject: ((reason: Error) => void) | null = null;
   private joinedTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -47,6 +48,19 @@ export class NetworkClient {
         this.client = null;
         reject(new Error("Timed out waiting for joined message"));
       }, 10_000);
+    });
+
+    // The server removes a player at once on leave (no allowReconnection), so
+    // the SDK's retries (15 over ~56 s, measured) can never succeed and only
+    // freeze the screen. Turn them off: onLeave then fires at the drop.
+    this.room.reconnection.enabled = false;
+
+    // The server closed the room or restarted (every deploy does). A leave we
+    // started (disconnect, join timeout) already cleared this.room, so skip it.
+    const room = this.room;
+    room.onLeave((code: number) => {
+      if (this.room !== room) return;
+      for (const cb of this.leftCallbacks) cb(code);
     });
 
     this.room.onMessage("joined", (data: { agentId: string }) => {
@@ -152,5 +166,10 @@ export class NetworkClient {
     this.dialogueStateCallbacks = [];
     this.dialogueEndCallbacks = [];
     this.dialogueErrorCallbacks = [];
+    this.leftCallbacks = [];
+  }
+
+  onLeft(cb: (code: number) => void): void {
+    this.leftCallbacks.push(cb);
   }
 }
