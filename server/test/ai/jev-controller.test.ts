@@ -43,38 +43,82 @@ describe("buildOptions", () => {
 
   it("offers only options that make sense now, rest first", () => {
     const { state, beast, player } = setup();
-    // Hungry, at home, no enemy in sight.
-    expect(buildOptions(beast, state).map((o) => o.id)).toEqual(["rest", "wander", "eat_at_den"]);
+    // Hungry, at home, no enemy in sight, no food place known.
+    expect(buildOptions(beast, state, () => 0.9).map((o) => o.id)).toEqual(["rest", "guard_den", "explore", "eat_at_den"]);
 
-    // Fed, outside the den, enemy in sight.
-    beast.addToInventory("food", 3);
+    // Full load, outside the den, enemy near the den in sight, den food low.
+    beast.addToInventory("food", 5);
+    state.settlements.get("den-1")!.inventory.food = 5;
     beast.position = { x: 5, y: 2 };
     see(beast, player, state.tick);
-    expect(buildOptions(beast, state).map((o) => o.id)).toEqual(["rest", "wander", "flee_to_den", "attack:p1"]);
+    expect(buildOptions(beast, state, () => 0.9).map((o) => o.id))
+      .toEqual(["rest", "guard_den", "explore", "bring_food_home", "flee_to_den", "roar", "attack:p1"]);
   });
 
-  it("offers wander only when its first step is possible", () => {
+  it("offers explore and guard_den only when the first step is possible", () => {
     const { state, beast } = setup();
-    // rand 0.5 → offset (0,0): the target is the beast's own tile.
-    expect(buildOptions(beast, state, () => 0.5).map((o) => o.id)).not.toContain("wander");
+    // rand 0.5 → offset (0,0): the target is the beast's own tile (the den core).
+    expect(buildOptions(beast, state, () => 0.5).map((o) => o.id)).not.toContain("explore");
+    expect(buildOptions(beast, state, () => 0.5).map((o) => o.id)).not.toContain("guard_den");
     // Walled in by water: no step in any direction.
     for (const [x, y] of [[3, 2], [1, 2], [2, 3], [2, 1]]) state.grid.setTerrain(x, y, "water");
-    expect(buildOptions(beast, state, Math.random).map((o) => o.id)).not.toContain("wander");
+    const ids = buildOptions(beast, state, Math.random).map((o) => o.id);
+    expect(ids).not.toContain("explore");
+    expect(ids).not.toContain("guard_den");
   });
 
-  it("every offered wander yields a frame for any rand value", () => {
+  it("every offered walk yields a frame for any rand value", () => {
     const { state, beast } = setup();
     beast.position = { x: 0, y: 0 }; // corner: many targets are out of bounds
+    let offered = 0;
     for (let i = 0; i < 100; i++) {
       const r = i / 100;
-      const wander = buildOptions(beast, state, () => r).find((o) => o.id === "wander");
-      if (wander) expect(nextFrame(beast, wander.goal, state), `rand=${r}`).not.toBeNull();
+      for (const option of buildOptions(beast, state, () => r)) {
+        if (option.id !== "explore" && option.id !== "guard_den") continue;
+        offered++;
+        expect(nextFrame(beast, option.goal, state), `${option.id} rand=${r}`).not.toBeNull();
+      }
     }
+    expect(offered).toBeGreaterThan(0);
+  });
+
+  it("does not offer an attack on an enemy far from the den", () => {
+    const { state, beast, player } = setup();
+    player.position = { x: 15, y: 2 }; // 13 steps from the den core
+    beast.position = { x: 12, y: 2 };
+    see(beast, player, state.tick);
+    expect(buildOptions(beast, state).map((o) => o.id)).not.toContain("attack:p1");
+
+    player.position = { x: 13, y: 2 }; // next to the beast: self-defence
+    see(beast, player, state.tick);
+    expect(buildOptions(beast, state).map((o) => o.id)).toContain("attack:p1");
+  });
+
+  it("does not offer to store food just taken at the den", () => {
+    const { state, beast, den } = setup();
+    den.inventory.food = 5; // low
+    beast.addToInventory("food", 3); // what eat_at_den takes
+    expect(buildOptions(beast, state).map((o) => o.id)).not.toContain("bring_food_home");
+  });
+
+  it("offers forage only for a food place the beast remembers", () => {
+    const { state, beast } = setup();
+    state.grid.setResourceYield(8, 2, "food");
+    expect(buildOptions(beast, state).map((o) => o.id)).not.toContain("forage");
+    beast.recordTile(8, 2, "plains", [], state.tick - 50); // seen long ago still counts
+    const ids = buildOptions(beast, state).map((o) => o.id);
+    expect(ids).toContain("forage");
+    expect(ids).not.toContain("explore");
+    beast.addToInventory("food", 5); // full
+    expect(buildOptions(beast, state).map((o) => o.id)).not.toContain("forage");
   });
 
   it("every offered option yields a frame (no instant re-ask loop)", () => {
     const { state, beast, player } = setup();
-    for (const food of [0, 3]) {
+    state.grid.setResourceYield(8, 2, "food");
+    beast.recordTile(8, 2, "plains", [], state.tick);
+    state.settlements.get("den-1")!.inventory.food = 5; // low: bring_food_home is offered
+    for (const food of [0, 3, 5]) {
       for (const pos of [{ x: 2, y: 2 }, { x: 5, y: 2 }]) {
         beast.inventory.food = food;
         beast.position = pos;
@@ -90,8 +134,9 @@ describe("buildOptions", () => {
     const { state, beast, player } = setup();
     see(beast, player, state.tick);
     const desc = describeState(beast, state);
-    expect(desc.visible).toEqual(["p1, an enemy player, 4 steps away, HP 100 of 100"]);
+    expect(desc.visible).toEqual(["p1, an enemy player, 4 steps away, HP 100 of 100, a threat to the den"]);
     expect(desc.home).toBe("inside the den, which holds 10 food");
+    expect(desc.food_places).toBe("knows no place where food grows");
     expect(desc.self).toContain("Hungry.");
   });
 });
@@ -120,6 +165,38 @@ describe("nextFrame", () => {
 
     player.takeDamage(1000);
     expect(nextFrame(beast, goal, state)).toBeNull();
+  });
+
+  it("attack: ends when the target leaves the den area", () => {
+    const { state, beast, player } = setup();
+    beast.position = { x: 7, y: 2 };
+    player.position = { x: 10, y: 2 }; // 8 steps from the den core, 3 from the beast
+    see(beast, player, state.tick);
+    expect(nextFrame(beast, { kind: "attack", targetId: "p1" }, state)).toBeNull();
+  });
+
+  it("forage: walks to the food place, faces it, gathers until full", () => {
+    const { state, beast } = setup();
+    const goal: Goal = { kind: "forage", tile: { x: 5, y: 2 } };
+    beast.facing = "east";
+    expect(nextFrame(beast, goal, state)).toEqual({ seq: 0, direction: "east" });
+    beast.position = { x: 5, y: 3 }; // adjacent, food is to the north
+    expect(nextFrame(beast, goal, state)).toEqual({ seq: 0, direction: "north" });
+    beast.position = { x: 4, y: 2 };
+    expect(nextFrame(beast, goal, state)?.action).toEqual({ type: "gather", resourceTile: { x: 5, y: 2 } });
+    beast.addToInventory("food", 5);
+    expect(nextFrame(beast, goal, state)).toBeNull();
+  });
+
+  it("store: walks home and deposits, then is done", () => {
+    const { state, beast } = setup();
+    beast.addToInventory("food", 4);
+    beast.position = { x: 6, y: 2 };
+    expect(nextFrame(beast, { kind: "store" }, state)).toEqual({ seq: 0, direction: "west" });
+    beast.position = { x: 3, y: 2 };
+    expect(nextFrame(beast, { kind: "store" }, state)?.action).toEqual({ type: "deposit", settlementId: "den-1" });
+    beast.inventory.food = 0;
+    expect(nextFrame(beast, { kind: "store" }, state)).toBeNull();
   });
 
   it("attack: ends when the target is out of sight", () => {
@@ -200,10 +277,22 @@ describe("JevController", () => {
     expect(nextFrame(beast, controller.getGoal("b1")!, state)?.action).toEqual({ type: "idle" });
   });
 
+  it("roar: Jev's pick shows a bubble while the beast stands still", async () => {
+    const { state, beast, player } = setup();
+    beast.addToInventory("food", 3);
+    see(beast, player, state.tick);
+    const controller = new JevController(vi.fn().mockResolvedValue("roar"));
+    controller.update(state);
+    await flush();
+    expect(beast.bubbleText).toBe("ROAR!");
+    expect(beast.bubbleExpiresAt).toBe(state.tick + 16);
+    expect(nextFrame(beast, controller.getGoal("b1")!, state)?.action).toEqual({ type: "idle" });
+  });
+
   it("moves a beast at most one step per 2 ticks", async () => {
     const { state, beast } = setup();
     beast.addToInventory("food", 3); // fed: no eat option
-    const controller = new JevController(vi.fn().mockResolvedValue("wander"), () => 0.99);
+    const controller = new JevController(vi.fn().mockResolvedValue("explore"), () => 0.99);
     controller.update(state); // asks Jev
     await flush();
     let moves = 0;

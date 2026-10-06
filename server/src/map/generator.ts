@@ -79,6 +79,16 @@ export function generateMap(): SimulationState {
     grid.setResourceYield(pos.x, pos.y, "food");
   }
 
+  // Berry bushes east of the den: the beasts' food source, in sight of the
+  // den so they find it without crossing the map to the village.
+  for (const pos of [
+    { x: denCx + 4, y: denCy + 1 }, { x: denCx + 5, y: denCy + 1 },
+    { x: denCx + 4, y: denCy + 2 }, { x: denCx + 5, y: denCy + 2 },
+  ]) {
+    grid.setObjectType(pos.x, pos.y, "bush");
+    grid.setResourceYield(pos.x, pos.y, "food");
+  }
+
   // Village
   const villageStamp = stampTemplate(grid, VILLAGE_TEMPLATE, villageCx, villageCy, "village-1");
   const village = new Settlement({
