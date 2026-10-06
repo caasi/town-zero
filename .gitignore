@@ -4,3 +4,10 @@ dist/
 *.tsbuildinfo
 .worktrees/
 .claude/
+
+# Secrets (TYPESAFE_API_KEY): never commit, never bake into an image.
+.env
+.env.*
+
+# Lock file of deploy/update.sh when run from a checkout.
+deploy/.update.lock
