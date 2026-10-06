@@ -265,12 +265,21 @@ describe("JevController", () => {
 
   it("asks Jev at most once per 8 ticks per agent, even when goals end at once", async () => {
     const { state, beast, player } = setup();
-    // Blocked: the attack target is in sight but every step is water.
-    for (const [x, y] of [[3, 2], [1, 2], [2, 3], [2, 1]]) state.grid.setTerrain(x, y, "water");
-    const choose = vi.fn().mockResolvedValue("attack:p1");
+    // Two enemies, one alive at a time. The picked target dies as Jev answers
+    // and the other comes back, so every goal ends at once while an attack is
+    // always on offer (buildOptions offers only goals with a first frame).
+    const p2 = new Agent({ id: "p2", position: { x: 5, y: 3 }, faction: "village-1", role: "player", controller: "player" });
+    state.agents.set("p2", p2);
+    p2.takeDamage(1000);
+    const choose = vi.fn(async (_s: unknown, _i: string, criteria: Record<string, string>) => {
+      const [target, other] = "attack:p1" in criteria ? [player, p2] : [p2, player];
+      target.takeDamage(1000);
+      other.revive(other.position);
+      return `attack:${target.id}`;
+    });
     const controller = new JevController(choose);
     for (let i = 0; i < 16; i++) {
-      see(beast, player, state.tick);
+      for (const p of [player, p2]) if (p.isAlive()) see(beast, p, state.tick);
       controller.update(state);
       await flush();
       state.tick++;
