@@ -119,14 +119,6 @@ export class DialogueEngine {
     this.moveTo(option.next);
   }
 
-  resolveRequest(accepted: boolean): void {
-    const node = this.getCurrentNode();
-    if (node.type !== "request") {
-      throw new Error(`resolveRequest() called on "${node.type}" node "${this.currentNodeId}" — expected request`);
-    }
-    this.moveTo(accepted ? node.nextYes : node.nextNo);
-  }
-
   private moveTo(nodeId: string): void {
     this.currentNodeId = nodeId;
     this.visitedNodes.push(nodeId);

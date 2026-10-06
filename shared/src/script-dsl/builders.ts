@@ -72,7 +72,6 @@ interface DialogueBuilderApi {
   text(id: string, content: TextTemplate, opts?: { context?: string; next?: string; speaker?: string }): void;
   choice(id: string, options: OptionBuilder[]): void;
   action(id: string, effects: Effect[], opts: { next: string }): void;
-  request(id: string, label: TextTemplate, opts: { nextYes: string; nextNo: string }): void;
   end(id: string): void;
   option(label: string | TextTemplate): OptionBuilder;
   entry(nodeId: string, condition: ExprBuilder): void;
@@ -127,9 +126,6 @@ function createDialogueBuilder(
       registerNode(id, { type: "action", effects, next: opts.next });
     },
 
-    request(id, label, opts) {
-      registerNode(id, { type: "request", label, gateType: "llm", nextYes: opts.nextYes, nextNo: opts.nextNo });
-    },
 
     end(id) {
       registerNode(id, { type: "end" });

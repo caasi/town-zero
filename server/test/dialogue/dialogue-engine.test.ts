@@ -12,13 +12,11 @@ const testTree: DialogueTreeData = {
     choices: {
       type: "choice",
       options: [
-        { id: "opt_help", label: ["Ask for help"], next: "request" },
+        { id: "opt_help", label: ["Ask for help"], next: "yes" },
         { id: "opt_bye", label: ["Goodbye"], next: "end" },
       ],
     },
-    request: { type: "request", label: ["Scout the north"], gateType: "llm", nextYes: "yes", nextNo: "no" },
     yes: { type: "text", speaker: "npc", content: ["Sure, I'll go scout."], next: "end" },
-    no: { type: "text", speaker: "npc", content: ["Sorry, I'm too busy."], next: "end" },
     end: { type: "end" },
   },
 };
@@ -56,29 +54,7 @@ describe("DialogueEngine", () => {
     const engine = new DialogueEngine(testTree);
     engine.advance();
     engine.selectOption(0);
-    expect(engine.getCurrentNode().type).toBe("request");
-  });
-
-  it("resolves request node with yes", () => {
-    const engine = new DialogueEngine(testTree);
-    engine.advance();
-    engine.selectOption(0);
-    engine.resolveRequest(true);
-    const node = engine.getCurrentNode();
-    if (node.type === "text") {
-      expect(node.content).toEqual(["Sure, I'll go scout."]);
-    }
-  });
-
-  it("resolves request node with no", () => {
-    const engine = new DialogueEngine(testTree);
-    engine.advance();
-    engine.selectOption(0);
-    engine.resolveRequest(false);
-    const node = engine.getCurrentNode();
-    if (node.type === "text") {
-      expect(node.content).toEqual(["Sorry, I'm too busy."]);
-    }
+    expect(engine.getCurrentNode().type).toBe("text");
   });
 
   it("detects end of dialogue", () => {
@@ -202,7 +178,7 @@ describe("DialogueEngine", () => {
     const engine = new DialogueEngine(testTree);
     engine.advance();
     engine.selectOptionById("opt_help");
-    expect(engine.getCurrentNode().type).toBe("request");
+    expect(engine.getCurrentNode().type).toBe("text");
   });
 
   it("getTreeId returns tree id", () => {

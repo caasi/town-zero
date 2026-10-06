@@ -7,7 +7,7 @@ import type { Agent } from "../simulation/agent.js";
 export interface DialogueStateMessage {
   treeId: string;
   nodeId: string;
-  type: "text" | "choice" | "request_pending" | "end";
+  type: "text" | "choice" | "end";
   speaker: string;
   text: string;
   options?: Array<{ id: string; label: string }>;
@@ -120,15 +120,6 @@ export class DialogueSession {
         };
       }
 
-      case "request":
-        return {
-          treeId,
-          nodeId,
-          type: "request_pending",
-          speaker: "npc",
-          text: interpolate(node.label, ctx),
-        };
-
       case "action":
         // Auto-advance through action nodes, executing effects
         if (depth >= 100) {
@@ -161,12 +152,6 @@ export class DialogueSession {
       throw new Error(`Option "${optionId}" is not currently selectable`);
     }
     this.engine.selectOptionById(optionId);
-    return this.getState();
-  }
-
-  /** LLM resolves a request node. */
-  resolveRequest(accepted: boolean): DialogueStateMessage {
-    this.engine.resolveRequest(accepted);
     return this.getState();
   }
 

@@ -60,7 +60,6 @@ export interface DialogueProgressEntry {
 export type DialogueNodeData =
   | { type: "text"; speaker: string; content: TextTemplate; next: string }
   | { type: "choice"; options: ChoiceOptionData[] }
-  | { type: "request"; label: TextTemplate; gateType: "llm"; nextYes: string; nextNo: string }
   | { type: "action"; effects: Effect[]; next: string }
   | { type: "end" };
 

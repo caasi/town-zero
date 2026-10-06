@@ -37,11 +37,6 @@ export interface Position {
 
 export type Facing = "north" | "south" | "east" | "west";
 
-export interface PendingInput {
-  seq: number;
-  direction: Facing;
-}
-
 export type FrameAction =
   | { type: "gather"; resourceTile: Position }
   | { type: "attack"; targetId: string }
@@ -106,7 +101,7 @@ export interface TileMemory {
 export interface DialogueStatePayload {
   npcId: string;
   npcName: string;
-  nodeType: "text" | "choice" | "request_pending";
+  nodeType: "text" | "choice";
   speaker?: string;
   content?: string;
   options?: Array<{ id: string; label: string; enabled: boolean }>;

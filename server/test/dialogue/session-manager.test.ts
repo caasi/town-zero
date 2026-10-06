@@ -28,26 +28,6 @@ function makeTree(): DialogueTreeData {
   };
 }
 
-function makeRequestTree(): DialogueTreeData {
-  return {
-    id: "test-npc-dialogue",
-    root: "greeting",
-    nodes: {
-      greeting: { type: "text", speaker: "npc", content: ["Hello!"], next: "ask" },
-      ask: {
-        type: "choice",
-        options: [
-          { id: "scout", label: ["Scout?"], next: "scout-request" },
-        ],
-      },
-      "scout-request": { type: "request", label: ["Scout the north"], gateType: "llm", nextYes: "accepted", nextNo: "rejected" },
-      accepted: { type: "text", speaker: "npc", content: ["On it!"], next: "done" },
-      rejected: { type: "text", speaker: "npc", content: ["Maybe later."], next: "done" },
-      done: { type: "end" },
-    },
-  };
-}
-
 function makeState(): SimulationState {
   const grid = new Grid(10, 10);
   const agents = new Map<string, Agent>();
@@ -139,18 +119,6 @@ describe("session-manager", () => {
       expect(result.error).toBe("no_dialogue");
     });
 
-    it("returns request_pending nodeType for request nodes", () => {
-      state.dialogueTrees.set("test-npc-dialogue", makeRequestTree());
-      startDialogue("player-0", "test-npc", state);
-      advanceDialogue("player-0", state); // greeting → ask (choice)
-      const result = chooseDialogue("player-0", "scout", state); // ask → scout-request
-
-      expect(result.ok).toBe(true);
-      if (!result.ok) return;
-      expect(result.payload.nodeType).toBe("request_pending");
-      expect(result.payload.content).toBe("Scout the north");
-    });
-
     it("clears an active NPC bubble on startDialogue even without a talk:start handler", () => {
       const npc = state.agents.get("test-npc")!;
       npc.setBubble("Hi!", 80, 0);
@@ -218,18 +186,6 @@ describe("session-manager", () => {
     it("returns error when current node is choice (not advanceable)", () => {
       startDialogue("player-0", "test-npc", state);
       advanceDialogue("player-0", state); // greeting → offer (choice node)
-
-      const result = advanceDialogue("player-0", state);
-      expect(result.ok).toBe(false);
-      if (result.ok) return;
-      expect(result.error).toBe("wrong_node_type");
-    });
-
-    it("returns error when current node is request (not advanceable)", () => {
-      state.dialogueTrees.set("test-npc-dialogue", makeRequestTree());
-      startDialogue("player-0", "test-npc", state);
-      advanceDialogue("player-0", state); // greeting → ask (choice)
-      chooseDialogue("player-0", "scout", state); // ask → scout-request
 
       const result = advanceDialogue("player-0", state);
       expect(result.ok).toBe(false);

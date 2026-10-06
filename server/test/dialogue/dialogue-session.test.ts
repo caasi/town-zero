@@ -74,19 +74,6 @@ const actionTree: DialogueTreeData = {
   },
 };
 
-// Tree with request node
-const requestTree: DialogueTreeData = {
-  id: "request-tree",
-  root: "start",
-  nodes: {
-    start: { type: "text", speaker: "npc", content: ["I need a favor."], next: "req" },
-    req: { type: "request", label: ["Scout the north?"], gateType: "llm", nextYes: "yes", nextNo: "no" },
-    yes: { type: "text", speaker: "npc", content: ["Great, I'll do it."], next: "end" },
-    no: { type: "text", speaker: "npc", content: ["Sorry, no can do."], next: "end" },
-    end: { type: "end" },
-  },
-};
-
 describe("DialogueSession", () => {
   it("produces a text-type DialogueStateMessage at start", () => {
     const session = new DialogueSession({
@@ -229,48 +216,6 @@ describe("DialogueSession", () => {
     const belief = npc.getBelief("gave_gift");
     expect(belief).toBeDefined();
     expect(belief!.value).toBe(true);
-  });
-
-  it("handles request nodes", () => {
-    const session = new DialogueSession({
-      tree: requestTree,
-      npc: makeNpc(),
-      player: makePlayer(),
-      currentTick: 10,
-    });
-
-    session.advance(); // -> req
-    const reqState = session.getState();
-    expect(reqState.type).toBe("request_pending");
-    expect(reqState.text).toBe("Scout the north?");
-  });
-
-  it("resolveRequest(true) advances past request", () => {
-    const session = new DialogueSession({
-      tree: requestTree,
-      npc: makeNpc(),
-      player: makePlayer(),
-      currentTick: 10,
-    });
-
-    session.advance(); // -> req
-    const state = session.resolveRequest(true);
-    expect(state.type).toBe("text");
-    expect(state.text).toBe("Great, I'll do it.");
-  });
-
-  it("resolveRequest(false) takes the no path", () => {
-    const session = new DialogueSession({
-      tree: requestTree,
-      npc: makeNpc(),
-      player: makePlayer(),
-      currentTick: 10,
-    });
-
-    session.advance(); // -> req
-    const state = session.resolveRequest(false);
-    expect(state.type).toBe("text");
-    expect(state.text).toBe("Sorry, no can do.");
   });
 
   it("loads existing dialogue progress locals on construction", () => {
