@@ -268,7 +268,10 @@ export function nextFrame(agent: Agent, goal: Goal, state: SimulationState): Inp
       return dir ? move(dir) : null;
     }
     case "wander": {
-      if (state.tick >= goal.untilTick || distance(agent.position, goal.to) === 0) return null;
+      if (state.tick >= goal.untilTick) return null;
+      // Hold the spot until the deadline: a patrol point is often 1-2 steps
+      // away, and ending on arrival made a paid call every second.
+      if (distance(agent.position, goal.to) === 0) return { seq: 0, action: { type: "idle" } };
       const dir = stepToward(agent, goal.to, state);
       return dir ? move(dir) : null;
     }

@@ -57,12 +57,9 @@ describe("buildOptions", () => {
 
   it("offers explore and guard_den only when the first step is possible", () => {
     const { state, beast } = setup();
-    // rand 0.5 → offset (0,0): the target is the beast's own tile (the den core).
-    expect(buildOptions(beast, state, () => 0.5).map((o) => o.id)).not.toContain("explore");
-    expect(buildOptions(beast, state, () => 0.5).map((o) => o.id)).not.toContain("guard_den");
-    // Walled in by water: no step in any direction.
+    // Walled in by water: no step in any direction (rand 0.9: the target is not its own tile).
     for (const [x, y] of [[3, 2], [1, 2], [2, 3], [2, 1]]) state.grid.setTerrain(x, y, "water");
-    const ids = buildOptions(beast, state, Math.random).map((o) => o.id);
+    const ids = buildOptions(beast, state, () => 0.9).map((o) => o.id);
     expect(ids).not.toContain("explore");
     expect(ids).not.toContain("guard_den");
   });
@@ -234,6 +231,14 @@ describe("nextFrame", () => {
     state.grid.setTerrain(3, 2, "water");
     expect(nextFrame(beast, { kind: "wander", to: { x: 6, y: 4 }, untilTick: 99 }, state))
       .toEqual({ seq: 0, direction: "south" });
+  });
+
+  it("wander: holds the spot after arrival until its tick", () => {
+    const { state, beast } = setup();
+    const goal: Goal = { kind: "wander", to: { x: 2, y: 2 }, untilTick: 12 };
+    expect(nextFrame(beast, goal, state)?.action).toEqual({ type: "idle" });
+    state.tick = 12;
+    expect(nextFrame(beast, goal, state)).toBeNull();
   });
 
   it("rest: idles until its tick", () => {
