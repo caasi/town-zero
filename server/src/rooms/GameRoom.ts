@@ -38,9 +38,15 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
       const agentId = this.sessionToAgent.get(client.sessionId);
       if (!agentId) return;
       const agent = this.simState.agents.get(agentId);
-      if (!agent || !agent.isAlive()) return;
+      if (!agent) return;
       if (!isValidInputFrame(data)) return;
       if (data.seq < 1) return;
+      // A dead agent does not act, but the frame is still acknowledged: the
+      // client predicted it and drops it only once lastProcessedInput covers it.
+      if (!agent.isAlive()) {
+        agent.lastProcessedInput = Math.max(agent.lastProcessedInput, data.seq);
+        return;
+      }
       agent.enqueueInput(data);
     });
 

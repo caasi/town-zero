@@ -112,6 +112,8 @@ export class Agent {
     this.hp = Math.max(0, this.hp - damage);
     if (this.hp <= 0) {
       this.state = "dead";
+      // Dropped player frames still count as handled (see GameRoom "input").
+      for (const f of this.inputQueue) this.lastProcessedInput = Math.max(this.lastProcessedInput, f.seq);
       this.inputQueue = [];
       this.planBacklog = [];
     }

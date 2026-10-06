@@ -366,6 +366,18 @@ describe("GameRoom integration", () => {
     expect(village.populationIds.length).toBeLessThanOrEqual(village.getPopulationCap());
   });
 
+  it("acknowledges moves dropped by death, so the client does not replay them after revive", () => {
+    const client = mockClient("s-dead");
+    joinClient(room, client, { name: "Doomed" });
+    tick(room);
+    const id = client.messages.find((m: any) => m.type === "joined").data.agentId;
+    const agent = room.simState.agents.get(id);
+    sendInput(room, client, { seq: 1, direction: "west" });   // queued when death comes
+    agent.takeDamage(500);
+    sendInput(room, client, { seq: 2, direction: "west" });   // in flight, arrives while dead
+    expect(agent.lastProcessedInput).toBe(2);
+  });
+
   it("ignores commands from dead agents", () => {
     const client = mockClient("session-1");
     joinClient(room, client, { name: "DeadPlayer" });
