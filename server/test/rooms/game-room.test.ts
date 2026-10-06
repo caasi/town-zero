@@ -445,6 +445,21 @@ describe("GameRoom integration", () => {
       return { client, agentId };
     }
 
+    it("acknowledges moves queued behind a talk frame instead of dropping them", () => {
+      // The client predicted those moves; a frame that is neither run nor
+      // acknowledged stays in its pending buffer and is replayed in dialogue.
+      const { client, agentId } = setupDialogue(room);
+      const agent = room.simState.agents.get(agentId!);
+      agent.facing = "south";
+      sendInput(room, client, { seq: 1, action: { type: "talk", targetId: "farmer-reed" } });
+      sendInput(room, client, { seq: 2, direction: "west" });
+      tick(room);
+      tick(room);
+      expect(agent.talkingToNpcId).toBe("farmer-reed");
+      expect(agent.lastProcessedInput).toBe(2);
+      expect(agent.position).toEqual({ x: 9, y: 18 }); // locked: acknowledged, not moved
+    });
+
     it("talk command creates session and sends dialogue:state", () => {
       const { client, agentId } = setupDialogue(room);
 
