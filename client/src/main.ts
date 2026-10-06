@@ -1,5 +1,5 @@
 // client/src/main.ts
-import { MERCHANT_TRADE_RATE, DEFAULT_VISION_RADIUS, TICK_RATE_MS } from "@town-zero/shared";
+import { DEFAULT_VISION_RADIUS, TICK_RATE_MS } from "@town-zero/shared";
 import { NetworkClient } from "./network.js";
 import { FogManager } from "./fog.js";
 import { Camera } from "./camera.js";
@@ -8,7 +8,7 @@ import { InputHandler, getKeyLabels, formatKeyHints, formatDialogueKeyHints } fr
 import { DisplayState } from "./display.js";
 import { DialogueUI } from "./dialogue-ui.js";
 import { TILE_SIZE } from "./constants.js";
-import type { GameState, ModalRequest } from "./types.js";
+import type { GameState } from "./types.js";
 
 // DOM elements
 const canvas = document.getElementById("game-canvas") as HTMLCanvasElement;
@@ -16,7 +16,6 @@ const connectingOverlay = document.getElementById("connecting-overlay")!;
 const deathOverlay = document.getElementById("death-overlay")!;
 const errorOverlay = document.getElementById("error-overlay")!;
 const errorText = document.getElementById("error-text")!;
-const tradeModal = document.getElementById("trade-modal")!;
 const hpText = document.getElementById("hp-text")!;
 const hpBar = document.getElementById("hp-bar")!;
 const inventoryEl = document.getElementById("inventory")!;
@@ -30,7 +29,6 @@ const displayState = new DisplayState();
 
 let gameState: GameState = "connecting";
 let input: InputHandler | null = null;
-let currentTradeTarget: string | null = null;
 let isConnecting = false;
 
 const dialogueUI = new DialogueUI("dialogue-overlay");
@@ -65,23 +63,12 @@ function updateHUD(): void {
   inventoryEl.textContent = `🍖${food} 🪵${material} 💰${currency}`;
 }
 
-// Get nearby entities for input handler
+// Player context for input handler
 function updateInputContext(): void {
   if (!input || !network.state || !network.playerId) return;
   const state = network.state;
   const player = state.agents?.get(network.playerId);
   if (!player) return;
-
-  const nearby: any[] = [];
-  state.agents?.forEach((agent: any) => {
-    if (agent.id !== network.playerId) {
-      nearby.push({
-        id: agent.id, x: agent.x, y: agent.y,
-        faction: agent.faction, role: agent.role,
-        controller: agent.controller, hp: agent.hp,
-      });
-    }
-  });
 
   // Find settlement at player position
   let settlementId: string | null = null;
@@ -94,65 +81,9 @@ function updateInputContext(): void {
 
   input.setPlayerInfo(
     { x: player.x, y: player.y, faction: player.faction },
-    nearby,
     settlementId,
     player.state,  // FSM state for prediction gating
   );
-}
-
-// Trade modal
-function openTradeModal(merchantId: string): void {
-  currentTradeTarget = merchantId;
-  tradeModal.classList.remove("hidden");
-  input?.setEnabled(false);
-}
-
-function closeTradeModal(): void {
-  currentTradeTarget = null;
-  tradeModal.classList.add("hidden");
-  input?.setEnabled(true);
-}
-
-document.getElementById("sell-food-btn")!.addEventListener("click", () => {
-  if (currentTradeTarget && input) {
-    ++input.inputSeq;
-    network.sendInput({
-      seq: input.inputSeq,
-      action: {
-        type: "trade", targetId: currentTradeTarget,
-        offer: "food", offerAmount: MERCHANT_TRADE_RATE,
-        want: "currency", wantAmount: 1,
-      },
-    });
-    closeTradeModal();
-  }
-});
-
-document.getElementById("sell-material-btn")!.addEventListener("click", () => {
-  if (currentTradeTarget && input) {
-    ++input.inputSeq;
-    network.sendInput({
-      seq: input.inputSeq,
-      action: {
-        type: "trade", targetId: currentTradeTarget,
-        offer: "material", offerAmount: MERCHANT_TRADE_RATE,
-        want: "currency", wantAmount: 1,
-      },
-    });
-    closeTradeModal();
-  }
-});
-
-document.getElementById("close-trade-btn")!.addEventListener("click", closeTradeModal);
-window.addEventListener("keydown", (e) => {
-  if (e.code === "Escape") closeTradeModal();
-});
-
-// Modal handler for input
-function handleModal(req: ModalRequest): void {
-  if (req.type === "trade") {
-    openTradeModal(req.merchantId);
-  }
 }
 
 // Overlay management
@@ -255,7 +186,6 @@ async function connect(): Promise<void> {
     }
 
     input = new InputHandler();
-    input.setModalHandler(handleModal);
     input.onSendInput = (frame) => network.sendInput(frame);
     input.onSendInputStop = (seq) => network.sendInputStop(seq);
     input.onDialogueAdvance = () => network.sendDialogueAdvance();

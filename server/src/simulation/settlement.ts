@@ -5,7 +5,6 @@ export interface Structure {
   id: string;
   type: StructureType;
   position: Position;
-  operatorId: string | null;
 }
 
 interface SettlementInit {
@@ -44,10 +43,6 @@ export class Settlement {
 
   getPopulationCap(): number {
     return this.structures.filter((s) => s.type === "housing").length * HOUSING_POPULATION_CAP;
-  }
-
-  getProductionStructures(): Structure[] {
-    return this.structures.filter((s) => s.type === "production");
   }
 
   addResource(resource: ResourceType, amount: number): void {

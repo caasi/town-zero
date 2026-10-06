@@ -1,43 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { processProduction, processConsumption } from "../../src/simulation/resources.js";
+import { processConsumption } from "../../src/simulation/resources.js";
 import { Agent } from "../../src/simulation/agent.js";
-import { Settlement } from "../../src/simulation/settlement.js";
-import { FOOD_CONSUMPTION_INTERVAL, STARVATION_DAMAGE, PRODUCTION_INPUT_COST, PRODUCTION_OUTPUT, PRODUCTION_CYCLE_TICKS } from "@town-zero/shared";
-
-describe("processProduction", () => {
-  it("produces output when operator present and materials available", () => {
-    const settlement = new Settlement({ id: "v1", faction: "v1", type: "village", territory: [{ x: 0, y: 0 }] });
-    settlement.addStructure({ id: "p1", type: "production", position: { x: 0, y: 0 }, operatorId: "a1" });
-    settlement.addResource("material", PRODUCTION_INPUT_COST);
-
-    const agents = new Map([["a1", new Agent({ id: "a1", position: { x: 0, y: 0 }, faction: "v1", role: "farmer", controller: "llm" })]]);
-    // Operator just needs to be alive — no special "operating" state required
-
-    processProduction(settlement, agents, PRODUCTION_CYCLE_TICKS); // tick == cycle boundary
-    expect(settlement.inventory.food).toBe(PRODUCTION_OUTPUT);
-    expect(settlement.inventory.material).toBe(0);
-  });
-
-  it("does not produce without operator", () => {
-    const settlement = new Settlement({ id: "v1", faction: "v1", type: "village", territory: [{ x: 0, y: 0 }] });
-    settlement.addStructure({ id: "p1", type: "production", position: { x: 0, y: 0 }, operatorId: null });
-    settlement.addResource("material", 10);
-
-    processProduction(settlement, new Map(), PRODUCTION_CYCLE_TICKS);
-    expect(settlement.inventory.food).toBe(0);
-  });
-
-  it("does not produce without materials", () => {
-    const settlement = new Settlement({ id: "v1", faction: "v1", type: "village", territory: [{ x: 0, y: 0 }] });
-    settlement.addStructure({ id: "p1", type: "production", position: { x: 0, y: 0 }, operatorId: "a1" });
-
-    const agents = new Map([["a1", new Agent({ id: "a1", position: { x: 0, y: 0 }, faction: "v1", role: "farmer", controller: "llm" })]]);
-    // Operator just needs to be alive — state doesn't matter for production
-
-    processProduction(settlement, agents, PRODUCTION_CYCLE_TICKS);
-    expect(settlement.inventory.food).toBe(0);
-  });
-});
+import { FOOD_CONSUMPTION_INTERVAL, STARVATION_DAMAGE } from "@town-zero/shared";
 
 describe("processConsumption", () => {
   it("consumes food from agent inventory at interval", () => {

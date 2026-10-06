@@ -33,7 +33,6 @@ function makeBubbleWorld(): SimulationState {
     agents: new Map(),
     settlements: new Map(),
     tick: 0,
-    nextMerchantId: 0,
     activeSessions: new Map(),
     dialogueTrees: new Map(),
   };

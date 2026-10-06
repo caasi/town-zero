@@ -8,7 +8,7 @@ import type { EventHandler, CombatHitPayload, CombatDeathPayload } from "@town-z
 function buildState(): SimulationState {
   return {
     grid: new Grid(8, 8), agents: new Map(), settlements: new Map(), tick: 0,
-    nextMerchantId: 0, activeSessions: new Map(), dialogueTrees: new Map(),
+   activeSessions: new Map(), dialogueTrees: new Map(),
   };
 }
 

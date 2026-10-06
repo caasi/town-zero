@@ -1,10 +1,9 @@
-import { MERCHANT_SPAWN_INTERVAL } from "@town-zero/shared";
-import type { Fact, Value, InputFrame, DialogueTreeData } from "@town-zero/shared";
+import type { InputFrame, DialogueTreeData } from "@town-zero/shared";
 import { Agent } from "./agent.js";
 import type { Grid } from "./grid.js";
 import type { Settlement } from "./settlement.js";
 import { executeFrame, type TalkResult } from "./execute-frame.js";
-import { processProduction, processConsumption } from "./resources.js";
+import { processConsumption } from "./resources.js";
 import { updateVision, mergeAdjacentMemories, getVisionRadius } from "./vision.js";
 import { decideBotAction } from "../ai/bot-controller.js";
 import { dispatch, applyEventEffects } from "./event-dispatch.js";
@@ -14,35 +13,9 @@ export interface SimulationState {
   agents: Map<string, Agent>;
   settlements: Map<string, Settlement>;
   tick: number;
-  nextMerchantId: number;
   activeSessions: Map<string, import("../dialogue/dialogue-session.js").DialogueSession>;
   dialogueTrees: Map<string, DialogueTreeData>;
 }
-
-export function spawnMerchant(state: SimulationState): void {
-  const id = `merchant-${state.nextMerchantId++}`;
-  const merchant = new Agent({
-    id,
-    position: { x: 0, y: Math.floor(state.grid.height / 2) },
-    faction: "merchant",
-    role: "merchant",
-    controller: "bot",
-  });
-  merchant.addToInventory("currency", 10);
-  state.agents.set(id, merchant);
-}
-
-export function processMerchantTick(merchant: Agent, state: SimulationState): void {
-  if (merchant.role !== "merchant") return;
-
-  const nextX = merchant.position.x + 1;
-  if (state.grid.inBounds(nextX, merchant.position.y)) {
-    merchant.position = { x: nextX, y: merchant.position.y };
-  } else {
-    state.agents.delete(merchant.id);
-  }
-}
-
 
 export function processTick(state: SimulationState): TalkResult[] {
   state.tick++;
@@ -72,7 +45,6 @@ export function processTick(state: SimulationState): TalkResult[] {
   for (const [, agent] of agents) {
     if (!agent.isAlive() || agent.controller !== "bot") continue;
     if (agent.inputQueue.length > 0 || agent.planBacklog.length > 0) continue;
-    if (agent.role === "merchant") continue;
 
     const settlement = Array.from(settlements.values()).find((s) =>
       s.populationIds.includes(agent.id),
@@ -83,32 +55,17 @@ export function processTick(state: SimulationState): TalkResult[] {
     }
   }
 
-  // Phase 3: Production
-  for (const [, settlement] of settlements) {
-    processProduction(settlement, agents, tick);
-  }
-
-  // Phase 4: Consumption
+  // Phase 3: Consumption
   for (const [, agent] of agents) {
     processConsumption(agent, tick);
   }
 
-  // Phase 5: Merchant movement and spawning
-  for (const [, agent] of agents) {
-    if (agent.role === "merchant") {
-      processMerchantTick(agent, state);
-    }
-  }
-  if (tick % MERCHANT_SPAWN_INTERVAL === 0 && tick > 0) {
-    spawnMerchant(state);
-  }
-
-  // Phase 6: Vision update
+  // Phase 4: Vision update
   for (const [, agent] of agents) {
     updateVision(agent, grid, agents, tick);
   }
 
-  // Phase 6b: Bubble expiry + event dispatch.
+  // Phase 4b: Bubble expiry + event dispatch.
   for (const [, agent] of agents) {
     if (agent.bubbleText !== null && tick >= agent.bubbleExpiresAt) {
       agent.setBubble("", 0, tick);
@@ -186,7 +143,7 @@ export function processTick(state: SimulationState): TalkResult[] {
     settlement.populationIds = settlement.populationIds.filter((id) => agents.get(id)?.isAlive());
   }
 
-  // Phase 7: Memory merge for adjacent same-faction agents
+  // Phase 5: Memory merge for adjacent same-faction agents
   const agentList = Array.from(agents.values()).filter((a) => a.isAlive());
   mergeAdjacentMemories(agentList, grid);
 

@@ -5,7 +5,6 @@ import type { Grid } from "../simulation/grid.js";
 const ZONE_TO_STRUCTURE = {
   [ZoneType.CORE]: "core",
   [ZoneType.HOUSING]: "housing",
-  [ZoneType.PRODUCTION]: "production",
 } satisfies Record<Exclude<ZoneType, ZoneType.EMPTY>, StructureType>;
 
 // --- Templates ---
@@ -13,12 +12,11 @@ const ZONE_TO_STRUCTURE = {
 const _ = ZoneType.EMPTY;
 const C = ZoneType.CORE;
 const H = ZoneType.HOUSING;
-const P = ZoneType.PRODUCTION;
 
 export const VILLAGE_TEMPLATE: ZoneType[][] = [
-  [_, P, _, H, _],
+  [_, _, _, H, _],
   [_, _, _, _, _],
-  [_, H, C, P, _],
+  [_, H, C, _, _],
   [_, _, _, _, _],
   [_, _, _, _, _],
 ];
@@ -26,7 +24,7 @@ export const VILLAGE_TEMPLATE: ZoneType[][] = [
 // Den is intentionally smaller than village (4×4 vs 5×5)
 export const DEN_TEMPLATE: ZoneType[][] = [
   [_, H, _, _],
-  [_, C, P, _],
+  [_, C, _, _],
   [_, _, _, _],
   [_, _, _, _],
 ];
@@ -44,7 +42,7 @@ export function findCore(template: ZoneType[][]): { row: number; col: number } {
 
 interface StampResult {
   territory: Position[];
-  structures: { id: string; type: StructureType; position: Position; operatorId: null }[];
+  structures: { id: string; type: StructureType; position: Position }[];
 }
 
 export function stampTemplate(
@@ -76,7 +74,6 @@ export function stampTemplate(
         id: `${faction}-${zone}-${worldX}-${worldY}`,
         type: structureType,
         position: { x: worldX, y: worldY },
-        operatorId: null,
       });
     }
   }

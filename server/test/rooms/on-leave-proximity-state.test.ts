@@ -7,7 +7,6 @@ import type { SimulationState } from "../../src/simulation/tick.js";
 function buildState(): SimulationState {
   return {
     grid: new Grid(8, 8), agents: new Map(), settlements: new Map(), tick: 0,
-    nextMerchantId: 0,
     activeSessions: new Map(), dialogueTrees: new Map(),
   };
 }

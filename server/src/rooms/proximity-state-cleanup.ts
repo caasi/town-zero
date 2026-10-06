@@ -5,8 +5,8 @@ import type { SimulationState } from "../simulation/tick.js";
  * disconnect. Called from GameRoom.onLeave. Ensures a reconnecting player
  * re-fires proximity:enter instead of inheriting stale ticksInRange.
  *
- * Dead NPCs are intentionally included: they remain in `state.agents` (only
- * merchants are purged in `processMerchantTick`), and without this their
+ * Dead NPCs are intentionally included: they remain in `state.agents`, and
+ * without this their
  * proximityState entries for disconnected players would leak forever. The
  * `delete` is a cheap no-op if the key is absent.
  */

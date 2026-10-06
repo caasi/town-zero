@@ -65,7 +65,6 @@ function makeState(): SimulationState {
     agents,
     settlements: new Map(),
     tick: 10,
-    nextMerchantId: 0,
     activeSessions: new Map(),
     dialogueTrees,
   };

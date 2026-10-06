@@ -154,22 +154,6 @@ describe("executeFrame", () => {
     });
   });
 
-  describe("trade action", () => {
-    it("exchanges resources between agents", () => {
-      const ctx = makeCtx();
-      ctx.agent.addToInventory("food", 5);
-      const target = new Agent({ id: "merchant", position: { x: 5, y: 6 }, faction: "merchant", role: "merchant", controller: "bot" });
-      target.addToInventory("currency", 5);
-      ctx.agents.set("merchant", target);
-      const frame: InputFrame = { seq: 1, action: { type: "trade", targetId: "merchant", offer: "food", offerAmount: 2, want: "currency", wantAmount: 1 } };
-      executeFrame(frame, ctx);
-      expect(ctx.agent.inventory.food).toBe(3);
-      expect(ctx.agent.inventory.currency).toBe(1);
-      expect(target.inventory.food).toBe(2);
-      expect(target.inventory.currency).toBe(4);
-    });
-  });
-
   describe("talk action", () => {
     it("rejects talk when target is adjacent but not on facing tile", () => {
       const ctx = makeCtx();

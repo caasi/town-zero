@@ -1,7 +1,6 @@
 // client/src/input.ts
 import type { InputFrame, Facing } from "@town-zero/shared";
 import { PENDING_INPUT_CAP } from "@town-zero/shared";
-import type { ModalRequest } from "./types.js";
 import type { DisplayState } from "./display.js";
 
 interface AgentInfo {
@@ -10,15 +9,6 @@ interface AgentInfo {
   faction: string;
 }
 
-interface NearbyEntity {
-  id: string;
-  x: number;
-  y: number;
-  faction: string;
-  role: string;
-  controller: string;
-  hp: number;
-}
 
 const ACTION_CODES = ["KeyW", "KeyA", "KeyS", "KeyD", "KeyE", "KeyT"] as const;
 
@@ -71,11 +61,9 @@ const CODE_TO_DIRECTION: Record<string, Facing> = {
 export class InputHandler {
   private lastMoveTime = 0;
   private enabled = true;
-  private onModal: ((req: ModalRequest) => void) | null = null;
 
   // Updated each tick by main loop
   private playerAgent: AgentInfo | null = null;
-  private nearbyEntities: NearbyEntity[] = [];
   private currentSettlementId: string | null = null;
 
   // Movement prediction
@@ -131,18 +119,12 @@ export class InputHandler {
 
   setPlayerInfo(
     agent: AgentInfo | null,
-    nearby: NearbyEntity[],
     settlementId: string | null,
     agentState?: string,
   ): void {
     this.playerAgent = agent;
-    this.nearbyEntities = nearby;
     this.currentSettlementId = settlementId;
     this.playerState = agentState ?? "idle";
-  }
-
-  setModalHandler(handler: (req: ModalRequest) => void): void {
-    this.onModal = handler;
   }
 
   setEnabled(enabled: boolean): void {
@@ -280,37 +262,8 @@ export class InputHandler {
     }
   }
 
-  private getFacingDelta(): { dx: number; dy: number } | null {
-    const facing = this.displayState?.getLocalPlayerFacing();
-    if (!facing) return null;
-    const FACING_DELTA: Record<string, { dx: number; dy: number }> = {
-      north: { dx: 0, dy: -1 }, south: { dx: 0, dy: 1 },
-      east: { dx: 1, dy: 0 }, west: { dx: -1, dy: 0 },
-    };
-    return FACING_DELTA[facing] ?? null;
-  }
-
-  /** Facing tile from server position — entity positions and server validation both use server coords. */
-  private getServerFacingTile(): { x: number; y: number } | null {
-    if (!this.playerAgent) return null;
-    const delta = this.getFacingDelta();
-    if (!delta) return null;
-    return { x: this.playerAgent.x + delta.dx, y: this.playerAgent.y + delta.dy };
-  }
-
   private handleInteract(): void {
     if (!this.playerAgent) return;
-    const target = this.getServerFacingTile();
-    if (!target) return;
-
-    const atFacing = (e: NearbyEntity) => e.x === target.x && e.y === target.y;
-
-    // Merchant short-circuit — open modal client-side, do not send a frame (spec §1.4 Option A)
-    const merchant = this.nearbyEntities.find((e) => e.role === "merchant" && atFacing(e));
-    if (merchant) {
-      this.onModal?.({ type: "trade", merchantId: merchant.id });
-      return;
-    }
 
     ++this.inputSeq;
     const frame: InputFrame = { seq: this.inputSeq, action: { type: "interact" } };

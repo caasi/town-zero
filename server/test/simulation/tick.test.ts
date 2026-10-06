@@ -13,7 +13,7 @@ function makeWorld(): SimulationState {
   grid.setOwner(5, 6, "v1");
 
   const settlement = new Settlement({ id: "v1", faction: "v1", type: "village", territory: [{ x: 5, y: 5 }, { x: 5, y: 6 }] });
-  settlement.addStructure({ id: "h1", type: "housing", position: { x: 5, y: 5 }, operatorId: null });
+  settlement.addStructure({ id: "h1", type: "housing", position: { x: 5, y: 5 } });
 
   const agent = new Agent({ id: "a1", position: { x: 5, y: 5 }, faction: "v1", role: "farmer", controller: "llm" });
   agent.addToInventory("food", 10);
@@ -24,7 +24,7 @@ function makeWorld(): SimulationState {
     agents: new Map([["a1", agent]]),
     settlements: new Map([["v1", settlement]]),
     tick: 0,
-    nextMerchantId: 0, activeSessions: new Map(), dialogueTrees: new Map(),
+   activeSessions: new Map(), dialogueTrees: new Map(),
   };
 }
 

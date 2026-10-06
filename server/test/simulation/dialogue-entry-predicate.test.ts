@@ -10,7 +10,6 @@ function buildState(tree: DialogueTreeData, npc: Agent, player: Agent, tick = 0)
     agents: new Map([[npc.id, npc], [player.id, player]]),
     settlements: new Map(),
     tick,
-    nextMerchantId: 0,
     activeSessions: new Map(),
     dialogueTrees: new Map([[`${npc.id}-tree`, tree]]),
   };
@@ -22,7 +21,7 @@ describe("hasMatchingDialogueEntry", () => {
     const player = new Agent({ id: "p1", position: { x: 1, y: 0 }, faction: "f2", role: "player", controller: "player" });
     const state: SimulationState = {
       grid: {} as any, agents: new Map([[npc.id, npc], [player.id, player]]),
-      settlements: new Map(), tick: 0, nextMerchantId: 0,
+      settlements: new Map(), tick: 0,
       activeSessions: new Map(), dialogueTrees: new Map(),
     };
     expect(hasMatchingDialogueEntry(player, npc, state)).toBe(false);

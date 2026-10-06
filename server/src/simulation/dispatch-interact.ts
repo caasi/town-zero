@@ -23,30 +23,27 @@ export function dispatchInteract(ctx: FrameContext): void {
   }
 
   if (occupant) {
-    // Rule 1 — merchant: server-side noop. Client handles modal locally.
-    if (occupant.role === "merchant") return;
-
-    // Rule 2 — dialogue entry match
+    // Rule 1 — dialogue entry match
     if (simState && hasMatchingDialogueEntry(agent, occupant, simState)) {
       performTalkOnFacingTarget(occupant.id, ctx);
       return;
     }
 
-    // Rule 3 — hostile
+    // Rule 2 — hostile
     if (occupant.faction !== agent.faction) {
       performAttackOnFacingTarget(occupant.id, ctx);
       return;
     }
 
-    // Rule 4 — same faction, no entry → noop
+    // Rule 3 — same faction, no entry → noop
     return;
   }
 
-  // Rule 5 — resource tile
+  // Rule 4 — resource tile
   if (grid.getResourceYield(target.x, target.y)) {
     performGatherOnFacingTile(target, ctx);
     return;
   }
 
-  // Rule 6 — empty → noop
+  // Rule 5 — empty → noop
 }
