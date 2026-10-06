@@ -9,14 +9,20 @@ import { extractVisionForPlayer } from "./vision.js";
 import { Agent } from "../simulation/agent.js";
 import { advanceDialogue, chooseDialogue, endDialogue, tickDialogues } from "../dialogue/session-manager.js";
 import { purgeProximityState } from "./proximity-state-cleanup.js";
+import { JevController } from "../ai/jev-controller.js";
+import { jevChooser } from "../ai/jev.js";
 
 export class GameRoom extends Room<{ state: WorldStateSchema }> {
   private simState!: SimulationState;
   private sessionToAgent = new Map<string, string>();
   private nextPlayerId = 0;
+  private jev!: JevController;
 
   onCreate() {
     this.simState = generateMap();
+    const jevKey = process.env.TYPESAFE_API_KEY;
+    this.jev = new JevController(jevKey ? jevChooser(jevKey) : null);
+    console.log(jevKey ? "AI NPCs: Jev" : "AI NPCs: fallback rules (TYPESAFE_API_KEY not set)");
 
     this.setState(new WorldStateSchema());
     this.state.width = this.simState.grid.width;
@@ -164,6 +170,7 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
   }
 
   private tick() {
+    this.jev.update(this.simState);
     const talkResults = processTick(this.simState);
 
     // Send dialogue messages for talk actions executed this tick

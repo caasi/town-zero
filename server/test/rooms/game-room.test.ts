@@ -175,6 +175,13 @@ describe("GameRoom integration", () => {
     expect(village.populationIds).toEqual([]);
   });
 
+  it("drives llm beasts each tick (fallback rules without a Jev key)", () => {
+    const beast = room.simState.agents.get("mnpc-0")!;
+    beast.removeFromInventory("food", beast.inventory.food);
+    for (let i = 0; i < 3; i++) tick(room);
+    expect(beast.inventory.food).toBeGreaterThan(0); // took food from the den
+  });
+
   it("multiple players join and appear in state", () => {
     const client1 = mockClient("session-1");
     const client2 = mockClient("session-2");
