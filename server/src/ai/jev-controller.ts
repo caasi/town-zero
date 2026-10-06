@@ -123,8 +123,8 @@ function passable(state: SimulationState, p: Position): boolean {
 }
 
 // ponytail: greedy step along the longer axis, then the other one. A beast
-// stuck behind water stays stuck until its goal times out or it re-plans;
-// switch to BFS over passable tiles if maps get obstacles between dens and targets.
+// behind water gets no step, its goal ends, and it re-asks at most once per
+// ASK_INTERVAL_TICKS; switch to BFS over passable tiles if maps get obstacles.
 function stepToward(agent: Agent, to: Position, state: SimulationState): Facing | null {
   const dx = Math.sign(to.x - agent.position.x);
   const dy = Math.sign(to.y - agent.position.y);

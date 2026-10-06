@@ -44,12 +44,12 @@ JevController.update(state)            // GameRoom, once per tick, before proces
 | id | Offered when | Goal |
 |----|--------------|------|
 | `rest` | always (first, so the first-option bias lands on the safest choice) | idle ~3 s |
-| `wander` | always | walk to a random tile within 4 steps, ~5 s at most |
+| `wander` | the first step toward a random tile within 4 steps is possible | walk there, ~5 s at most |
 | `eat_at_den` | food is 0 and the den has food | walk home, `take` food |
 | `flee_to_den` | an enemy is in sight and the agent is outside the den | walk home |
 | `attack:<id>` | one for each enemy seen this tick | walk to it, face it, attack once per ~1 s |
 
-Rule: every offered option must give at least one frame. An option that is done at once makes the agent ask again at once. In a playtest this caused 358 calls in a short session. A test checks this rule.
+Rule: every offered option must give at least one frame. An option that is done at once makes the agent ask again at once. In a playtest this caused 358 calls in a short session. A test checks this rule. As a backstop, each agent asks Jev at most once per 8 ticks (~1 s); a goal that still ends at once (blocked path) costs at most that.
 
 ### State given to Jev (`describeState`)
 
@@ -70,7 +70,7 @@ Information sources:
 
 ### Turning a goal into frames (`nextFrame`)
 
-- Movement is a greedy step along the longer axis, then the other axis, and impassable tiles are skipped. A beast behind water can get stuck until its goal ends. The upgrade is a breadth-first search (BFS) over passable tiles.
+- Movement is a greedy step along the longer axis, then the other axis, and impassable tiles are skipped. A beast behind water gets no step; its goal ends and it re-asks at most once per second. The upgrade is a breadth-first search (BFS) over passable tiles.
 - Turn-before-move applies: a direction frame toward an adjacent target only turns the agent.
 - `attack` waits 8 ticks between hits. Without the wait, three beasts killed a player in under 1 s. The wait is stored on the goal: when the target leaves sight, the goal ends, and a new `attack` goal can hit at once. So "about 1 attack per second" is not a strict limit.
 

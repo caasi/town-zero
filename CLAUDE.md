@@ -49,14 +49,14 @@ pnpm run typecheck:types
 1. Consume one InputFrame per alive agent from `inputQueue` (player) or `planBacklog` (bot/LLM); execute via `executeFrame` (direction → turn-before-move, action → instant effect)
 2. Bot controller decides for idle bot agents → fills `planBacklog` with `InputFrame[]`
 3. Agents consume food from personal inventory (counter-gated, ~30s)
-4. Vision update (MapMemory per agent), then bubble expiry and NPC event dispatch; dead members leave `populationIds`
+4. Vision update (MapMemory per agent), then bubble expiry and NPC event dispatch; dead members leave `populationIds` (a dead player keeps its slot until it leaves)
 5. Memory merge between adjacent same-faction agents
 
 Source of truth: `processTick` in `server/src/simulation/tick.ts`.
 
 **Information model:** No global omniscience. Each agent has a personal `MapMemory` (sparse grid of observed tiles with timestamps). Agents must be adjacent to exchange information. This creates natural fog of war and makes scouts strategically important.
 
-**AI NPC decisions (Jev, spec 003):** "Code lists the options, Jev picks one, code acts." `server/src/ai/jev-controller.ts` drives every alive `controller: "llm"` agent (now: the den beasts). Code builds a short option list (`rest`, `wander`, `eat_at_den`, `flee_to_den`, `attack:<id>`), Jev (TypeSafe AI `choice` question, `server/src/ai/jev.ts`) picks one, and `nextFrame` turns the goal into one `InputFrame` per tick. Rules: offer only options that yield at least one frame (else the agent re-asks every tick); state and options are words, never coordinates (Jev is weak at spatial/numeric reasoning); keep `rest` first (Jev leans toward the first option); one call in flight per agent; no `JevController.update` while no player session is in the room, so no Jev calls (they cost money); `processTick` itself still runs. Without `TYPESAFE_API_KEY`, or when a call fails, a fallback rule decides. Each decision is logged as `[jev] <agent> chose <id> from <options>`. Dialogue uses pre-written RPG-style trees; no model writes dialogue text.
+**AI NPC decisions (Jev, spec 003):** "Code lists the options, Jev picks one, code acts." `server/src/ai/jev-controller.ts` drives every alive `controller: "llm"` agent (now: the den beasts). Code builds a short option list (`rest`, `wander`, `eat_at_den`, `flee_to_den`, `attack:<id>`), Jev (TypeSafe AI `choice` question, `server/src/ai/jev.ts`) picks one, and `nextFrame` turns the goal into one `InputFrame` per tick. Rules: offer only options that yield at least one frame (else the agent re-asks every tick); state and options are words, never coordinates (Jev is weak at spatial/numeric reasoning); keep `rest` first (Jev leans toward the first option); one call in flight per agent, and at most one call per 8 ticks per agent; no `JevController.update` while no player session is in the room, so no Jev calls (they cost money); `processTick` itself still runs. Without `TYPESAFE_API_KEY`, or when a call fails, a fallback rule decides. Each decision is logged as `[jev] <agent> chose <id> from <options>`. Dialogue uses pre-written RPG-style trees; no model writes dialogue text.
 
 ## Key Design Documents
 
@@ -84,7 +84,7 @@ Source of truth: `processTick` in `server/src/simulation/tick.ts`.
 - Client-side movement prediction (`display.ts`): `DisplayState` tracks predicted tile positions (`displayX/Y`) and lerped pixel positions (`renderX/Y`). `reconcileFromServer` accepts server state as baseline, prunes acknowledged `InputFrame[]` by seq, replays direction-only frames (skips action frames). `updateRender(dt)` lerps pixel positions toward display positions
 - Input uses held-key tracking (`keydown`/`keyup` Set) for local prediction and sends per-tick `input` messages (InputFrame with seq + direction) from `update()` while keys are held — not `keydown` repeat events (OS repeat has variable initial delay and rate). Action keys (E/T) send InputFrame with seq + action immediately on keydown
 - Fog memory uses a snapshot model (`TileSnapshot` = terrain + entities + timestamp). Fog level is derived: `predictedVisible` → visible, has snapshot → explored, else → unknown. No `level` field stored — add new tile properties to `TileSnapshot` and they're automatically captured
-- **Player lifecycle:** a player who leaves is removed (agent and `populationIds`); a new join always creates a new agent. A dead player keeps its session; after `REVIVE_DELAY_TICKS` (~5s, checked on the server) the client's `Revive` button sends `revive`, and the same agent comes back in a free village tile with full HP, its inventory and its MapMemory
+- **Player lifecycle:** a player who leaves is removed (agent and `populationIds`); a new join always creates a new agent. A dead player keeps its session and its population slot, and death ends its dialogue; after `REVIVE_DELAY_TICKS` (~5s, checked on the server) the client's `Revive` button sends `revive`, and the same agent comes back in a free village tile with full HP, its inventory and its MapMemory
 - Tests never call the real Jev API: `server/vitest.config.ts` clears `TYPESAFE_API_KEY`. To run the server with Jev, export `TYPESAFE_API_KEY` before `pnpm run dev:server`
 - Unknown tiles render as eigengrau (`#16161d`), void outside map boundary renders as true black (`#000`)
 - Dialogue system: `talk` action is processed through the tick pipeline via `executeFrame` → `startDialogue`. `dialogue:advance/choose/close` messages use the session-manager API directly. Dialogue lock: while `agent.talkingToNpcId` is set, all input is rejected (even if the active session was already cleaned up). Timeout is detected in `tickDialogues()` called from the tick loop. Client enters `dialogueMode` which intercepts W/S/E/Esc for dialogue navigation
@@ -96,7 +96,7 @@ Source of truth: `processTick` in `server/src/simulation/tick.ts`.
 ## Known Debt
 
 - Jev state reads the den food count and enemy HP/role from live server state, not from the agent's memory. A beast away from home should only know the food count from its last visit.
-- AI movement is a greedy step (`stepToward` in `jev-controller.ts`); a beast behind water can get stuck until its goal ends. Upgrade to BFS over passable tiles when maps get obstacles.
+- AI movement is a greedy step (`stepToward` in `jev-controller.ts`); a beast behind water gets no step and re-asks Jev at most once per second. Upgrade to BFS over passable tiles when maps get obstacles.
 - Player attacks have no cooldown (one per key press, up to 8/s). AI beasts wait ~1s between attacks, but the wait lives on the attack goal: a new goal (target left sight and came back) can hit at once.
 - After death the HUD can still show the last HP before 0 (the `death` message arrives before the state patch).
 - `material` and `currency` have no use since production and merchants were removed.
