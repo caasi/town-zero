@@ -38,7 +38,8 @@ jobs:
       - run: pnpm run test
       # Property tests (fast-check): skipped by `test` to keep the local loop fast.
       - run: pnpm run test:props
-      - run: pnpm run typecheck:types
+      # Types of src and test files in server and client, plus the shared type tests.
+      - run: pnpm run typecheck
 
   image:
     needs: test
