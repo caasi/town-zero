@@ -31,8 +31,11 @@ pnpm run dev:server
 # Run client (Vite dev server, port 3000)
 pnpm run dev:client
 
-# Run server + client tests
+# Run server + client tests (skips the slow property tests)
 pnpm run test
+
+# Run the fast-check property tests (*.property.test.ts); CI runs both
+pnpm run test:props
 
 # Type-level tests for the script DSL
 pnpm run typecheck:types
@@ -98,6 +101,8 @@ Source of truth: `processTick` in `server/src/simulation/tick.ts`.
 - **NPC event system:** NPCs expose typed events via `s.npc(id).on(event, handler)`. Event map: `proximity:{enter,stay,leave}`, `talk:{start,end}`, `combat:{hit,death}` (see `shared/src/script-dsl/event-types.ts`). Handlers return `EventEffect[]` — a standalone type (not part of the shared `Effect` union) containing only `bubble` in MVP; `setFact`/`give`/`damage`/etc. live in the separate `Effect` union and are deliberately not allowed from event handlers (emitting them is a compile-time error; dialogue `action` nodes can run them). There is no trigger system: it was removed in spec 003, and quests should build on events plus dialogue actions. Multiple handlers per event compose via `flatMap` in registration order. A throwing handler is isolated (logged, others still run). Dispatch is snapshot-at-dispatch: a handler that registers more handlers mid-dispatch does not observe them this tick. `bubble(target, text, { durationTicks })` sets/clears the NPC speech bubble; special refs `$npc`/`$self`/`$player` are resolved against the payload. Event dispatch is independent of the dialogue input-lock: a locked NPC still receives events and its handlers still run.
 
 ## Known Debt
+
+- **Input queue overflow drops a frame without an ack.** When more than `INPUT_QUEUE_CAP` (3) player frames wait on the server (a burst after network jitter, or more than one frame per tick for a while), `Agent.enqueueInput` drops the oldest one and does not advance `lastProcessedInput`. The client predicted that move, so the player is pulled back one step. Found by the fast-check property `server/test/rooms/input-ack.property.test.ts` (an `it.fails` test records it; smallest case: four moves in one tick). Fixing it is a gameplay decision: a larger cap adds input delay after a burst.
 
 - Jev state reads the den food count and enemy HP/role from live server state, not from the agent's memory. A beast away from home should only know the food count from its last visit.
 - AI movement is a greedy step (`stepToward` in `jev-controller.ts`); a beast behind water gets no step and re-asks Jev at most once per second. Upgrade to BFS over passable tiles when maps get obstacles.
