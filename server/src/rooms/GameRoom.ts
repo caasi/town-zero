@@ -1,5 +1,5 @@
 import { Room, Client } from "@colyseus/core";
-import { TICK_RATE_MS } from "@town-zero/shared";
+import { TICK_RATE_MS, REVIVE_DELAY_TICKS } from "@town-zero/shared";
 import { WorldStateSchema } from "./schemas/WorldStateSchema.js";
 import { generateMap } from "../map/generator.js";
 import { processTick, type SimulationState } from "../simulation/tick.js";
@@ -7,6 +7,8 @@ import { syncToSchema, syncTiles, syncAgent } from "./sync.js";
 import { isValidInputFrame } from "./validation.js";
 import { extractVisionForPlayer } from "./vision.js";
 import { Agent } from "../simulation/agent.js";
+import type { Settlement } from "../simulation/settlement.js";
+import type { Position } from "@town-zero/shared";
 import { advanceDialogue, chooseDialogue, endDialogue, tickDialogues } from "../dialogue/session-manager.js";
 import { purgeProximityState } from "./proximity-state-cleanup.js";
 import { JevController } from "../ai/jev-controller.js";
@@ -17,6 +19,8 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
   private sessionToAgent = new Map<string, string>();
   private nextPlayerId = 0;
   private jev!: JevController;
+  // Dead player agents → tick from which "revive" is accepted.
+  private reviveAt = new Map<string, number>();
 
   onCreate() {
     this.simState = generateMap();
@@ -51,6 +55,8 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
         agent.lastProcessedInput = Math.max(agent.lastProcessedInput, seq);
       }
     });
+
+    this.onMessage("revive", (client: Client) => this.revive(client));
 
     this.onMessage("dialogue:advance", (client: Client) => {
       const agentId = this.sessionToAgent.get(client.sessionId);
@@ -121,14 +127,7 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
     const name = raw.length > 0 ? raw : `Player-${this.nextPlayerId}`;
     const id = `player-${this.nextPlayerId++}`;
 
-    // Find unoccupied tile in village territory
-    const occupiedPositions = new Set(
-      Array.from(this.simState.agents.values())
-        .map((a) => `${a.position.x},${a.position.y}`),
-    );
-    const spawnTile = village.territory.find(
-      (t) => !occupiedPositions.has(`${t.x},${t.y}`),
-    ) ?? village.territory[0];
+    const spawnTile = this.findSpawnTile(village);
 
     const agent = new Agent({
       id,
@@ -150,6 +149,31 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
     console.log(`${name} joined as ${id} (${client.sessionId})`);
   }
 
+  private findSpawnTile(village: Settlement): Position {
+    const occupied = new Set(
+      Array.from(this.simState.agents.values())
+        .filter((a) => a.isAlive())
+        .map((a) => `${a.position.x},${a.position.y}`),
+    );
+    return village.territory.find((t) => !occupied.has(`${t.x},${t.y}`)) ?? village.territory[0];
+  }
+
+  private revive(client: Client): void {
+    const agentId = this.sessionToAgent.get(client.sessionId);
+    if (!agentId) return;
+    const agent = this.simState.agents.get(agentId);
+    const readyTick = this.reviveAt.get(agentId);
+    if (!agent || agent.isAlive() || readyTick === undefined || this.simState.tick < readyTick) return;
+
+    const village = Array.from(this.simState.settlements.values()).find((s) => s.type === "village");
+    if (!village || village.populationIds.length >= village.getPopulationCap()) return;
+
+    agent.revive(this.findSpawnTile(village));
+    village.populationIds.push(agentId);
+    this.reviveAt.delete(agentId);
+    client.send("revived", { agentId });
+  }
+
   onLeave(client: Client) {
     const agentId = this.sessionToAgent.get(client.sessionId);
     if (!agentId) return;
@@ -160,6 +184,7 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
     }
     // A new join always creates a new agent, so a left agent would only hold a population slot.
     this.simState.agents.delete(agentId);
+    this.reviveAt.delete(agentId);
     for (const settlement of this.simState.settlements.values()) {
       settlement.populationIds = settlement.populationIds.filter((id) => id !== agentId);
     }
@@ -226,20 +251,17 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
     }
   }
 
+  // The session stays bound to its dead agent so the player can revive it.
   private checkPlayerDeaths() {
-    const deadSessions: string[] = [];
     for (const [sessionId, agentId] of this.sessionToAgent) {
       const agent = this.simState.agents.get(agentId);
-      if (!agent || agent.isAlive()) continue;
+      if (!agent || agent.isAlive() || this.reviveAt.has(agentId)) continue;
 
-      const client = this.clients.getById(sessionId);
-      if (client) {
-        client.send("death", { agentId });
-      }
-      deadSessions.push(sessionId);
-    }
-    for (const sessionId of deadSessions) {
-      this.sessionToAgent.delete(sessionId);
+      this.reviveAt.set(agentId, this.simState.tick + REVIVE_DELAY_TICKS);
+      this.clients.getById(sessionId)?.send("death", {
+        agentId,
+        reviveInMs: REVIVE_DELAY_TICKS * TICK_RATE_MS,
+      });
     }
   }
 }

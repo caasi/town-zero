@@ -2,7 +2,7 @@ import "../../src/polyfill.js";
 import "../../src/encoder-config.js";
 
 import { describe, it, expect, beforeEach } from "vitest";
-import { DIALOGUE_TIMEOUT_TICKS } from "@town-zero/shared";
+import { DIALOGUE_TIMEOUT_TICKS, REVIVE_DELAY_TICKS, TICK_RATE_MS } from "@town-zero/shared";
 import { GameRoom } from "../../src/rooms/GameRoom.js";
 import type { WorldStateSchema } from "../../src/rooms/schemas/WorldStateSchema.js";
 
@@ -28,6 +28,7 @@ function createTestRoom(): { room: GameRoom; state: WorldStateSchema } {
   // Initialize class fields that Object.create skips
   room.sessionToAgent = new Map<string, string>();
   room.nextPlayerId = 0;
+  room.reviveAt = new Map<string, number>();
 
   // Minimal Room internals that GameRoom needs
   room.clients = {
@@ -288,6 +289,55 @@ describe("GameRoom integration", () => {
     const deathMsgs = client.messages.filter((m: any) => m.type === "death");
     expect(deathMsgs.length).toBeGreaterThan(0);
     expect(deathMsgs[0].data.agentId).toBe(agentId);
+  });
+
+  describe("revive", () => {
+    function joinAndKill() {
+      const client = mockClient("session-1");
+      joinClient(room, client, { name: "Doomed" });
+      tick(room);
+      const agentId = client.messages.find((m: any) => m.type === "joined").data.agentId;
+      const agent = room.simState.agents.get(agentId);
+      agent.addToInventory("material", 2);
+      agent.position = { x: 25, y: 20 }; // away from the village
+      agent.takeDamage(200);
+      tick(room);
+      return { client, agentId, agent };
+    }
+
+    it("death message says when revive is allowed, and is sent once", () => {
+      const { client } = joinAndKill();
+      tick(room);
+      const deaths = client.messages.filter((m: any) => m.type === "death");
+      expect(deaths).toHaveLength(1);
+      expect(deaths[0].data.reviveInMs).toBe(REVIVE_DELAY_TICKS * TICK_RATE_MS);
+    });
+
+    it("rejects revive before the delay", () => {
+      const { client, agent } = joinAndKill();
+      sendMessage(room, client, "revive");
+      expect(agent.isAlive()).toBe(false);
+    });
+
+    it("revives the same agent in the village with full HP, keeping its inventory", () => {
+      const { client, agentId, agent } = joinAndKill();
+      for (let i = 0; i < REVIVE_DELAY_TICKS; i++) tick(room);
+      sendMessage(room, client, "revive");
+
+      expect(room.simState.agents.get(agentId)).toBe(agent);
+      expect(agent.isAlive()).toBe(true);
+      expect(agent.hp).toBe(agent.maxHp);
+      expect(agent.inventory.material).toBe(2);
+      const village = Array.from(room.simState.settlements.values()).find((s: any) => s.type === "village") as any;
+      expect(village.isInTerritory(agent.position)).toBe(true);
+      expect(village.populationIds).toContain(agentId);
+      expect(client.messages.some((m: any) => m.type === "revived")).toBe(true);
+
+      // Input works again.
+      sendInput(room, client, { seq: 1, direction: "north" });
+      tick(room);
+      expect(agent.facing).toBe("north");
+    });
   });
 
   it("ignores commands from dead agents", () => {

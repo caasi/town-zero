@@ -99,6 +99,15 @@ export class Agent {
     this.bubbleExpiresAt = currentTick + durationTicks;
   }
 
+  /** Back to life at `position` with full HP. Inventory, memory and beliefs stay. */
+  revive(position: Position): void {
+    this.hp = this.maxHp;
+    this.state = "idle";
+    this.position = { ...position };
+    this.inputQueue = [];
+    this.planBacklog = [];
+  }
+
   takeDamage(damage: number): void {
     this.hp = Math.max(0, this.hp - damage);
     if (this.hp <= 0) {

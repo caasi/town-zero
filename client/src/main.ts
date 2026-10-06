@@ -14,6 +14,7 @@ import type { GameState } from "./types.js";
 const canvas = document.getElementById("game-canvas") as HTMLCanvasElement;
 const connectingOverlay = document.getElementById("connecting-overlay")!;
 const deathOverlay = document.getElementById("death-overlay")!;
+const reviveBtn = document.getElementById("revive-btn") as HTMLButtonElement;
 const errorOverlay = document.getElementById("error-overlay")!;
 const errorText = document.getElementById("error-text")!;
 const hpText = document.getElementById("hp-text")!;
@@ -30,6 +31,7 @@ const displayState = new DisplayState();
 let gameState: GameState = "connecting";
 let input: InputHandler | null = null;
 let isConnecting = false;
+let reviveTimer: ReturnType<typeof setInterval> | null = null;
 
 const dialogueUI = new DialogueUI("dialogue-overlay");
 let dialogueTimeoutAt: number | null = null;
@@ -199,12 +201,19 @@ async function connect(): Promise<void> {
     input.setPredictionContext(displayState, fog.tileSource());
 
     network.onVision((vision) => fog.update(vision));
-    network.onDeath(() => {
+    network.onDeath(({ reviveInMs }) => {
       gameState = "dead";
       setOverlay("dead");
       input?.setEnabled(false);
       dialogueUI.hide();
       input?.exitDialogueMode();
+      startReviveCountdown(reviveInMs);
+    });
+    network.onRevived(() => {
+      displayState.clear(); // snap to the village instead of gliding from the corpse
+      gameState = "playing";
+      setOverlay("playing");
+      input?.setEnabled(true);
     });
 
     // Dialogue wiring
@@ -235,13 +244,24 @@ async function connect(): Promise<void> {
   }
 }
 
-// Rejoin / retry buttons
-document.getElementById("rejoin-btn")!.addEventListener("click", () => {
-  network.disconnect();
-  input?.destroy();
-  displayState.clear();
-  connect();
-});
+// The server checks the delay too; the countdown only keeps the button honest.
+function startReviveCountdown(ms: number): void {
+  if (reviveTimer) clearInterval(reviveTimer);
+  const readyAt = Date.now() + ms;
+  const update = () => {
+    const left = Math.ceil((readyAt - Date.now()) / 1000);
+    reviveBtn.disabled = left > 0;
+    reviveBtn.textContent = left > 0 ? `Revive (${left})` : "Revive";
+    if (left <= 0 && reviveTimer) {
+      clearInterval(reviveTimer);
+      reviveTimer = null;
+    }
+  };
+  update();
+  reviveTimer = setInterval(update, 250);
+}
+
+reviveBtn.addEventListener("click", () => network.sendRevive());
 
 document.getElementById("retry-btn")!.addEventListener("click", () => {
   network.disconnect();

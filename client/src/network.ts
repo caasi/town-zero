@@ -8,7 +8,8 @@ export class NetworkClient {
   private room: Room | null = null;
   private _playerId: string | null = null;
   private visionCallbacks: Array<(data: VisionData) => void> = [];
-  private deathCallbacks: Array<(agentId: string) => void> = [];
+  private deathCallbacks: Array<(data: { agentId: string; reviveInMs: number }) => void> = [];
+  private revivedCallbacks: Array<() => void> = [];
   private dialogueStateCallbacks: Array<(data: DialogueStatePayload) => void> = [];
   private dialogueEndCallbacks: Array<(data: { reason: string }) => void> = [];
   private dialogueErrorCallbacks: Array<(data: { error: string }) => void> = [];
@@ -59,8 +60,12 @@ export class NetworkClient {
       for (const cb of this.visionCallbacks) cb(data);
     });
 
-    this.room.onMessage("death", (data: { agentId: string }) => {
-      for (const cb of this.deathCallbacks) cb(data.agentId);
+    this.room.onMessage("death", (data: { agentId: string; reviveInMs: number }) => {
+      for (const cb of this.deathCallbacks) cb(data);
+    });
+
+    this.room.onMessage("revived", () => {
+      for (const cb of this.revivedCallbacks) cb();
     });
 
     this.room.onMessage("dialogue:state", (data: DialogueStatePayload) => {
@@ -90,8 +95,16 @@ export class NetworkClient {
     this.visionCallbacks.push(cb);
   }
 
-  onDeath(cb: (agentId: string) => void): void {
+  onDeath(cb: (data: { agentId: string; reviveInMs: number }) => void): void {
     this.deathCallbacks.push(cb);
+  }
+
+  onRevived(cb: () => void): void {
+    this.revivedCallbacks.push(cb);
+  }
+
+  sendRevive(): void {
+    this.room?.send("revive");
   }
 
   onDialogueState(cb: (data: DialogueStatePayload) => void): void {
@@ -134,6 +147,7 @@ export class NetworkClient {
     this._playerId = null;
     this.visionCallbacks = [];
     this.deathCallbacks = [];
+    this.revivedCallbacks = [];
     this.dialogueStateCallbacks = [];
     this.dialogueEndCallbacks = [];
     this.dialogueErrorCallbacks = [];

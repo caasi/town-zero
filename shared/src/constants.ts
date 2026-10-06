@@ -27,6 +27,7 @@ export enum ZoneType {
 
 // --- Combat ---
 export const BASE_ATTACK_DAMAGE = 20;
+export const REVIVE_DELAY_TICKS = 40;          // ticks before a dead player may revive (~5s)
 
 // --- Dialogue ---
 export const DIALOGUE_TIMEOUT_TICKS = 240;    // ticks before dialogue timeout (~30s)
