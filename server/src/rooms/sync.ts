@@ -39,7 +39,11 @@ function syncSettlement(settlement: Settlement, schema: SettlementSchema): void 
   schema.inventory.set("material", settlement.inventory.material);
   schema.inventory.set("currency", settlement.inventory.currency);
 
-  // Rebuild structures array
+  // Rebuild only when the list changed: new child schemas every tick made each
+  // patch re-send all structures (222 bytes per idle tick instead of 2).
+  // Structures are never edited in place after addStructure, so ids suffice.
+  const ids = settlement.structures.map((st) => st.id).join(",");
+  if (schema.structures.map((st) => st.id).join(",") === ids) return;
   schema.structures.clear();
   for (const structure of settlement.structures) {
     const ss = new StructureSchema();

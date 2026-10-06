@@ -125,6 +125,21 @@ describe("syncToSchema", () => {
     expect(schema!.structures.at(1)!.id).toBe("h1");
   });
 
+  it("keeps structure schemas between syncs unless the list changes", () => {
+    const village = new Settlement({ id: "v1", faction: "village-1", type: "village", territory: [{ x: 10, y: 20 }] });
+    village.addStructure({ id: "c1", type: "core", position: { x: 10, y: 20 } });
+    const sim = makeSimState({ settlements: new Map([["v1", village]]) });
+    const state = new WorldStateSchema();
+    syncToSchema(sim, state);
+    const first = state.settlements.get("v1")!.structures.at(0);
+    syncToSchema(sim, state);
+    expect(state.settlements.get("v1")!.structures.at(0)).toBe(first);
+
+    village.addStructure({ id: "h1", type: "housing", position: { x: 10, y: 20 } });
+    syncToSchema(sim, state);
+    expect(state.settlements.get("v1")!.structures.map((st) => st.id)).toEqual(["c1", "h1"]);
+  });
+
   it("syncs settlement x,y from core structure position", () => {
     const village = new Settlement({
       id: "v1",
