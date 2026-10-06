@@ -39,7 +39,11 @@ function homeCenter(home: Settlement): Position {
   return home.structures.find((s) => s.type === "core")?.position ?? home.territory[0];
 }
 
-/** Enemies this agent sees now, read from its own MapMemory (no global knowledge). */
+/**
+ * Enemies this agent knows about this tick, read from its own MapMemory (no
+ * global knowledge). That memory includes what adjacent den-mates saw this
+ * tick, because mergeAdjacentMemories copies tiles with their timestamp.
+ */
 function visibleEnemies(agent: Agent, state: SimulationState): Agent[] {
   const ids = new Set<string>();
   for (const [, mem] of agent.getAllMemory()) {
