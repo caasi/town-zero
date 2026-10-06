@@ -258,6 +258,8 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
       const agent = this.simState.agents.get(agentId);
       if (!agent || agent.isAlive() || this.reviveAt.has(agentId)) continue;
 
+      // Death ends any dialogue, or its lock would outlive the revive and block all input.
+      if (agent.talkingToNpcId) endDialogue(agent.talkingToNpcId, this.simState, "player_left");
       this.reviveAt.set(agentId, this.simState.tick + REVIVE_DELAY_TICKS);
       this.clients.getById(sessionId)?.send("death", {
         agentId,

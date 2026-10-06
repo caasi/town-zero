@@ -444,6 +444,24 @@ describe("GameRoom integration", () => {
       expect(simAgent.talkingToNpcId).toBe("farmer-reed");
     });
 
+    it("a player who dies in dialogue is released and can act after revive", () => {
+      const { client, agentId } = setupDialogue(room);
+      sendInput(room, client, { seq: 1, action: { type: "talk", targetId: "farmer-reed" } });
+      tick(room);
+      const agent = room.simState.agents.get(agentId!);
+      agent.takeDamage(500);
+      tick(room);
+      expect(agent.talkingToNpcId).toBeNull();
+      expect(room.simState.agents.get("farmer-reed").currentTalkingTo).toBeNull();
+
+      for (let i = 0; i < REVIVE_DELAY_TICKS; i++) tick(room);
+      sendMessage(room, client, "revive");
+      const turnTo = agent.facing === "north" ? "south" : "north";
+      sendInput(room, client, { seq: 2, direction: turnTo });
+      tick(room);
+      expect(agent.facing).toBe(turnTo);
+    });
+
     it("dialogue:advance sends updated state", () => {
       const { client } = setupDialogue(room);
       sendInput(room, client, { seq: 1, action: { type: "talk", targetId: "farmer-reed" } });
