@@ -29,6 +29,7 @@ function createTestRoom(): { room: GameRoom; state: WorldStateSchema } {
   room.sessionToAgent = new Map<string, string>();
   room.nextPlayerId = 0;
   room.reviveAt = new Map<string, number>();
+  room.respawnAt = new Map<string, number>();
 
   // Minimal Room internals that GameRoom needs
   room.clients = {

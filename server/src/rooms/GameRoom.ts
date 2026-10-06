@@ -7,10 +7,9 @@ import { syncToSchema, syncTiles, syncAgent } from "./sync.js";
 import { isValidInputFrame } from "./validation.js";
 import { extractVisionForPlayer } from "./vision.js";
 import { Agent } from "../simulation/agent.js";
-import type { Settlement } from "../simulation/settlement.js";
-import type { Position } from "@town-zero/shared";
 import { advanceDialogue, chooseDialogue, endDialogue, tickDialogues } from "../dialogue/session-manager.js";
 import { purgeProximityState } from "./proximity-state-cleanup.js";
+import { findSpawnTile, processRespawns } from "../simulation/respawn.js";
 import { JevController } from "../ai/jev-controller.js";
 import { jevChooser } from "../ai/jev.js";
 
@@ -21,6 +20,8 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
   private jev!: JevController;
   // Dead player agents → tick from which "revive" is accepted.
   private reviveAt = new Map<string, number>();
+  // Dead NPCs → tick at which they respawn (processRespawns).
+  private respawnAt = new Map<string, number>();
 
   onCreate() {
     this.simState = generateMap();
@@ -126,7 +127,7 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
     const name = raw.length > 0 ? raw : `Player-${this.nextPlayerId}`;
     const id = `player-${this.nextPlayerId++}`;
 
-    const spawnTile = this.findSpawnTile(village);
+    const spawnTile = findSpawnTile(village, this.simState);
 
     const agent = new Agent({
       id,
@@ -148,15 +149,6 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
     console.log(`${name} joined as ${id} (${client.sessionId})`);
   }
 
-  private findSpawnTile(village: Settlement): Position {
-    const occupied = new Set(
-      Array.from(this.simState.agents.values())
-        .filter((a) => a.isAlive())
-        .map((a) => `${a.position.x},${a.position.y}`),
-    );
-    return village.territory.find((t) => !occupied.has(`${t.x},${t.y}`)) ?? village.territory[0];
-  }
-
   private revive(client: Client): void {
     const agentId = this.sessionToAgent.get(client.sessionId);
     if (!agentId) return;
@@ -168,7 +160,7 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
     const village = Array.from(this.simState.settlements.values()).find((s) => s.populationIds.includes(agentId));
     if (!village) return;
 
-    agent.revive(this.findSpawnTile(village));
+    agent.revive(findSpawnTile(village, this.simState));
     this.reviveAt.delete(agentId);
     client.send("revived", { agentId });
   }
@@ -198,6 +190,7 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
     // frame or decision. processTick still runs (hunger, vision) for everyone.
     if (this.sessionToAgent.size > 0) this.jev.update(this.simState);
     const talkResults = processTick(this.simState);
+    processRespawns(this.simState, this.respawnAt);
 
     // Send dialogue messages for talk actions executed this tick
     for (const { agentId, targetId, result } of talkResults) {
