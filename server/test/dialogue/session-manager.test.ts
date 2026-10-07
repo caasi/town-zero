@@ -57,6 +57,40 @@ describe("session-manager", () => {
     state = makeState();
   });
 
+  describe("while the NPC thinks about a reply", () => {
+    // "No" leads to a reply node with two lines, so the session waits for Jev.
+    function waitingState(): SimulationState {
+      const st = makeState();
+      const tree = makeTree();
+      (tree.nodes.offer as any).options[1].next = "answer";
+      tree.nodes.answer = {
+        type: "reply",
+        lines: [
+          { id: "calm", description: "Calm.", text: ["Pity."], next: "done" },
+          { id: "curt", description: "Curt.", text: ["Fine. Go."], next: "done" },
+        ],
+      };
+      st.dialogueTrees.set("test-npc-dialogue", tree);
+      startDialogue("player-0", "test-npc", st);
+      advanceDialogue("player-0", st);
+      chooseDialogue("player-0", "decline", st);
+      return st;
+    }
+
+    it("answers advance with ok and the same waiting text, not an error", () => {
+      const st = waitingState();
+      const result = advanceDialogue("player-0", st);
+      expect(result).toMatchObject({ ok: true, ended: false, payload: { nodeType: "text", content: "…" } });
+      expect(st.activeSessions.get("test-npc")!.isWaiting()).toBe(true);
+    });
+
+    it("answers choose with ok and the same waiting text, not an error", () => {
+      const st = waitingState();
+      const result = chooseDialogue("player-0", "accept", st);
+      expect(result).toMatchObject({ ok: true, payload: { content: "…" } });
+    });
+  });
+
   describe("startDialogue", () => {
     it("creates session and locks both agents", () => {
       const result = startDialogue("player-0", "test-npc", state);

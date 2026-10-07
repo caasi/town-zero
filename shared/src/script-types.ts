@@ -60,6 +60,7 @@ export interface DialogueProgressEntry {
 export type DialogueNodeData =
   | { type: "text"; speaker: string; content: TextTemplate; next: string }
   | { type: "choice"; options: ChoiceOptionData[] }
+  | { type: "reply"; lines: ReplyLines }
   | { type: "action"; effects: Effect[]; next: string }
   | { type: "end" };
 
@@ -69,6 +70,21 @@ export interface ChoiceOptionData {
   condition?: Expr;
   next: string;
 }
+
+/** An NPC reply that Jev may pick (spec 004). `description` is for Jev, `text` for the player. */
+export interface ReplyLineData {
+  id: string;
+  description: string;
+  text: TextTemplate;
+  next: string;
+}
+
+/**
+ * The first line is the fallback (no key, a failed call) and has no
+ * condition, so a reply node always has a line to show. It also takes Jev's
+ * first-option bias, so make it the neutral reply.
+ */
+export type ReplyLines = [ReplyLineData, ...Array<ReplyLineData & { condition?: Expr }>];
 
 export interface DialogueTreeData {
   id: string;

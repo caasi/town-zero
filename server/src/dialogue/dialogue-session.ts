@@ -7,10 +7,16 @@ import type { Agent } from "../simulation/agent.js";
 export interface DialogueStateMessage {
   treeId: string;
   nodeId: string;
-  type: "text" | "choice" | "end";
+  type: "text" | "choice" | "waiting" | "end";
   speaker: string;
   text: string;
   options?: Array<{ id: string; label: string }>;
+}
+
+/** What Jev needs to pick a reply line. Words only (spec 003). */
+export interface ReplyRequest {
+  playerLine: string | null;
+  lines: Array<{ id: string; description: string }>;
 }
 
 export class DialogueSession {
@@ -20,6 +26,8 @@ export class DialogueSession {
   private currentTick: number;
   private locals: Map<string, Value> = new Map();
   private disposed = false;
+  // The option text the player chose last: what the NPC replies to.
+  private lastPlayerLine: string | null = null;
 
   // Timeout tracking
   startTick: number;
@@ -120,6 +128,20 @@ export class DialogueSession {
         };
       }
 
+      case "reply": {
+        let picked = this.engine.getPickedLine();
+        const lines = this.engine.getVisibleReplyLines(ctx);
+        // One line left: nothing to choose, so no Jev call.
+        if (!picked && lines.length === 1) {
+          this.engine.pickLine(lines[0].id);
+          picked = lines[0];
+        }
+        if (!picked) {
+          return { treeId, nodeId, type: "waiting", speaker: "npc", text: "…" };
+        }
+        return { treeId, nodeId, type: "text", speaker: "npc", text: interpolate(picked.text, ctx) };
+      }
+
       case "action":
         // Auto-advance through action nodes, executing effects
         if (depth >= 100) {
@@ -139,18 +161,50 @@ export class DialogueSession {
     }
   }
 
-  /** Player presses continue on a text node. */
+  /** True while the NPC waits for Jev to pick its reply line. */
+  isWaiting(): boolean {
+    const node = this.engine.getCurrentNode();
+    if (node.type !== "reply" || this.engine.getPickedLine()) return false;
+    return this.engine.getVisibleReplyLines(this.buildEvalContext()).length > 1;
+  }
+
+  /** The request for Jev, once per visit of a reply node; null when no call is needed. */
+  takeReplyRequest(): ReplyRequest | null {
+    if (!this.isWaiting() || this.engine.isReplyAsked()) return null;
+    this.engine.markReplyAsked();
+    const lines = this.engine.getVisibleReplyLines(this.buildEvalContext());
+    return {
+      playerLine: this.lastPlayerLine,
+      lines: lines.map((line) => ({ id: line.id, description: line.description })),
+    };
+  }
+
+  /**
+   * Jev's pick. False when it is too late: the session ended or moved on.
+   * An id that is not offered now falls back to the first line.
+   */
+  answerReply(lineId: string): boolean {
+    if (this.disposed || !this.isWaiting()) return false;
+    const lines = this.engine.getVisibleReplyLines(this.buildEvalContext());
+    this.engine.pickLine((lines.find((line) => line.id === lineId) ?? lines[0]).id);
+    return true;
+  }
+
+  /** Player presses continue on a text node. A no-op while the NPC thinks. */
   advance(): DialogueStateMessage {
-    this.engine.advance();
+    if (!this.isWaiting()) this.engine.advance();
     return this.getState();
   }
 
-  /** Player picks a choice option. Validates the option is currently visible (condition-gated). */
+  /** Player picks a choice option. Validates the option is currently visible (condition-gated). A no-op while the NPC thinks. */
   select(optionId: string): DialogueStateMessage {
-    const visible = this.engine.getVisibleOptions(this.buildEvalContext());
-    if (!visible.some((opt) => opt.id === optionId)) {
+    if (this.isWaiting()) return this.getState();
+    const ctx = this.buildEvalContext();
+    const option = this.engine.getVisibleOptions(ctx).find((opt) => opt.id === optionId);
+    if (!option) {
       throw new Error(`Option "${optionId}" is not currently selectable`);
     }
+    this.lastPlayerLine = interpolate(option.label, ctx);
     this.engine.selectOptionById(optionId);
     return this.getState();
   }
