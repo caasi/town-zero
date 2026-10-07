@@ -26,6 +26,7 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
   // hidden. Jev runs only while some player is active (hasActivePlayer).
   private lastMessageTick = new Map<string, number>();
   private hiddenSessions = new Set<string>();
+  private jevPaused = false;
 
   onCreate() {
     this.simState = generateMap();
@@ -111,12 +112,12 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
     // Not onPlayerMessage: { active: false } must not refresh lastMessageTick.
     this.onMessage("presence", (client: Client, data: unknown) => {
       if (!data || typeof data !== "object" || typeof (data as any).active !== "boolean") return;
-      if ((data as any).active) {
-        this.hiddenSessions.delete(client.sessionId);
-        this.lastMessageTick.set(client.sessionId, this.simState.tick);
-      } else {
-        this.hiddenSessions.add(client.sessionId);
-      }
+      const active: boolean = (data as any).active;
+      if (active) this.lastMessageTick.set(client.sessionId, this.simState.tick);
+      if (active !== this.hiddenSessions.has(client.sessionId)) return;
+      if (active) this.hiddenSessions.delete(client.sessionId);
+      else this.hiddenSessions.add(client.sessionId);
+      console.log(`[presence] ${this.sessionToAgent.get(client.sessionId)} ${active ? "visible" : "hidden"}`);
     });
 
     // Fixed-step simulation at 8 ticks/s: deltaTime is intentionally ignored
@@ -223,11 +224,25 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
     return false;
   }
 
+  // Records whether the hidden tab or the idle timeout paused Jev, so that
+  // the logs can show later whether the presence message earns its cost.
+  private logPauseChange(paused: boolean): void {
+    this.jevPaused = paused;
+    if (!paused) {
+      console.log("[idle] Jev resumed");
+      return;
+    }
+    const players = this.sessionToAgent.size;
+    const hidden = [...this.sessionToAgent.keys()].filter((id) => this.hiddenSessions.has(id)).length;
+    console.log(`[idle] Jev paused (hidden ${hidden}, idle ${players - hidden}, players ${players})`);
+  }
+
   private tick() {
     // Jev calls cost money: with no active player, no AI NPC gets a new
     // frame or decision. processTick still runs (vision, hunger) for everyone
     // except the paused llm agents, which do not get hungry.
     const llmPaused = !this.hasActivePlayer();
+    if (llmPaused !== this.jevPaused) this.logPauseChange(llmPaused);
     if (!llmPaused) this.jev.update(this.simState);
     const talkResults = processTick(this.simState, { llmPaused });
     processRespawns(this.simState, this.respawnAt);

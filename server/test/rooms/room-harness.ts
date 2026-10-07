@@ -28,6 +28,7 @@ export function createTestRoom(): { room: GameRoom; state: WorldStateSchema } {
   room.respawnAt = new Map<string, number>();
   room.lastMessageTick = new Map<string, number>();
   room.hiddenSessions = new Set<string>();
+  room.jevPaused = false;
 
   // Minimal Room internals that GameRoom needs
   room.clients = {

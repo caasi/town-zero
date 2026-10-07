@@ -188,6 +188,26 @@ describe("GameRoom integration", () => {
       expect(beast.hp).toBe(hp);
     });
 
+    it("and logs why, once per pause and resume", () => {
+      const log = vi.spyOn(console, "log").mockImplementation(() => {});
+      const client = mockClient("session-1");
+      joinClient(room, client, { name: "Watcher" });
+      tick(room);
+      sendMessage(room, client, "presence", { active: false });
+      sendMessage(room, client, "presence", { active: false });
+      for (let i = 0; i < 3; i++) tick(room);
+      sendMessage(room, client, "presence", { active: true });
+      tick(room);
+      const lines = log.mock.calls.map((c) => String(c[0])).filter((l) => /^\[(presence|idle)\]/.test(l));
+      log.mockRestore();
+      expect(lines).toEqual([
+        "[presence] player-0 hidden",
+        "[idle] Jev paused (hidden 1, idle 0, players 1)",
+        "[presence] player-0 visible",
+        "[idle] Jev resumed",
+      ]);
+    });
+
     it("not while another player is active", () => {
       const away = mockClient("session-1");
       joinClient(room, away, { name: "Away" });
