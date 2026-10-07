@@ -117,6 +117,7 @@ Source of truth: `processTick` in `server/src/simulation/tick.ts`.
 - AI movement is a greedy step (`stepToward` in `jev-controller.ts`); a beast behind water gets no step and re-asks Jev at most once per second. Upgrade to BFS over passable tiles when maps get obstacles.
 - Player attacks have no cooldown (one per key press, up to 8/s). AI beasts wait ~1s between attacks, but the wait lives on the attack goal: a new goal (target left sight and came back) can hit at once.
 - Speech bubbles are drawn in the same pass as the agents (`client/src/renderer.ts`), so an agent drawn later covers a bubble (seen: a player diamond over "Greetings, traveler!"). Draw them in a top layer: a canvas pass after all agents, or a glass / UI layer above the canvas.
+- Tabs of one browser share the player name: it is in localStorage, so a second tab joins with the same name (and color). Not fixed on purpose: a player normally plays in one tab.
 - After death the HUD can still show the last HP before 0 (the `death` message arrives before the state patch).
 - `material` and `currency` have no use since production and merchants were removed.
 - A respawned village NPC (Farmer Reed or the innkeeper) is added back to `populationIds` without a cap check: if a player took the freed slot, the village is one over its cap until someone leaves. It also respawns on the first free territory tile, not at its post (Farmer Reed starts at (9,19), the innkeeper at (11,21)).
