@@ -1,4 +1,4 @@
-import { DIRECTION_DELTA, TERRAIN_MOVE_COST } from "@town-zero/shared";
+import { DIRECTION_DELTA, isMoveBlocked } from "@town-zero/shared";
 import type { Facing, InputFrame, Position } from "@town-zero/shared";
 import type { Agent } from "../simulation/agent.js";
 import type { Settlement } from "../simulation/settlement.js";
@@ -190,9 +190,7 @@ export function fallbackGoal(agent: Agent, state: SimulationState): Goal {
 }
 
 function passable(state: SimulationState, p: Position): boolean {
-  if (!state.grid.inBounds(p.x, p.y)) return false;
-  const terrain = state.grid.getTerrain(p.x, p.y);
-  return !!terrain && TERRAIN_MOVE_COST[terrain] !== Infinity;
+  return !isMoveBlocked(p.x, p.y, state.grid, state.grid.getTerrain(p.x, p.y));
 }
 
 // ponytail: greedy step along the longer axis, then the other one. A beast
