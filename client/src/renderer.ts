@@ -333,7 +333,7 @@ export class Renderer {
       ctx.fillStyle = isPlayer ? color : "#fff";
       ctx.fill();
       ctx.strokeStyle = isPlayer ? "#fff" : color;
-      ctx.lineWidth = isPlayer ? 1.5 : 3;
+      ctx.lineWidth = 1.5;
       ctx.stroke();
     } else {
       // Triangle - NPCs
@@ -406,7 +406,7 @@ export class Renderer {
       ctx.fillStyle = "#fff";
       ctx.fill();
       ctx.strokeStyle = name ? playerColor(name) : LEFT_PLAYER_COLOR;
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 1.5;
       ctx.stroke();
     } else {
       const isEnemy = playerFaction !== "" && entity.faction !== playerFaction;

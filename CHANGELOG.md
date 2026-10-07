@@ -10,7 +10,7 @@ entries are grouped by date, not by version. The format follows
 
 - You are drawn in the color of your name, the same color the other
   players see you in. You are a diamond in your color, and the other players
-  are white diamonds with a thick edge in their color, on the map and in
+  are white diamonds edged in their color, on the map and in
   the player list.
   Your name at the top left has that color too.
 - You cannot take the name of another player or of an NPC, also with
