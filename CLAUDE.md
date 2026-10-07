@@ -121,6 +121,21 @@ Source of truth: `processTick` in `server/src/simulation/tick.ts`.
 
 ## TODO
 
+Open items are in priority order: first what the friends who play now need, then the demo (random quests and NPCs with personality), then the rest.
+
+- [ ] **Find out why friends left within seconds.** On 2026-10-06/07 five sessions lasted 0, 1, 3, 14 and 43 seconds, and the server log has no error. Ask what they saw, or check the client (join flow, first screen, error overlay).
+- [ ] **Log the token count of each Jev call.** The API response has `usage` (one sample: 424 input, 41 output tokens), but `server/src/ai/jev.ts` does not read it. Add it to the decision log line, for example `[jev] mnpc-0 chose rest from rest, guard_den (in 424, out 41)`, so that `docker logs | grep '\[jev\]'` can add up the cost per hour without the provider dashboard.
+- [ ] **Tell the player to refresh after a deploy.** A tab that was open before a deploy keeps the old client. When the server runs a newer build, show a hint to refresh the page. The client already knows its build commit (`VITE_COMMIT`, shown in the HUD); the server does not know its commit yet (`VITE_COMMIT` is an `ARG` of the client build stage in the `Dockerfile` only). Give it to the server image too, send it on join, and let the client compare the two. A rollback needs it too: after an image rollback to a build without the `presence` handler, a tab with the newer client sends `presence` and Colyseus disconnects it until the page is reloaded.
+- [ ] **Personality for AI NPCs:** add a trait to the Jev state and check with real runs that it changes choices (demo: random quests + NPCs with personality).
+- [ ] **Dialogue-effect damage bypasses combat events.** The `damage` callback in `server/src/dialogue/dialogue-session.ts` (called by `executor.ts`) calls `Agent.takeDamage` directly; route it through `applyDamage` so `combat:hit` / `combat:death` fire for scripted damage.
+- [ ] **Dialogue eDSL review:** add `DialogueTreeData.validate()` for build-time graph integrity checks (dangling refs, empty next, action cycles)
+- [ ] **Quests:** generate quests; build them on NPC events plus dialogue actions (event handlers will need more than `bubble`); quest acceptance as a Jev `noul` question.
+- [ ] **RPG look for players and NPCs.** Agents are drawn as plain shapes now (`client/src/renderer.ts`). Give PCs and NPCs an RPG look: sprites by role and faction, facing direction, and states such as dead, talking and roaring.
+- [ ] **Downed NPCs instead of removal.** Until then, `processRespawns` brings dead NPCs back after ~30s (a stopgap). When a town NPC is killed, do not remove it: it stays down, and a player or another NPC can carry it back to town and heal it there. The same must work for enemy NPCs that are not beasts. Beasts keep the current death.
+- [ ] **Tile object / prop system:** Tiles need an `objectType` layer separate from terrain (bush, box, tree). Currently bush uses a minimal `objectType` field on Tile; future iteration should extract a full TileObject concept with durability, loot tables, and interaction types. Settlement structures remain separate from wild tile objects.
+
+Done:
+
 - [x] Create Colyseus schemas for WorldState, Agent, Settlement, Tile, Structure (use `schema()` API)
 - [x] Create GameRoom that wraps SimulationState with tick loop (`setSimulationInterval`)
 - [x] Sync simulation state → Colyseus schemas each tick
@@ -131,12 +146,3 @@ Source of truth: `processTick` in `server/src/simulation/tick.ts`.
 - [x] Player revive in the village after death
 - [x] Add facing direction to Agent (needed for dialogue target selection and future combat/animation)
 - [x] Add NPC dialogue system (session manager, Farmer Reed scenario, GameRoom integration, client UI)
-- [ ] **Dialogue eDSL review:** add `DialogueTreeData.validate()` for build-time graph integrity checks (dangling refs, empty next, action cycles)
-- [ ] **Tile object / prop system:** Tiles need an `objectType` layer separate from terrain (bush, box, tree). Currently bush uses a minimal `objectType` field on Tile; future iteration should extract a full TileObject concept with durability, loot tables, and interaction types. Settlement structures remain separate from wild tile objects.
-- [ ] **Dialogue-effect damage bypasses combat events.** The `damage` callback in `server/src/dialogue/dialogue-session.ts` (called by `executor.ts`) calls `Agent.takeDamage` directly; route it through `applyDamage` so `combat:hit` / `combat:death` fire for scripted damage.
-- [ ] **Downed NPCs instead of removal.** Until then, `processRespawns` brings dead NPCs back after ~30s (a stopgap). When a town NPC is killed, do not remove it: it stays down, and a player or another NPC can carry it back to town and heal it there. The same must work for enemy NPCs that are not beasts. Beasts keep the current death.
-- [ ] **Personality for AI NPCs:** add a trait to the Jev state and check with real runs that it changes choices (demo: random quests + NPCs with personality).
-- [ ] **RPG look for players and NPCs.** Agents are drawn as plain shapes now (`client/src/renderer.ts`). Give PCs and NPCs an RPG look: sprites by role and faction, facing direction, and states such as dead, talking and roaring.
-- [ ] **Tell the player to refresh after a deploy.** A tab that was open before a deploy keeps the old client. When the server runs a newer build, show a hint to refresh the page. The client already knows its build commit (`VITE_COMMIT`, shown in the HUD); the server does not know its commit yet (`VITE_COMMIT` is an `ARG` of the client build stage in the `Dockerfile` only). Give it to the server image too, send it on join, and let the client compare the two. A rollback needs it too: after an image rollback to a build without the `presence` handler, a tab with the newer client sends `presence` and Colyseus disconnects it until the page is reloaded.
-- [ ] **Log the token count of each Jev call.** The API response has `usage` (one sample: 424 input, 41 output tokens), but `server/src/ai/jev.ts` does not read it. Add it to the decision log line, for example `[jev] mnpc-0 chose rest from rest, guard_den (in 424, out 41)`, so that `docker logs | grep '\[jev\]'` can add up the cost per hour without the provider dashboard.
-- [ ] **Quests:** generate quests; build them on NPC events plus dialogue actions (event handlers will need more than `bubble`); quest acceptance as a Jev `noul` question.
