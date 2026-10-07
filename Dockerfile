@@ -27,6 +27,10 @@ RUN pnpm --filter @town-zero/server deploy --prod --legacy /out
 
 FROM node:22-slim
 ENV NODE_ENV=production PORT=2567 STATIC_DIR=/app/client STATIC_PORT=2568
+# The same commit for the server, which sends it on join (stale-client hint).
+# Declared after the ENV above so a new SHA changes only the layers below.
+ARG VITE_COMMIT=dev
+ENV TOWN_ZERO_COMMIT=$VITE_COMMIT
 WORKDIR /app
 COPY --from=build /out /app/server
 COPY --from=build /src/client/dist /app/client
