@@ -47,7 +47,7 @@ JevController.update(state)            // GameRoom, once per tick, before proces
 | `guard_den` | the agent has a den, and the first frame toward a random tile within 3 steps of the den core exists (a step, or a wait when the agent is already there and no threat is in sight) | walk there, then wait there; ends after ~5 s, or when a threat is in sight while waiting |
 | `forage` | the agent carries less than 5 food and remembers a food tile (MapMemory) | walk to the nearest one, face it, `gather` until it carries 5 |
 | `explore` | the agent remembers no food tile, and the first frame toward a random tile within 8 steps of the den core exists | like `guard_den` |
-| `bring_food_home` | the agent carries 5 food (a full load) and the den holds less than 10 | walk home, `deposit` |
+| `bring_food_home` | the agent carries 5 food (a full load) and believes the den holds less than 10 | walk home, `deposit` all but 3 food (the beast eats first, like a wolf) |
 | `eat_at_den` | food is 0 and the den has food | walk home, `take` food |
 | `flee_to_den` | a threat is in sight and the agent is outside the den | walk home |
 | `roar` | a threat is in sight | show a "ROAR!" bubble, stand still ~2 s |

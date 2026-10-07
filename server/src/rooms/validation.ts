@@ -24,7 +24,8 @@ function isValidAction(action: unknown): boolean {
   switch (a.type) {
     case "gather": return isPosition(a.resourceTile);
     case "attack": return typeof a.targetId === "string" && a.targetId.length > 0;
-    case "deposit": return typeof a.settlementId === "string" && a.settlementId.length > 0;
+    case "deposit": return typeof a.settlementId === "string" && a.settlementId.length > 0
+      && (a.keepFood === undefined || (Number.isSafeInteger(a.keepFood) && (a.keepFood as number) >= 0));
     case "take": return typeof a.settlementId === "string" && a.settlementId.length > 0
       && isValidResource(a.resource) && isPositiveInteger(a.amount);
     case "talk": return typeof a.targetId === "string" && a.targetId.length > 0;

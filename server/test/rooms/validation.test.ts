@@ -18,6 +18,14 @@ describe("isValidInputFrame", () => {
     expect(isValidInputFrame({ seq: 1, action: { type: "deposit", settlementId: "v1" } })).toBe(true);
   });
 
+  it("accepts a deposit that keeps some food, and rejects a bad keepFood", () => {
+    expect(isValidInputFrame({ seq: 1, action: { type: "deposit", settlementId: "v1", keepFood: 3 } })).toBe(true);
+    expect(isValidInputFrame({ seq: 1, action: { type: "deposit", settlementId: "v1", keepFood: 0 } })).toBe(true);
+    for (const keepFood of [-1, 1.5, "3", Infinity, null]) {
+      expect(isValidInputFrame({ seq: 1, action: { type: "deposit", settlementId: "v1", keepFood } }), String(keepFood)).toBe(false);
+    }
+  });
+
   it("accepts action-only frame (take)", () => {
     expect(isValidInputFrame({ seq: 1, action: { type: "take", settlementId: "v1", resource: "food", amount: 3 } })).toBe(true);
   });

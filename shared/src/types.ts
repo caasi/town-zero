@@ -40,7 +40,8 @@ export type Facing = "north" | "south" | "east" | "west";
 export type FrameAction =
   | { type: "gather"; resourceTile: Position }
   | { type: "attack"; targetId: string }
-  | { type: "deposit"; settlementId: string }
+  // keepFood: the food the agent keeps for itself; all else goes into the store
+  | { type: "deposit"; settlementId: string; keepFood?: number }
   | { type: "take"; settlementId: string; resource: ResourceType; amount: number }
   | { type: "talk"; targetId: string }
   | { type: "interact" }

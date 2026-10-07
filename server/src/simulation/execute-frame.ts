@@ -76,7 +76,8 @@ function executeAction(action: NonNullable<InputFrame["action"]>, ctx: FrameCont
       if (!settlement) return;
       if (!settlement.isInTerritory(agent.position)) return;
       for (const res of ["food", "material", "currency"] as ResourceType[]) {
-        const amount = agent.inventory[res];
+        const keep = res === "food" ? action.keepFood ?? 0 : 0;
+        const amount = agent.inventory[res] - keep;
         if (amount > 0) {
           agent.removeFromInventory(res, amount);
           settlement.addResource(res, amount);

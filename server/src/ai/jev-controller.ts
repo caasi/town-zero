@@ -34,6 +34,10 @@ const WANDER_TICKS = 40; // ~5s
 const REST_TICKS = 24;   // ~3s
 const ROAR_TICKS = 16;   // ~2s: the bubble shows and the beast stands still
 const TAKE_FOOD = 3;
+// Like a wolf, a beast eats first and brings home only the rest: it keeps
+// what eat_at_den would take. Storing all of it made the beast hungry at
+// once, so it took food back: two paid calls for +2 food in the den.
+const KEEP_FOOD = TAKE_FOOD;
 // One attack per frame would be 8 hits/s; three beasts killed a player in under 1 s.
 const ATTACK_COOLDOWN_TICKS = 8; // ~1 attack/s
 // Backstop for the "every option yields a frame" rule: a goal that ends at
@@ -274,9 +278,9 @@ export function nextFrame(agent: Agent, goal: Goal, state: SimulationState): Inp
     }
     case "store": {
       const home = homeOf(agent, state);
-      if (!home || agent.inventory.food === 0) return null;
+      if (!home || agent.inventory.food <= KEEP_FOOD) return null;
       if (home.isInTerritory(agent.position)) {
-        return { seq: 0, action: { type: "deposit", settlementId: home.id } };
+        return { seq: 0, action: { type: "deposit", settlementId: home.id, keepFood: KEEP_FOOD } };
       }
       const dir = stepToward(agent, homeCenter(home), state);
       return dir ? move(dir) : null;

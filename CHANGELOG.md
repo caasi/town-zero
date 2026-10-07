@@ -10,6 +10,9 @@ entries are grouped by date, not by version. The format follows
 
 - Food places run out. A berry bush or a food tile holds 3 food, and each
   one grows back 1 food every 30 seconds. An empty one shows no food.
+- A beast that brings food home keeps 3 food for itself and stores the
+  rest. Before this change, it stored all of it and then took food back at
+  once.
 - Beasts know only what they saw. A beast away from the den knows the den
   food from its last visit, or from a den-mate that it met. It sees an
   enemy's HP at the moment it looks.

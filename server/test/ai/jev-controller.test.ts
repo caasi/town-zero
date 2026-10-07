@@ -272,15 +272,25 @@ describe("nextFrame", () => {
     expect(nextFrame(beast, goal, state)).toBeNull();
   });
 
-  it("store: walks home and deposits, then is done", () => {
+  it("store: walks home and deposits what it does not eat itself, then is done", () => {
     const { state, beast } = setup();
-    beast.addToInventory("food", 4);
+    beast.addToInventory("food", 5);
     beast.position = { x: 6, y: 2 };
     expect(nextFrame(beast, { kind: "store" }, state)).toEqual({ seq: 0, direction: "west" });
     beast.position = { x: 3, y: 2 };
-    expect(nextFrame(beast, { kind: "store" }, state)?.action).toEqual({ type: "deposit", settlementId: "den-1" });
-    beast.inventory.food = 0;
+    expect(nextFrame(beast, { kind: "store" }, state)?.action).toEqual({ type: "deposit", settlementId: "den-1", keepFood: 3 });
+    beast.inventory.food = 3; // what the deposit leaves
     expect(nextFrame(beast, { kind: "store" }, state)).toBeNull();
+  });
+
+  it("after bringing food home, a beast is not offered to take food back", () => {
+    const { state, beast, den, know } = setup();
+    den.inventory.food = 5;
+    know(); // low
+    beast.inventory.food = 3; // what a deposit leaves
+    const ids = buildOptions(beast, state).map((o) => o.id);
+    expect(ids).not.toContain("eat_at_den");
+    expect(ids).not.toContain("bring_food_home");
   });
 
   it("attack: ends when the target is out of sight", () => {
