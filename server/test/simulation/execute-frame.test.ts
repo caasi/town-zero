@@ -38,6 +38,20 @@ describe("executeFrame", () => {
       expect(ctx.agent.lastProcessedInput).toBe(1);
     });
 
+    it.each([
+      ["west", { x: 0, y: 5 }],
+      ["east", { x: 9, y: 5 }],
+      ["north", { x: 5, y: 0 }],
+      ["south", { x: 5, y: 9 }],
+    ] as const)("rejects a move off the %s map edge", (facing, from) => {
+      const ctx = makeCtx();
+      ctx.agent.position = { ...from };
+      ctx.agent.facing = facing;
+      executeFrame({ seq: 1, direction: facing }, ctx);
+      expect(ctx.agent.position).toEqual(from);
+      expect(ctx.agent.lastProcessedInput).toBe(1);
+    });
+
     it("rejects move onto impassable terrain", () => {
       const ctx = makeCtx();
       ctx.grid.setTerrain(5, 4, "water");
