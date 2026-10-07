@@ -84,6 +84,27 @@ export interface NpcHandlerEntry {
   handler: EventHandler<unknown>;
 }
 
+// Story data (spec 004). The world allows every kind; the scenarios use only
+// male and female for now. No simulation rule reads it; the Jev state does.
+export type Gender =
+  | { kind: "male" }
+  | { kind: "female" }
+  | { kind: "nonbinary" }
+  | { kind: "other"; description: string };
+
+/** Said in the speech bubble when a dialogue times out. The first line whose condition holds wins. */
+export interface FarewellLine {
+  text: TextTemplate;
+  condition?: Expr;
+}
+
+export interface NpcProfile {
+  gender: Gender;
+  /** One English sentence for Jev. */
+  personality: string;
+  farewells: FarewellLine[];
+}
+
 export interface NpcDefinition {
   id: string;
   name: string;
@@ -91,6 +112,7 @@ export interface NpcDefinition {
   faction: string;
   position: Position;
   initialBeliefs: Array<{ key: string; value: Value }>;
+  profile: NpcProfile;
   dialogueIds: string[];
   handlers?: NpcHandlerEntry[];
 }

@@ -7,11 +7,11 @@ import type { SimulationState } from "../src/simulation/tick.js";
 describe("Bridge crisis integration", () => {
   function setup() {
     const data = scenario("bridge-crisis", (s) => {
-      s.npc("elder", {
+      s.npc("elder", { gender: { kind: "male" }, personality: "A plain villager.",
         role: "merchant", faction: "v1", position: { x: 5, y: 5 },
         initialBeliefs: [belief("bridge_status", "intact"), belief("is_elder", true)],
       });
-      s.npc("scout", {
+      s.npc("scout", { gender: { kind: "male" }, personality: "A plain villager.",
         role: "scout", faction: "v1", position: { x: 6, y: 5 },
         initialBeliefs: [belief("patrol_route", "north")],
       });

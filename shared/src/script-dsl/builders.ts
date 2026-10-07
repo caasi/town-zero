@@ -1,7 +1,7 @@
 import type {
   Value, Expr, Effect, AgentRef, TextTemplate,
   ScenarioData, NpcDefinition, DialogueTreeData, DialogueNodeData,
-  ChoiceOptionData,
+  ChoiceOptionData, Gender, FarewellLine,
 } from "../script-types.js";
 import type { NpcHandlerEntry } from "../script-types.js";
 import type { ResourceType } from "../types.js";
@@ -189,6 +189,9 @@ interface ScenarioBuilderApi {
     faction: string;
     position: { x: number; y: number };
     initialBeliefs: Array<{ key: string; value: Value }>;
+    gender: Gender;
+    personality: string;
+    farewells?: Array<string | { text: string; when: ExprBuilder }>;
   }): NpcBuilder;
   dialogue(npcId: string, dialogueId: string, fn: (d: DialogueBuilderApi) => void): void;
 }
@@ -213,6 +216,12 @@ export function scenario(id: string, fn: (s: ScenarioBuilderApi) => void): Scena
         faction: opts.faction,
         position: opts.position,
         initialBeliefs: opts.initialBeliefs,
+        profile: {
+          gender: opts.gender,
+          personality: opts.personality,
+          farewells: (opts.farewells ?? []).map((f): FarewellLine =>
+            typeof f === "string" ? { text: [f] } : { text: [f.text], condition: f.when.toExpr() }),
+        },
         dialogueIds: npcDialogueMap.get(npcId)!,
         handlers,
       });

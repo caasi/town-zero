@@ -1,4 +1,5 @@
 import type {
+  NpcProfile,
   Position,
   ResourceType,
   ResourceStore,
@@ -52,6 +53,7 @@ export class Agent {
   // Dialogue lock state
   talkingToNpcId: string | null = null;     // player → which NPC am I talking to
   currentTalkingTo: string | null = null;   // NPC → which player is talking to me
+  profile: NpcProfile | null = null;        // scenario NPCs only (gender, personality, farewells)
 
   // Speech bubble
   bubbleText: string | null = null;

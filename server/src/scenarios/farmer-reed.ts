@@ -7,6 +7,14 @@ export const farmerReedScenario = scenario("farmer-reed", (s) => {
     faction: "village-1",
     position: { x: 9, y: 19 },
     initialBeliefs: [],
+    gender: { kind: "male" },
+    // Wording checked with real Jev calls (spec 004): it picks the
+    // common-good reply at 98%.
+    personality: "He cares most about the village. He thinks everyone must do their part.",
+    farewells: [
+      { text: "Don't forget the food! The storehouse won't fill itself.", when: fact("food_quest_active").eq(true) },
+      "I'll be in the fields if you need me.",
+    ],
   })
   .on("proximity:enter", ({ self }) => [
     bubble(self.id, "Greetings, traveler!", { durationTicks: 40 }),
