@@ -67,7 +67,7 @@ describe("playerColor", () => {
     expect(used.size).toBe(PLAYER_COLORS.length);
   });
 
-  it("does not use blue (water), NPC green or enemy red", () => {
+  it("does not use the old self blue, NPC green or enemy red (exact values)", () => {
     for (const reserved of ["#4af", "#6c6", "#c44"]) expect(PLAYER_COLORS).not.toContain(reserved);
   });
 });
@@ -90,6 +90,9 @@ describe("playerNameKey", () => {
     expect(playerNameKey("Quiet Otter")).toBe(playerNameKey("quiet OTTER"));
     expect(playerNameKey("Quiet Otter")).toBe(playerNameKey("\uFF31uiet \uFF2Ftter")); // full-width Q and O
     expect(playerNameKey("Quiet Otter")).not.toBe(playerNameKey("Quiet Otters"));
+    // ZWJ stays in a name (it joins emoji) but draws as nothing.
+    expect(playerNameKey("Quiet\u200D Otter")).toBe(playerNameKey("Quiet Otter"));
+    expect(playerNameKey("Quiet Ot\u200Dter")).toBe(playerNameKey("Quiet Otter"));
   });
 });
 

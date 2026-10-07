@@ -38,11 +38,14 @@ export function normalizePlayerName(raw: unknown): string | null {
 }
 
 /**
- * Two names with the same key are the same name for a person: case and
- * compatibility forms (full-width letters) do not tell them apart.
+ * Two names with the same key are the same name for a person: case,
+ * compatibility forms (full-width letters) and ZWJ, which a name keeps for
+ * emoji but which draws as nothing, do not tell them apart.
+ * Limits: letters of other scripts that look the same (Cyrillic "і") and
+ * full case folding ("Straße" and "STRASSE") are not covered.
  */
 export function playerNameKey(name: string): string {
-  return name.normalize("NFKC").toLowerCase();
+  return name.normalize("NFKC").toLowerCase().replace(/\u200D/g, "");
 }
 
 /**
