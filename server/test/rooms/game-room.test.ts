@@ -2,7 +2,7 @@ import "../../src/polyfill.js";
 import "../../src/encoder-config.js";
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { DIALOGUE_TIMEOUT_TICKS, IDLE_TIMEOUT_TICKS, REVIVE_DELAY_TICKS, TICK_RATE_MS } from "@town-zero/shared";
+import { DIALOGUE_TIMEOUT_TICKS, FOOD_CONSUMPTION_INTERVAL, IDLE_TIMEOUT_TICKS, REVIVE_DELAY_TICKS, TICK_RATE_MS } from "@town-zero/shared";
 import type { WorldStateSchema } from "../../src/rooms/schemas/WorldStateSchema.js";
 
 // Direct-instantiation approach: test GameRoom lifecycle methods directly
@@ -178,6 +178,14 @@ describe("GameRoom integration", () => {
       expect(jevTicks(1)).toBe(0);
       sendMessage(room, client, type, data);
       expect(jevTicks(3)).toBe(3);
+    });
+
+    it("and the paused beasts do not starve", () => {
+      const beast = room.simState.agents.get("mnpc-0")!;
+      beast.removeFromInventory("food", beast.inventory.food);
+      const hp = beast.hp;
+      for (let i = 0; i < FOOD_CONSUMPTION_INTERVAL * 2; i++) tick(room);
+      expect(beast.hp).toBe(hp);
     });
 
     it("not while another player is active", () => {

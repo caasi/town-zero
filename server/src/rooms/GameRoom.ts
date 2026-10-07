@@ -225,9 +225,11 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
 
   private tick() {
     // Jev calls cost money: with no active player, no AI NPC gets a new
-    // frame or decision. processTick still runs (hunger, vision) for everyone.
-    if (this.hasActivePlayer()) this.jev.update(this.simState);
-    const talkResults = processTick(this.simState);
+    // frame or decision. processTick still runs (vision, hunger) for everyone
+    // except the paused llm agents, which do not get hungry.
+    const llmPaused = !this.hasActivePlayer();
+    if (!llmPaused) this.jev.update(this.simState);
+    const talkResults = processTick(this.simState, { llmPaused });
     processRespawns(this.simState, this.respawnAt);
 
     // Send dialogue messages for talk actions executed this tick
