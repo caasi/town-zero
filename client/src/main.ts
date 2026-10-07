@@ -10,6 +10,7 @@ import { DialogueUI } from "./dialogue-ui.js";
 import { TILE_SIZE } from "./constants.js";
 import type { GameState } from "./types.js";
 import { isStaleClient } from "./version.js";
+import { leaveMessage, joinErrorMessage } from "./leave-message.js";
 import { loadPlayerName, savePlayerName, renameHintSeen, markRenameHintSeen } from "./player-name.js";
 
 // DOM elements
@@ -353,7 +354,7 @@ async function connect(fromRetry = false): Promise<void> {
     network.onVision((vision) => fog.update(vision));
     network.onLeft((code) => {
       gameState = "error";
-      errorText.textContent = `Disconnected from the server (code ${code}). The game may have been updated.`;
+      errorText.textContent = leaveMessage(code);
       setOverlay("error");
       input?.setEnabled(false);
       dialogueUI.hide();
@@ -398,7 +399,7 @@ async function connect(fromRetry = false): Promise<void> {
     setOverlay("playing");
   } catch (err: any) {
     gameState = "error";
-    errorText.textContent = `Connection failed: ${err.message ?? err}`;
+    errorText.textContent = joinErrorMessage(err);
     setOverlay("error");
   } finally {
     isConnecting = false;
