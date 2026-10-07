@@ -175,6 +175,13 @@ function gameLoop(now: number): void {
 // The server runs another build: this tab's code may not match its protocol.
 let staleClient = false;
 
+// An older server (rollback) has no presence handler, and Colyseus disconnects
+// a client that sends an unregistered type. A stale client sends none; the
+// server then counts it as visible and its idle timeout still applies.
+function reportPresence(): void {
+  if (!staleClient) network.sendPresence(!document.hidden);
+}
+
 async function connect(): Promise<void> {
   if (isConnecting) return;
   isConnecting = true;
@@ -189,7 +196,7 @@ async function connect(): Promise<void> {
     // Same value as the HUD's %VITE_COMMIT% (vite.config.ts).
     staleClient = isStaleClient(import.meta.env.VITE_COMMIT, network.serverCommit);
     updateBanner.classList.toggle("hidden", !staleClient);
-    network.sendPresence(!document.hidden);
+    reportPresence();
 
     const state = network.state;
     if (state) {
@@ -281,7 +288,7 @@ function startReviveCountdown(ms: number): void {
 }
 
 reviveBtn.addEventListener("click", () => network.sendRevive());
-document.addEventListener("visibilitychange", () => network.sendPresence(!document.hidden));
+document.addEventListener("visibilitychange", reportPresence);
 
 document.getElementById("reload-btn")!.addEventListener("click", () => location.reload());
 
