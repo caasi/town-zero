@@ -45,7 +45,12 @@ Colyseus answers every path on its own port, so the client files cannot share it
 
 ## Costs and limits
 
-- Jev calls happen only while a player is connected, at most one per beast per second.
+- Jev calls happen only while a player is active (a visible tab that sent a message in the last ~2 minutes), at most one per beast per second. An idle tab left open all night once cost ~9.5M tokens; the `[presence]` and `[idle] Jev paused (hidden N, idle N, players N)` / `[idle] Jev resumed` log lines record why Jev paused.
+- To count the Jev cost, add up the token counts in the server log. Each beast decision is logged as `[jev] <agent> chose <id> from <options> (in <input tokens>, out <output tokens>) at (<x>,<y>), carrying <food>, den food <believed count, or unknown, or none without a home>`; the position and beliefs are for the log only (Jev gets no coordinates). Count these as calls of unknown cost, not as free:
+  - a line without `(in …, out …)`: the reply had no usable `usage` (the decision still counts; `usage` is a required field, so this is rare);
+  - a `[jev] decision failed` line (timeout, HTTP error): the fallback rule decides, and the provider may still have charged the call.
+
+  A `[jev] … replied … (cached)` line (NPC replies) made no call and costs nothing.
 - nginx allows 2 matchmaking requests per second per address (burst 10) and answers 429 above that. The address is the one nginx sees, so this assumes nginx is the edge; behind a CDN or another proxy all players would share one budget.
 - The container runs read-only, without Linux capabilities, with no-new-privileges and a process limit (`compose.yaml`).
 - The world lives in memory. A restart (new image) or an empty room starts a new world.

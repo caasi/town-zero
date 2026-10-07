@@ -53,7 +53,7 @@ CI runs all three.
 - A dead player can revive in the village after about 5 seconds. A dead village NPC comes back on its own after about 30 seconds; a dead beast comes back after about 30 seconds when the den has food to pay for it, or at once when no beast of the den is alive.
 - A Docker image is built for each push to `main` (see `deploy/README.md`).
 
-**Next:** shared dialogue pools and generated quests (see the TODO list in `CLAUDE.md`). Changes by date are in `CHANGELOG.md`.
+**Next:** shared dialogue pools and generated quests (see `TODO.md`). Changes by date are in `CHANGELOG.md`.
 
 ## Controls
 
