@@ -1,8 +1,8 @@
 import "../../src/polyfill.js";
 import "../../src/encoder-config.js";
 
-import { describe, it, expect, beforeEach } from "vitest";
-import { DIALOGUE_TIMEOUT_TICKS, REVIVE_DELAY_TICKS, TICK_RATE_MS } from "@town-zero/shared";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { DIALOGUE_TIMEOUT_TICKS, IDLE_TIMEOUT_TICKS, REVIVE_DELAY_TICKS, TICK_RATE_MS } from "@town-zero/shared";
 import type { WorldStateSchema } from "../../src/rooms/schemas/WorldStateSchema.js";
 
 // Direct-instantiation approach: test GameRoom lifecycle methods directly
@@ -127,6 +127,50 @@ describe("GameRoom integration", () => {
     beast.removeFromInventory("food", beast.inventory.food);
     for (let i = 0; i < 3; i++) tick(room);
     expect(beast.inventory.food).toBeGreaterThan(0); // took food from the den
+  });
+
+  describe("pauses Jev while every player is idle", () => {
+    // Counts the ticks on which the beasts get a Jev update.
+    function jevTicks(n: number): number {
+      const update = vi.spyOn(room.jev, "update");
+      for (let i = 0; i < n; i++) tick(room);
+      const calls = update.mock.calls.length;
+      update.mockRestore();
+      return calls;
+    }
+
+    it("while the only tab is hidden, until it comes back", () => {
+      const client = mockClient("session-1");
+      joinClient(room, client, { name: "Watcher" });
+      sendMessage(room, client, "presence", { active: false });
+      expect(jevTicks(3)).toBe(0);
+      sendMessage(room, client, "presence", { active: true });
+      expect(jevTicks(3)).toBe(3);
+    });
+
+    it("after IDLE_TIMEOUT_TICKS without a message, until the next input", () => {
+      const client = mockClient("session-1");
+      joinClient(room, client, { name: "Watcher" });
+      expect(jevTicks(IDLE_TIMEOUT_TICKS)).toBe(IDLE_TIMEOUT_TICKS);
+      expect(jevTicks(3)).toBe(0);
+      sendInput(room, client, { seq: 1, direction: "north" });
+      expect(jevTicks(3)).toBe(3);
+    });
+
+    it("not while another player is active", () => {
+      const away = mockClient("session-1");
+      joinClient(room, away, { name: "Away" });
+      sendMessage(room, away, "presence", { active: false });
+      joinClient(room, mockClient("session-2"), { name: "Here" });
+      expect(jevTicks(3)).toBe(3);
+    });
+
+    it("ignores a malformed presence message", () => {
+      const client = mockClient("session-1");
+      joinClient(room, client, { name: "Watcher" });
+      sendMessage(room, client, "presence", { active: "no" });
+      expect(jevTicks(3)).toBe(3);
+    });
   });
 
   it("multiple players join and appear in state", () => {
