@@ -32,7 +32,8 @@ export function normalizePlayerName(raw: unknown): string | null {
     count++;
   }
   name = name.trim();
-  return /[^\p{M}\p{Z}\u200D]/u.test(name) ? name : null;
+  // Hangul fillers and the blank Braille pattern are letters or symbols that draw as nothing.
+  return /[^\p{M}\p{Z}\u200D\u115F\u1160\u2800\u3164\uFFA0]/u.test(name) ? name : null;
 }
 
 // Not the blue of yourself, the green of friendly NPCs or the red of enemies

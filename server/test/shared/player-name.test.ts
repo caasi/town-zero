@@ -38,7 +38,8 @@ describe("normalizePlayerName", () => {
   });
 
   it("rejects a name with nothing visible in it", () => {
-    for (const bad of ["\u200B\u200B", "\u200D", "\u0301\u0301", "\u202E"]) {
+    // Fillers and blank patterns look like nothing although they are letters or symbols.
+    for (const bad of ["\u200B\u200B", "\u200D", "\u0301\u0301", "\u202E", "\u3164\u3164", "\u2800", "\uFFA0", "\u115F\u1160"]) {
       expect(normalizePlayerName(bad), JSON.stringify(bad)).toBeNull();
     }
   });
