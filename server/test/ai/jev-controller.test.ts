@@ -354,9 +354,27 @@ describe("JevController", () => {
   it("logs where the beast was and what it believed when it asked", async () => {
     const { state, beast, den } = setup(); // saw 10 food at home
     beast.position = { x: 6, y: 6 };
-    den.inventory.food = 0;
+    den.inventory.food = 0; // the beast does not know
     beast.addToInventory("food", 2);
-    expect(await jevLogLine(state, { id: "rest" })).toMatch(/ at \(6,6\), carrying 2, den food 10$/);
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      new JevController(vi.fn().mockResolvedValue({ id: "rest" })).update(state);
+      beast.position = { x: 9, y: 9 }; // changes after the question are not in the line
+      beast.addToInventory("food", 1);
+      await flush();
+      const line = log.mock.calls.map((c) => String(c[0])).find((l) => l.startsWith("[jev]"));
+      expect(line).toMatch(/ at \(6,6\), carrying 2, den food 10$/);
+    } finally {
+      log.mockRestore();
+    }
+  });
+
+  it("logs an unknown den food when the beast never saw it", async () => {
+    const { state } = setup();
+    const fresh = new Agent({ id: "b2", position: { x: 6, y: 6 }, faction: "den-1", role: "beast", controller: "llm" });
+    state.settlements.get("den-1")!.populationIds = ["b2"];
+    state.agents = new Map([["b2", fresh]]);
+    expect(await jevLogLine(state, { id: "rest" })).toMatch(/den food unknown$/);
   });
 
   it("logs a decision without token counts when the reply has none", async () => {
