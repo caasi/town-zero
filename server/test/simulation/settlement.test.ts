@@ -26,9 +26,9 @@ describe("Settlement", () => {
     const s = makeSettlement();
     expect(s.getPopulationCap()).toBe(0);
     s.addStructure({ id: "h1", type: "housing", position: { x: 5, y: 5 } });
-    expect(s.getPopulationCap()).toBe(4);
+    expect(s.getPopulationCap()).toBe(6);
     s.addStructure({ id: "h2", type: "housing", position: { x: 5, y: 6 } });
-    expect(s.getPopulationCap()).toBe(8);
+    expect(s.getPopulationCap()).toBe(12);
   });
 
   it("adds and removes resources", () => {

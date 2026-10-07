@@ -138,7 +138,7 @@ export function generateMap(): SimulationState {
   const state: SimulationState = { grid, agents, settlements, tick: 0, activeSessions: new Map(), dialogueTrees: new Map() };
 
   // Village NPCs. The loader does not add them to the village, and each one
-  // takes a slot of the population cap (2 housing x 4 = 8, so 6 players).
+  // takes a slot of the population cap (2 housing x 6 = 12, so 10 players).
   for (const data of [farmerReedScenario, innkeeperScenario]) {
     for (const [id, tree] of loadScenario(data, state).dialogueTrees) state.dialogueTrees.set(id, tree);
     for (const npc of data.npcs) village.populationIds.push(npc.id);
