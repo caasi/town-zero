@@ -325,25 +325,20 @@ export class Renderer {
 
     if (agent.role === "player") {
       // Diamond - a player, in the color of its name on every screen, so
-      // players can tell each other apart by it. Six colors repeat, so you
-      // are marked by shape: a white dot in the middle of your diamond (the
-      // facing dot is on the edge).
-      ctx.fillStyle = playerColor(agent.name || agent.id);
+      // players can tell each other apart by it. Six colors repeat, so the
+      // shape tells you from the others: you are solid, they are hollow.
+      const color = playerColor(agent.name || agent.id);
       diamondPath(ctx, px, py);
-      ctx.fill();
-      ctx.strokeStyle = "#fff";
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
       if (isPlayer) {
-        ctx.fillStyle = "#fff";
-        ctx.beginPath();
-        ctx.arc(cx, cy, TILE_SIZE / 8, 0, Math.PI * 2);
+        ctx.fillStyle = color;
         ctx.fill();
-        // A dark edge, or the dot fades on the yellow and peach names.
-        ctx.strokeStyle = "#222";
-        ctx.lineWidth = 1;
-        ctx.stroke();
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 1.5;
+      } else {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 3;
       }
+      ctx.stroke();
     } else {
       // Triangle - NPCs
       const isEnemy = playerFaction !== "" && agent.faction !== playerFaction;
@@ -410,14 +405,17 @@ export class Renderer {
     // each tick without you, and a merged copy from a neighbour replaces a
     // tile only when it is newer.
     if (entity.role === "player") {
-      ctx.fillStyle = name ? playerColor(name) : LEFT_PLAYER_COLOR;
+      // Hollow, as other players are drawn live.
+      ctx.strokeStyle = name ? playerColor(name) : LEFT_PLAYER_COLOR;
+      ctx.lineWidth = 3;
       diamondPath(ctx, px, py);
+      ctx.stroke();
     } else {
       const isEnemy = playerFaction !== "" && entity.faction !== playerFaction;
       ctx.fillStyle = isEnemy ? "#c44" : "#6c6";
       trianglePath(ctx, px, py);
+      ctx.fill();
     }
-    ctx.fill();
 
     ctx.globalAlpha = 1;
   }

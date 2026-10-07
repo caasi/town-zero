@@ -9,9 +9,12 @@ entries are grouped by date, not by version. The format follows
 ### Changed
 
 - You are drawn in the color of your name, the same color the other
-  players see you in, with a white dot in the middle so that you can find
-  yourself.
+  players see you in. You are a solid diamond, and the other players are
+  hollow diamonds with a thick outline, on the map and in the player list.
   Your name at the top left has that color too.
+- You cannot take the name of another player or of an NPC, also with
+  other capital letters. A second tab of the same browser gets a number
+  after the name, such as "Quiet Otter 2".
 - Food places run out. A berry bush or a food tile holds 3 food, and each
   one grows back 1 food every 30 seconds. An empty one shows no food.
   Material tiles work the same way.

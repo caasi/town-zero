@@ -72,6 +72,12 @@ function updateHUD(): void {
   const currency = agent.inventory?.get("currency") ?? 0;
   inventoryEl.textContent = `🍖${food} 🪵${material} 💰${currency}`;
 
+  // A rename is kept only once the server took it (it refuses a taken name).
+  if (pendingName && agent.name === pendingName) {
+    playerName = pendingName;
+    savePlayerName(storage(), pendingName);
+    pendingName = null;
+  }
   // The server's name, after its cleaning; not while the field is open.
   if (nameInput.classList.contains("hidden") && agent.name) {
     nameText.textContent = agent.name;
@@ -90,6 +96,7 @@ function storage(): Storage {
 
 const { name: startName, isNew: newName } = loadPlayerName(storage());
 let playerName = startName;
+let pendingName: string | null = null; // sent to the server, not yet taken
 nameText.textContent = playerName;
 nameBtn.style.color = playerColor(playerName);
 
@@ -103,6 +110,15 @@ function hideRenameHint(): void {
   nameHint.classList.add("hidden");
   markRenameHintSeen(storage());
 }
+
+// Registered once: the network client lives across reconnects.
+network.onRenameRejected(({ name }) => {
+  if (name !== pendingName) return;
+  pendingName = null;
+  nameHint.textContent = "That name is taken";
+  nameHint.classList.remove("hidden");
+  setTimeout(() => nameHint.classList.add("hidden"), 4000);
+});
 
 function closeNameInput(): void {
   nameInput.classList.add("hidden");
@@ -130,10 +146,7 @@ nameInput.addEventListener("keydown", (e) => {
   e.preventDefault();
   const name = normalizePlayerName(nameInput.value);
   if (name) {
-    playerName = name;
-    nameText.textContent = name;
-    nameBtn.style.color = playerColor(name);
-    savePlayerName(storage(), name);
+    pendingName = name;
     network.sendRename(name);
     hideRenameHint();
   }
@@ -164,7 +177,9 @@ function updatePlayerList(): void {
     li.classList.toggle("dead", p.dead);
     const swatch = document.createElement("span");
     swatch.className = "swatch";
-    swatch.style.background = p.color;
+    // Solid for you, hollow for the others, as on the map.
+    if (p.self) swatch.style.background = p.color;
+    else swatch.style.border = `2px solid ${p.color}`;
     const label = document.createElement("span");
     label.textContent = p.self ? `${p.name} (you)` : p.name; // textContent: names are untrusted
     li.append(swatch, label);
