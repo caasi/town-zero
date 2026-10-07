@@ -37,6 +37,28 @@ export function normalizePlayerName(raw: unknown): string | null {
   return /[^\p{M}\p{Z}\u200D]/u.test(name) ? name : null;
 }
 
+/**
+ * Two names with the same key are the same name for a person: case and
+ * compatibility forms (full-width letters) do not tell them apart.
+ */
+export function playerNameKey(name: string): string {
+  return name.normalize("NFKC").toLowerCase();
+}
+
+/**
+ * The name, or the name with the first free number (" 2", " 3", ...) when it
+ * is taken; the name is cut so that the number still fits PLAYER_NAME_MAX.
+ */
+export function uniquePlayerName(name: string, taken: (name: string) => boolean): string {
+  if (!taken(name)) return name;
+  const chars = Array.from(segmenter.segment(name), (s) => s.segment);
+  for (let n = 2; ; n++) {
+    const suffix = ` ${n}`;
+    const candidate = chars.slice(0, PLAYER_NAME_MAX - suffix.length).join("").trim() + suffix;
+    if (!taken(candidate)) return candidate;
+  }
+}
+
 // Not the green of friendly NPCs or the red of enemies (client/src/renderer.ts),
 // and no blue, which is close to water. A name always gets the same color: the color is a
 // hash of the name, so every client draws a player the same way.
