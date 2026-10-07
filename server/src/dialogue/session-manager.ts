@@ -23,7 +23,9 @@ export function buildPayload(session: DialogueSession, state: SimulationState): 
     npcId: session.npcId,
     npcName: npc.name,
     nodeType: nodeTypeFromMsg(msg.type),
-    speaker: msg.speaker || undefined,
+    // "npc" is the tree's marker for "the NPC in this dialogue" (the eDSL
+    // default), not a name: the client would show the word "npc".
+    speaker: msg.speaker === "npc" ? npc.name : msg.speaker || undefined,
     content: msg.text || undefined,
     options: msg.type === "choice" ? session.getOptionsWithStatus() : undefined,
     timeoutAt: session.lastInteractionTick + DIALOGUE_TIMEOUT_TICKS,

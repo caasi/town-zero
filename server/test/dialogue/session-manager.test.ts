@@ -57,6 +57,14 @@ describe("session-manager", () => {
     state = makeState();
   });
 
+  it("names the NPC as the speaker, not the \"npc\" marker of the tree", () => {
+    state.agents.get("test-npc")!.name = "Innkeeper";
+    const result = startDialogue("player-0", "test-npc", state);
+    expect(result).toMatchObject({ ok: true, payload: { speaker: "Innkeeper" } });
+    // A choice node also carries the "npc" marker.
+    expect(advanceDialogue("player-0", state)).toMatchObject({ ok: true, payload: { nodeType: "choice", speaker: "Innkeeper" } });
+  });
+
   describe("while the NPC thinks about a reply", () => {
     // "No" leads to a reply node with two lines, so the session waits for Jev.
     function waitingState(): SimulationState {

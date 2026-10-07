@@ -41,6 +41,8 @@ entries are grouped by date, not by version. The format follows
 
 ### Fixed
 
+- The dialogue panel showed "npc" as the speaker; it shows the NPC's
+  name now.
 - Walking into the map edge moved the player one tile off the map and then
   back. The client now knows the map size and does not predict that move.
 - Players were pulled back one tile when they released a movement key.

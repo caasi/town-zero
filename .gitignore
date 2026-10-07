@@ -11,3 +11,6 @@ dist/
 
 # Lock file of deploy/update.sh when run from a checkout.
 deploy/.update.lock
+
+# Playwright MCP screenshots and console logs
+.playwright-mcp/
