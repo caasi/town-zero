@@ -13,10 +13,6 @@ import { findSpawnTile, processRespawns } from "../simulation/respawn.js";
 import { JevController } from "../ai/jev-controller.js";
 import { jevChooser } from "../ai/jev.js";
 
-// The build commit, sent on join so that a client from another build can ask
-// the player to reload. The Dockerfile sets it; tests and local runs get "dev".
-const SERVER_COMMIT = process.env.TOWN_ZERO_COMMIT || "dev";
-
 export class GameRoom extends Room<{ state: WorldStateSchema }> {
   private simState!: SimulationState;
   private sessionToAgent = new Map<string, string>();
@@ -168,7 +164,9 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
     village.populationIds.push(id);
     this.sessionToAgent.set(client.sessionId, id);
     this.lastMessageTick.set(client.sessionId, this.simState.tick);
-    client.send("joined", { agentId: id, commit: SERVER_COMMIT });
+    // The build commit lets a client from another build ask the player to
+    // reload. The Dockerfile sets it; local runs get "dev".
+    client.send("joined", { agentId: id, commit: process.env.TOWN_ZERO_COMMIT || "dev" });
 
     console.log(`${name} joined as ${id} (${client.sessionId})`);
   }
