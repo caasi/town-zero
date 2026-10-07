@@ -381,7 +381,9 @@ export class Renderer {
   ): void {
     ctx.globalAlpha = 0.4;
 
-    // The fog never holds yourself (fog.ts skips the local player).
+    // A remembered player is never you: the server records your own tile
+    // each tick without you, and a merged copy from a neighbour replaces a
+    // tile only when it is newer.
     if (entity.role === "player") {
       ctx.fillStyle = OTHER_PLAYER_COLOR;
       diamondPath(ctx, px, py);
