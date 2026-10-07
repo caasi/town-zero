@@ -166,6 +166,20 @@ describe("GameRoom integration", () => {
       expect(jevTicks(3)).toBe(3);
     });
 
+    it.each([
+      ["revive", undefined],
+      ["dialogue:advance", undefined],
+      ["dialogue:choose", { optionId: "none" }],
+      ["dialogue:close", undefined],
+    ])("counts %s as activity", (type, data) => {
+      const client = mockClient("session-1");
+      joinClient(room, client, { name: "Watcher" });
+      jevTicks(IDLE_TIMEOUT_TICKS);
+      expect(jevTicks(1)).toBe(0);
+      sendMessage(room, client, type, data);
+      expect(jevTicks(3)).toBe(3);
+    });
+
     it("not while another player is active", () => {
       const away = mockClient("session-1");
       joinClient(room, away, { name: "Away" });
