@@ -11,5 +11,6 @@ export function expectCleanName(raw: string): void {
   expect(name.length, JSON.stringify(raw)).toBeLessThanOrEqual(PLAYER_NAME_MAX_UNITS);
   expect(name, JSON.stringify(raw)).not.toMatch(/[\p{Cc}\u2028\u2029]|(?!\u200D)\p{Cf}/u);
   expect(name, JSON.stringify(raw)).toBe(name.trim());
+  expect(name, JSON.stringify(raw)).not.toMatch(/[\u115F\u1160\u2800\u3164\uFFA0]/u);
   expect(normalizePlayerName(name), "cleaning twice changes nothing").toBe(name);
 }

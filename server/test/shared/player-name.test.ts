@@ -37,6 +37,11 @@ describe("normalizePlayerName", () => {
     expect(normalizePlayerName(family)).toBe(family);
   });
 
+  it("folds blank-looking letters like white space, also inside a name", () => {
+    expect(normalizePlayerName("\u3164A")).toBe("A");
+    expect(normalizePlayerName("A\u2800\u2800B\uFFA0")).toBe("A B");
+  });
+
   it("rejects a name with nothing visible in it", () => {
     // Fillers and blank patterns look like nothing although they are letters or symbols.
     for (const bad of ["\u200B\u200B", "\u200D", "\u0301\u0301", "\u202E", "\u3164\u3164", "\u2800", "\uFFA0", "\u115F\u1160"]) {

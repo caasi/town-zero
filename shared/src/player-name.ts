@@ -20,7 +20,9 @@ export function normalizePlayerName(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
   const clean = raw
     .replace(/(?!\u200D)\p{Cf}/gu, "")              // format characters: gone
-    .replace(/[\p{Cc}\u2028\u2029\s]+/gu, " ")      // controls, line breaks, white space: one space
+    // Controls, line breaks, white space, and letters that draw as nothing
+    // (Hangul fillers, the blank Braille pattern): one space.
+    .replace(/[\p{Cc}\u2028\u2029\s\u115F\u1160\u2800\u3164\uFFA0]+/gu, " ")
     .trim();
   let name = "";
   let count = 0;
@@ -32,8 +34,7 @@ export function normalizePlayerName(raw: unknown): string | null {
     count++;
   }
   name = name.trim();
-  // Hangul fillers and the blank Braille pattern are letters or symbols that draw as nothing.
-  return /[^\p{M}\p{Z}\u200D\u115F\u1160\u2800\u3164\uFFA0]/u.test(name) ? name : null;
+  return /[^\p{M}\p{Z}\u200D]/u.test(name) ? name : null;
 }
 
 // Not the blue of yourself, the green of friendly NPCs or the red of enemies
