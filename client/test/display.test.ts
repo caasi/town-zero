@@ -46,14 +46,18 @@ describe("DisplayState", () => {
       expect(ds.predictMove(1, 0, "idle", tiles)).toBe(false);
     });
 
-    it("rejects a move off the map edge (the tile is never in fog memory)", () => {
+    it.each([
+      ["west", { x: 0, y: 5 }, { x: -1, y: 5 }],
+      ["east", { x: 9, y: 5 }, { x: 10, y: 5 }],
+      ["north", { x: 5, y: 0 }, { x: 5, y: -1 }],
+      ["south", { x: 5, y: 9 }, { x: 5, y: 10 }],
+    ])("rejects a move off the %s map edge (the tile is never in fog memory)", (facing, from, to) => {
       const ds = new DisplayState();
       ds.setGridSize(10, 10);
       ds.setLocalPlayer("p1");
-      initLocal(ds, "p1", { x: 0, y: 9, facing: "west" });
-      expect(ds.predictMove(-1, 9, "idle", makeTiles({}))).toBe(false);
-      initLocal(ds, "p1", { x: 9, y: 9, facing: "south" });
-      expect(ds.predictMove(9, 10, "idle", makeTiles({}))).toBe(false);
+      initLocal(ds, "p1", { ...from, facing });
+      expect(ds.predictMove(to.x, to.y, "idle", makeTiles({}))).toBe(false);
+      expect(ds.get("p1")).toMatchObject({ displayX: from.x, displayY: from.y });
     });
 
     it("allows move in same facing direction and updates display position", () => {
