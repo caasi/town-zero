@@ -99,6 +99,28 @@ describe("ReplyController", () => {
     expect(replies.update(state)).toEqual([]);
   });
 
+  it("drops an old answer when the same NPC already talks in a new dialogue", async () => {
+    const state = waitingState();
+    const answers: Array<(c: Choice) => void> = [];
+    const replies = new ReplyController(() => new Promise((r) => answers.push(r)));
+    replies.update(state); // the first dialogue asks
+    endDialogue("reed", state, "player_left");
+    startDialogue("player-0", "reed", state);
+    chooseDialogue("player-0", "ask_opt_0", state);
+    replies.update(state); // the second dialogue asks
+    const second = state.activeSessions.get("reed")!;
+
+    answers[0]({ id: "curt" }); // the first answer comes late
+    await flush();
+    expect(replies.update(state)).toEqual([]);
+    expect(second.isWaiting()).toBe(true);
+
+    answers[1]({ id: "calm" });
+    await flush();
+    expect(replies.update(state)).toEqual([second]);
+    expect(second.getState()).toMatchObject({ text: "The village needs it." });
+  });
+
   it("logs the pick with its token counts", async () => {
     const state = waitingState();
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
