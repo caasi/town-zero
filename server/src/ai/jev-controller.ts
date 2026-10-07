@@ -342,8 +342,10 @@ export class JevController {
     const options = buildOptions(agent, state, this.rand);
     const criteria = Object.fromEntries(options.map((o) => [o.id, o.description]));
     this.choose(describeState(agent, state), INSTRUCTIONS, criteria)
-      .then((id) => {
-        console.log(`[jev] ${agent.id} chose ${id} from ${Object.keys(criteria).join(", ")}`);
+      .then(({ id, usage }) => {
+        // The token counts let the server log give the Jev cost per hour.
+        const cost = usage ? ` (in ${usage.input}, out ${usage.output})` : "";
+        console.log(`[jev] ${agent.id} chose ${id} from ${Object.keys(criteria).join(", ")}${cost}`);
         // Died while waiting: a goal or a roar bubble would outlive the death.
         if (!agent.isAlive()) return;
         const goal = options.find((o) => o.id === id)!.goal;
