@@ -50,7 +50,7 @@ CI runs all three.
 - The Canvas 2D client draws the world with fog of war, movement prediction, a HUD (heads-up display) and a dialogue panel. The HUD shows the build commit in the bottom-right corner, so you can name the build in a bug report.
 - Den beasts are AI NPCs. Code makes a short list of options, the Jev model (TypeSafe AI) picks one, and code does it. Beasts guard their den, gather food at berry bushes, store it in the den, roar at intruders and attack threats. Food places run out and grow back slowly.
 - Each player has a name: a random adjective and animal on a first visit; select your name at the top left to change it. No two players or NPCs can have the same name. Players are drawn in the color of their name, and the players online are listed at the top right.
-- A dead player can revive in the village after about 5 seconds. A dead village NPC comes back on its own after about 30 seconds; a dead beast comes back after about 30 seconds when the den has food to pay for it, or at once when no beast of the den is alive.
+- A dead player can revive in the village after about 5 seconds. A dead village NPC comes back on its own after about 30 seconds; a dead beast comes back after about 30 seconds, and the den pays food for it (nothing when no beast of the den is alive).
 - A Docker image is built for each push to `main` (see `deploy/README.md`).
 
 **Next:** shared dialogue pools and generated quests (see `TODO.md`). Changes by date are in `CHANGELOG.md`.
@@ -69,7 +69,7 @@ The keys use physical positions, so they work on any keyboard layout.
 Players join a 40x40 grid world with a **village** and a **monster den**. Both are settlements with population, inventory, structures and territory.
 
 - **Players** send one input frame per tick. A player who leaves is removed from the world. The room closes when the last player leaves, and the next player starts in a new world.
-- **AI NPCs** (the den beasts) use the Jev model through `server/src/ai/jev-controller.ts`. Without `TYPESAFE_API_KEY`, or when a call fails, a fixed rule decides. With no active player (a visible tab that sent input in the last 2 minutes), no Jev calls are made.
+- **AI NPCs** (the den beasts) use the Jev model through `server/src/ai/jev-controller.ts`. Without `TYPESAFE_API_KEY`, or when a call fails, a fixed rule decides. With no active player (a visible tab that sent a key press or a message in the last 2 minutes), no Jev calls are made.
 - **Food:** every agent eats one food from its own inventory about every 30 seconds. A player without food loses HP. Players gather food at the bushes east of the village (face a bush and press E). Beasts gather it at the berry bushes near the den.
 - **Fog of war:** each agent sees only a Manhattan-distance radius and remembers what it saw. Agents of the same faction share memory only when they stand next to each other.
 
@@ -129,7 +129,7 @@ client/
     dialogue-ui.ts  # Dialogue panel
     player-name.ts  # Your name in localStorage, the rename hint
     leave-message.ts # Text of the error screen for a refused join or a disconnect
-    version.ts      # Stale-client check against the server build
+    version.ts      # Checks that the client and the server run the same build
 deploy/          # Docker Compose, nginx and update script for a server
 docs/            # Specs, plans, references, and story.md (the story the NPC lines draw from)
 CHANGELOG.md     # Changes that players or contributors can see, by date
