@@ -1,4 +1,4 @@
-import { DIRECTION_DELTA, isMoveBlocked } from "@town-zero/shared";
+import { DIRECTION_DELTA, RESOURCE_REGROW_TICKS, isMoveBlocked } from "@town-zero/shared";
 import type { EntitySnapshot, Facing, InputFrame, Position } from "@town-zero/shared";
 import type { Agent } from "../simulation/agent.js";
 import type { Settlement } from "../simulation/settlement.js";
@@ -14,7 +14,8 @@ export type Goal =
   | { kind: "flee" }
   | { kind: "wander"; to: Position; untilTick: number }
   | { kind: "rest"; untilTick: number }
-  | { kind: "roar"; untilTick: number };
+  | { kind: "roar"; untilTick: number }
+  | { kind: "wait"; near: Position; untilTick: number };
 
 export interface Option {
   id: string;
@@ -33,6 +34,10 @@ const DEN_FOOD_LOW = 10;  // below this, a beast with a full load is offered to 
 const WANDER_TICKS = 40; // ~5s
 const REST_TICKS = 24;   // ~3s
 const ROAR_TICKS = 16;   // ~2s: the bubble shows and the beast stands still
+// One regrowth interval: a used-up place has food again by then. A long goal
+// means one paid call per ~30s instead of an explore call per ~5s.
+const WAIT_TICKS = RESOURCE_REGROW_TICKS;
+const WAIT_DISTANCE = 2; // close enough to see the place grow back
 const TAKE_FOOD = 3;
 // Like a wolf, a beast eats first and brings home only the rest: it keeps
 // what eat_at_den would take. Storing all of it made the beast hungry at
@@ -90,10 +95,10 @@ function isThreat(agent: Agent, enemy: EntitySnapshot, state: SimulationState): 
 
 // The kind of resource a tile yields never changes, so the grid gives it; how
 // much is left comes from the agent's memory of the tile.
-function nearestKnownFood(agent: Agent, state: SimulationState): Position | undefined {
+function nearestKnownFood(agent: Agent, state: SimulationState, usedUp = false): Position | undefined {
   let best: Position | undefined;
   for (const [key, mem] of agent.getAllMemory()) {
-    if (mem.resourceAmount === 0) continue;
+    if ((mem.resourceAmount === 0) !== usedUp) continue;
     const [x, y] = key.split(",").map(Number);
     if (state.grid.getResourceYield(x, y) !== "food") continue;
     const d = distance(agent.position, { x, y });
@@ -138,6 +143,11 @@ export function buildOptions(agent: Agent, state: SimulationState, rand = Math.r
   }
   if (foodTile && food < CARRY_FULL) {
     offer("forage", "Go to the nearest place where food grows and gather food.", { kind: "forage", tile: foodTile });
+  }
+  const emptyTile = nearestKnownFood(agent, state, true);
+  if (emptyTile) {
+    offer("wait_for_food", "Wait near the empty berry bushes until they grow back.",
+      { kind: "wait", near: emptyTile, untilTick: state.tick + WAIT_TICKS });
   }
   if (!foodTile) {
     offer("explore", "Walk away from here to find a place where food grows.",
@@ -295,6 +305,15 @@ export function nextFrame(agent: Agent, goal: Goal, state: SimulationState): Inp
         return threat ? null : { seq: 0, action: { type: "idle" } };
       }
       const dir = stepToward(agent, goal.to, state);
+      return dir ? move(dir) : null;
+    }
+    case "wait": {
+      if (state.tick >= goal.untilTick) return null;
+      // Food in memory again (seen grow back, or told by a den-mate): re-ask, so forage is offered.
+      if (nearestKnownFood(agent, state)) return null;
+      if (visibleEnemies(agent, state).some((e) => isThreat(agent, e, state))) return null;
+      if (distance(agent.position, goal.near) <= WAIT_DISTANCE) return { seq: 0, action: { type: "idle" } };
+      const dir = stepToward(agent, goal.near, state);
       return dir ? move(dir) : null;
     }
     case "rest":

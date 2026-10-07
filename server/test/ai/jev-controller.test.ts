@@ -6,6 +6,7 @@ import { Settlement } from "../../src/simulation/settlement.js";
 import { Grid } from "../../src/simulation/grid.js";
 import type { SimulationState } from "../../src/simulation/tick.js";
 import { updateStoreKnowledge } from "../../src/simulation/vision.js";
+import { RESOURCE_REGROW_TICKS } from "@town-zero/shared";
 
 // Den around (2,2); beast inside it; player p1 to the east.
 function setup() {
@@ -210,6 +211,59 @@ describe("what the beast knows", () => {
     player.hp = 10;
     player.position = { x: 15, y: 15 };
     expect(describeState(beast, state).visible).toEqual(["p1, an enemy player, 4 steps away, HP 100 of 100, a threat to the den"]);
+  });
+});
+
+describe("wait_for_food", () => {
+  // Beast at the den core (2,2); a berry place at (8,2) that it saw used up.
+  function emptyBush() {
+    const s = setup();
+    s.state.grid.setResourceYield(8, 2, "food");
+    s.beast.recordTile(8, 2, "plains", [], s.state.tick, 0);
+    return s;
+  }
+
+  it("is offered only when the beast remembers a used-up food place", () => {
+    const { state, beast } = setup();
+    expect(buildOptions(beast, state).map((o) => o.id)).not.toContain("wait_for_food");
+    const s = emptyBush();
+    expect(buildOptions(s.beast, s.state).map((o) => o.id)).toContain("wait_for_food");
+  });
+
+  it("walks near the place, then waits there", () => {
+    const { state, beast } = emptyBush();
+    const goal = buildOptions(beast, state).find((o) => o.id === "wait_for_food")!.goal;
+    expect(nextFrame(beast, goal, state)).toEqual({ seq: 0, direction: "east" });
+    beast.position = { x: 6, y: 2 }; // 2 steps away: close enough
+    expect(nextFrame(beast, goal, state)?.action).toEqual({ type: "idle" });
+  });
+
+  it("waits one regrowth interval at most", () => {
+    const { state, beast } = emptyBush();
+    const goal = buildOptions(beast, state).find((o) => o.id === "wait_for_food")!.goal;
+    beast.position = { x: 6, y: 2 };
+    state.tick += RESOURCE_REGROW_TICKS - 1;
+    expect(nextFrame(beast, goal, state)).not.toBeNull();
+    state.tick += 1;
+    expect(nextFrame(beast, goal, state)).toBeNull();
+  });
+
+  it("ends when the beast sees food grow back, so it can forage", () => {
+    const { state, beast } = emptyBush();
+    const goal = buildOptions(beast, state).find((o) => o.id === "wait_for_food")!.goal;
+    beast.position = { x: 6, y: 2 };
+    beast.recordTile(8, 2, "plains", [], state.tick + 1, 1);
+    expect(nextFrame(beast, goal, state)).toBeNull();
+    expect(buildOptions(beast, state).map((o) => o.id)).toContain("forage");
+  });
+
+  it("ends when a threat comes into sight", () => {
+    const { state, beast, player } = emptyBush();
+    const goal = buildOptions(beast, state).find((o) => o.id === "wait_for_food")!.goal;
+    beast.position = { x: 6, y: 2 };
+    player.position = { x: 5, y: 2 }; // next to the beast
+    see(beast, player, state.tick);
+    expect(nextFrame(beast, goal, state)).toBeNull();
   });
 });
 

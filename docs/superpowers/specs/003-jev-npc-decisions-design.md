@@ -45,10 +45,11 @@ JevController.update(state)            // GameRoom, once per tick, before proces
 |----|--------------|------|
 | `rest` | always (first, so the first-option bias lands on the safest choice) | idle ~3 s |
 | `guard_den` | the agent has a den, and the first frame toward a random tile within 3 steps of the den core exists (a step, or a wait when the agent is already there and no threat is in sight) | walk there, then wait there; ends after ~5 s, or when a threat is in sight while waiting |
-| `forage` | the agent carries less than 5 food and remembers a food tile (MapMemory) | walk to the nearest one, face it, `gather` until it carries 5 |
-| `explore` | the agent remembers no food tile, and the first frame toward a random tile within 8 steps of the den core exists | like `guard_den` |
+| `forage` | the agent carries less than 5 food and remembers a food tile with food on it (MapMemory) | walk to the nearest one, face it, `gather` until it carries 5 or it sees the tile used up |
+| `wait_for_food` | the agent remembers a food tile that it saw used up, and remembers no food tile with food | walk to within 2 steps of the nearest used-up one, then wait; ends after one regrowth interval (~30 s), when it knows food again, or when a threat is in sight |
+| `explore` | the agent remembers no food tile with food, and the first frame toward a random tile within 8 steps of the den core exists | like `guard_den` |
 | `bring_food_home` | the agent carries 5 food (a full load) and believes the den holds less than 10 | walk home, `deposit` all but 3 food (the beast eats first, like a wolf) |
-| `eat_at_den` | food is 0 and the den has food | walk home, `take` food |
+| `eat_at_den` | food is 0 and the agent believes the den has food, or never saw it | walk home, `take` food |
 | `flee_to_den` | a threat is in sight and the agent is outside the den | walk home |
 | `roar` | a threat is in sight | show a "ROAR!" bubble, stand still ~2 s |
 | `attack:<id>` | one for each threat seen this tick | walk to it, face it, attack once per ~1 s; stop when it is no longer a threat |
