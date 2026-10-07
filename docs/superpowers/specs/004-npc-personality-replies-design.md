@@ -28,6 +28,28 @@ Percentages are Jev's probability for the picked reply in the first run.
   order. So the wording of the personality and of the reply descriptions
   decides the pick, not the option order. Check new wording with real calls.
 
+## Evidence (real runs on the scenario lines, 2026-10-07)
+
+Three runs per cell, same pick in each unless noted.
+
+- The innkeeper's first wording ("cares about the village more than she
+  shows") made her pick the same neutral lines as Farmer Reed. "She
+  complains about everything; she shows her kindness only in what she does"
+  fixed it.
+- The storehouse changed no pick until a reply node had two lines that fit
+  the same personality in two situations. Rule: **to make a reply depend on
+  the state, write a pair of lines for one personality, one per situation.**
+  The wording of the Jev instructions ("from the personality" or "from the
+  personality and the situation") made no difference.
+- With the pairs: Reed's haggle is "hungry" at 5 food and "common good" at
+  200; the innkeeper's news is "grumble, hungry" at 5 and "grumble, full" at
+  200 (with Reed's personality: "plain" at 200). Her monsters reply follows
+  the personality only (her own: "not my job", Reed's: "warn", none:
+  "honest"). Reed's own picks equal the picks with no personality: dutiful is
+  the neutral reply here. At 5 food the hungry line wins for every
+  personality on the news node.
+- Gender changed no pick on these nodes.
+
 ## Design
 
 **NPC profile.** `NpcDefinition` gets two required fields:

@@ -257,7 +257,7 @@ describe("GameRoom integration", () => {
 
     tick(room); // no key in tests: the first line
     const states = client.messages.filter((m: any) => m.type === "dialogue:state");
-    expect(states.at(-1).data.content).toContain("storehouse gets emptier");
+    expect(states.at(-1).data.content).toContain("More beasts in the hills every week");
   });
 
   it("multiple players join and appear in state", () => {

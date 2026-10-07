@@ -27,12 +27,17 @@ export const innkeeperScenario = scenario("innkeeper", (s) => {
       d.option("Nothing. Goodbye.").goto("bye"),
     ]);
 
-    // The first line of each reply is the neutral fallback.
+    // The first line of each reply is the neutral fallback. The two grumbling
+    // lines fit her personality in two situations, so the storehouse decides
+    // between them (real runs: almost empty → "grumble-hungry", full →
+    // "grumble-full").
     d.reply("news", [
-      d.line("plain", "Give the news plainly: more monsters come near the village, and food is short.",
-        "More beasts in the hills every week, and the storehouse gets emptier. That's the news.").goto("menu"),
-      d.line("grumble", "Complain loudly about the monsters and about having to hear everyone worry.",
-        "The beasts eat our berries, Reed works himself to the bone, and I get to hear everyone whine about it. Lovely.").goto("menu"),
+      d.line("plain", "Give the news plainly: more monsters come near the village.",
+        "More beasts in the hills every week. That's the news.").goto("menu"),
+      d.line("grumble-hungry", "Complain loudly that the storehouse is almost empty and everyone is hungry and cross.",
+        "The storehouse is nearly empty, everyone's hungry, and hungry people complain. To me. All day.").goto("menu"),
+      d.line("grumble-full", "Complain that even with a full storehouse, nobody stops worrying about the monsters.",
+        "The storehouse is full for once, and still everyone frets about the beasts. There's no pleasing this village.").goto("menu"),
       d.line("tease", "Tease the traveler for asking for news instead of helping.",
         "News is for people who sit around. You look like you can carry a basket. Go and ask Reed.").goto("menu"),
     ]);
