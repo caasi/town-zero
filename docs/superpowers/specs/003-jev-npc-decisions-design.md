@@ -75,7 +75,9 @@ Words, no coordinates:
 Information sources:
 
 - "Visible" comes from the agent's own MapMemory, tiles recorded this tick. This includes what an adjacent den-mate saw this tick: the memory merge copies tiles with their timestamp. That is the information model's adjacency sharing, so a beast can attack an enemy that its neighbour sees.
-- Enemy HP and role, and the food count of the den, come from live server state. Note: when the beast is away from the den, it should only know the food count from its last visit. See TODO in `CLAUDE.md`.
+- Enemy HP and role come from the same snapshots: what the agent saw at that tick, not the live agent.
+- The food count of the den comes from the belief `food:<settlement id>`. An agent inside a settlement updates it each tick, and adjacent agents of the same faction share it, so a beast away from home knows the count of its last visit, or "unknown" if it never saw it. The `take` action at the den still reads the real store.
+- How much food a place holds comes from the agent's TileMemory (`resourceAmount`, as seen); the kind of resource comes from the grid, because it never changes.
 
 ### Turning a goal into frames (`nextFrame`)
 
