@@ -1,0 +1,72 @@
+# Changelog
+
+All notable changes to town-zero. Each push to `main` is deployed, so the
+entries are grouped by date, not by version. The format follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+
+## 2026-10-07
+
+### Changed
+
+- Beasts stop making AI decisions while no player is active. A player is
+  active while the browser tab is visible and the player did something in
+  the last 2 minutes. Before this change, one tab left open overnight kept
+  the AI decisions running for 9 hours. Paused beasts do not get hungry.
+- Beasts take one step every 2 ticks, so players can outrun them.
+
+### Added
+
+- Beasts guard their den, collect berries from bushes, bring full loads
+  home and roar at intruders. They attack only enemies near the den or
+  next to them.
+- Dead NPCs come back: village NPCs after about 30 seconds, beasts when
+  their den pays food (free when no beast of the den is alive).
+- The HUD shows the build commit, so a bug report can name the build.
+- Property tests (fast-check) for input timing and AI decision timing.
+- `pnpm run typecheck` checks the test files and the client code too.
+
+### Fixed
+
+- Players were pulled back one tile when they released a movement key.
+- The client shows the error screen at once when the server closes the
+  room, instead of freezing while it tries to reconnect.
+- The server no longer sends unchanged settlement structures in every
+  update (222 bytes to 2 bytes per idle tick).
+
+## 2026-10-06
+
+### Added
+
+- AI NPC decisions with Jev (TypeSafe AI): code lists the options, Jev
+  picks one, and code acts on it. The first AI NPCs are the den beasts.
+- Players can revive in the village about 5 seconds after death, with
+  their inventory and their map memory.
+- Production deployment: a container image, CI that publishes it, and an
+  update job on the server that pulls each new image.
+
+### Changed
+
+- A player who leaves is removed from the world, and a new join creates a
+  new player.
+
+### Removed
+
+- Systems that had no working use: the free-form LLM path, triggers,
+  production, merchants and trade, dialogue request nodes, and the chat
+  room.
+
+## 2026-04 (MVP)
+
+### Added
+
+- Multiplayer world on Colyseus with villages, a monster den, fog of war
+  and a map memory for each agent.
+- Canvas 2D client with movement prediction, layout-independent keys and
+  key hints for the detected keyboard layout.
+- One input model for players, bots and AI NPCs (`InputFrame`), with
+  server reconciliation of client input.
+- Facing direction, bush tiles, and multi-tile settlements.
+- NPC dialogue trees (Farmer Reed) with beliefs and conditional entry
+  points.
+- Combat as an interaction on the faced tile, NPC speech bubbles, and a
+  typed NPC event system.

@@ -69,6 +69,7 @@ Source of truth: `processTick` in `server/src/simulation/tick.ts`.
 ## Key Design Documents
 
 - **Specs / plans:** `docs/superpowers/specs/` and `docs/superpowers/plans/`. The MVP is `2026-04-01-town-zero-mvp*`. New pairs use a 3-digit prefix (`001-combat-as-interaction`, `002-event-system`); continue from the highest number. The older date-prefixed files stay as they are.
+- **Changelog:** `CHANGELOG.md`, grouped by date (each push to `main` is deployed). When you merge a change that players or contributors can see, add an entry under the date of the merge.
 - **References:** `docs/references.md` — prior art and industry resources for design decisions. Review and update when introducing new patterns or making significant architectural changes.
 
 ## Development Notes
