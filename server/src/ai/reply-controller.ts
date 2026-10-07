@@ -36,11 +36,16 @@ export function describeReplyState(npc: Agent, playerSaid: string | null, state:
  */
 export class ReplyController {
   private answered = new Set<DialogueSession>();
+  // Jev answers arrive between ticks. They wait here and reach the session
+  // in update(), on the tick that sends them, so no advance can skip a picked
+  // line that the client has not seen.
+  private arrived: Array<{ session: DialogueSession; token: number; lineId: string }> = [];
 
   constructor(private choose: ChooseFn | null) {}
 
   /** Starts the calls that are due and returns the sessions answered since the last update. */
   update(state: SimulationState): DialogueSession[] {
+    for (const { session, token, lineId } of this.arrived.splice(0)) this.answer(session, token, lineId);
     for (const session of state.activeSessions.values()) {
       const request = session.takeReplyRequest();
       if (!request) continue;
@@ -55,11 +60,11 @@ export class ReplyController {
         .then(({ id, usage }) => {
           const cost = usage ? ` (in ${usage.input}, out ${usage.output})` : "";
           console.log(`[jev] ${npc.id} replied ${id} from ${Object.keys(options).join(", ")}${cost}`);
-          this.answer(session, request.token, id);
+          this.arrived.push({ session, token: request.token, lineId: id });
         })
         .catch((err) => {
           console.error(`[jev] reply failed for ${npc.id}:`, err);
-          this.answer(session, request.token, fallback);
+          this.arrived.push({ session, token: request.token, lineId: fallback });
         });
     }
     const done = Array.from(this.answered).filter((s) => !s.isDisposed());
