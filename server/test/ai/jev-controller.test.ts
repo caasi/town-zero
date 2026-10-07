@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { JevController, buildOptions, nextFrame, describeState, type Goal } from "../../src/ai/jev-controller.js";
-import { jevChooser } from "../../src/ai/jev.js";
+import { jevChooser, type Choice } from "../../src/ai/jev.js";
 import { Agent } from "../../src/simulation/agent.js";
 import { Settlement } from "../../src/simulation/settlement.js";
 import { Grid } from "../../src/simulation/grid.js";
@@ -256,16 +256,30 @@ describe("nextFrame", () => {
   });
 });
 
+// The [jev] line that one decision writes.
+async function jevLogLine(state: SimulationState, choice: Choice): Promise<string | undefined> {
+  const log = vi.spyOn(console, "log").mockImplementation(() => {});
+  try {
+    new JevController(vi.fn().mockResolvedValue(choice)).update(state);
+    await flush();
+    return log.mock.calls.map((c) => String(c[0])).find((l) => l.startsWith("[jev]"));
+  } finally {
+    log.mockRestore();
+  }
+}
+
 describe("JevController", () => {
   it("logs each decision with its token usage", async () => {
     const { state, beast, player } = setup();
     see(beast, player, state.tick);
-    const log = vi.spyOn(console, "log").mockImplementation(() => {});
-    new JevController(vi.fn().mockResolvedValue({ id: "rest", usage: { input: 424, output: 41 } })).update(state);
-    await flush();
-    const line = log.mock.calls.map((c) => String(c[0])).find((l) => l.startsWith("[jev]"));
-    log.mockRestore();
-    expect(line).toMatch(/^\[jev\] b1 chose rest from rest, .* \(in 424, out 41\)$/);
+    expect(await jevLogLine(state, { id: "rest", usage: { input: 424, output: 41 } }))
+      .toMatch(/^\[jev\] b1 chose rest from rest, .* \(in 424, out 41\)$/);
+  });
+
+  it("logs a decision without token counts when the reply has none", async () => {
+    const { state, beast, player } = setup();
+    see(beast, player, state.tick);
+    expect(await jevLogLine(state, { id: "rest" })).toMatch(/^\[jev\] b1 chose rest from [^(]*$/);
   });
 
   it("asks once, then turns the chosen goal into frames", async () => {
