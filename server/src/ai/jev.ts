@@ -14,6 +14,8 @@ export type ChooseFn = (
   options: Record<string, string>,
 ) => Promise<Choice>;
 
+const isTokenCount = (n: unknown): n is number => Number.isInteger(n);
+
 /** Jev (TypeSafe AI) Choice question. See https://docs.typesafe.ai/api.md */
 export function jevChooser(apiKey: string, fetchFn: typeof fetch = fetch): ChooseFn {
   return async (state, instructions, options) => {
@@ -39,7 +41,7 @@ export function jevChooser(apiKey: string, fetchFn: typeof fetch = fetch): Choos
     }
     const input = body.usage?.input_tokens;
     const output = body.usage?.output_tokens;
-    if (typeof input !== "number" || typeof output !== "number") return { id: choice };
+    if (!isTokenCount(input) || !isTokenCount(output)) return { id: choice };
     return { id: choice, usage: { input, output } };
   };
 }

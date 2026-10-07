@@ -451,9 +451,11 @@ describe("jevChooser", () => {
     expect(JSON.parse(init.body).questions.next).toEqual({ type: "choice", instructions: "Pick.", criteria: options });
   });
 
-  it("leaves out a usage that is not two numbers", async () => {
-    const fetchFn = reply({ answers: { next: { choice: "a" } }, usage: { input_tokens: "many" } });
-    expect(await jevChooser("k", fetchFn)({}, "Pick.", options)).toEqual({ id: "a" });
+  it("leaves out a usage that is not two integers", async () => {
+    for (const usage of [{ input_tokens: "many", output_tokens: 1 }, { input_tokens: NaN, output_tokens: 1 }, { input_tokens: 1.5, output_tokens: 1 }]) {
+      const fetchFn = reply({ answers: { next: { choice: "a" } }, usage });
+      expect(await jevChooser("k", fetchFn)({}, "Pick.", options)).toEqual({ id: "a" });
+    }
   });
 
   it("rejects an id that was not offered", async () => {
