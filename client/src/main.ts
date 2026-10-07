@@ -72,11 +72,15 @@ function updateHUD(): void {
   const currency = agent.inventory?.get("currency") ?? 0;
   inventoryEl.textContent = `🍖${food} 🪵${material} 💰${currency}`;
 
-  // A rename is kept only once the server took it (it refuses a taken name).
-  if (pendingName && agent.name === pendingName) {
-    playerName = pendingName;
-    savePlayerName(storage(), pendingName);
-    pendingName = null;
+  // After the join, every change of your name on the server is a rename it
+  // took, so it is kept; a refused one never shows here. The join's name is
+  // not kept: it can carry a number ("Quiet Otter 2") for a second tab.
+  if (agent.name && agent.name !== serverName) {
+    if (serverName !== null) {
+      playerName = agent.name;
+      savePlayerName(storage(), agent.name);
+    }
+    serverName = agent.name;
   }
   // The server's name, after its cleaning; not while the field is open.
   if (nameInput.classList.contains("hidden") && agent.name) {
@@ -96,28 +100,31 @@ function storage(): Storage {
 
 const { name: startName, isNew: newName } = loadPlayerName(storage());
 let playerName = startName;
-let pendingName: string | null = null; // sent to the server, not yet taken
+let serverName: string | null = null; // your name in the server state; null until the join
 nameText.textContent = playerName;
 nameBtn.style.color = playerColor(playerName);
 
 // Only for a name the game picked, and only until the player renames or ~20 s pass.
+const RENAME_HINT = nameHint.textContent;
 if (newName && !renameHintSeen(storage())) {
   nameHint.classList.remove("hidden");
   setTimeout(hideRenameHint, 20_000);
 }
 
 function hideRenameHint(): void {
-  nameHint.classList.add("hidden");
+  // Not "That name is taken", which uses the same place.
+  if (nameHint.textContent === RENAME_HINT) nameHint.classList.add("hidden");
   markRenameHintSeen(storage());
 }
 
 // Registered once: the network client lives across reconnects.
-network.onRenameRejected(({ name }) => {
-  if (name !== pendingName) return;
-  pendingName = null;
+let takenNoteTimer: ReturnType<typeof setTimeout> | undefined;
+network.onRenameRejected(() => {
   nameHint.textContent = "That name is taken";
   nameHint.classList.remove("hidden");
-  setTimeout(() => nameHint.classList.add("hidden"), 4000);
+  // A new refusal shows for its full time; an older timer must not hide it.
+  clearTimeout(takenNoteTimer);
+  takenNoteTimer = setTimeout(() => nameHint.classList.add("hidden"), 4000);
 });
 
 function closeNameInput(): void {
@@ -146,7 +153,6 @@ nameInput.addEventListener("keydown", (e) => {
   e.preventDefault();
   const name = normalizePlayerName(nameInput.value);
   if (name) {
-    pendingName = name;
     network.sendRename(name);
     hideRenameHint();
   }
@@ -312,6 +318,7 @@ async function connect(fromRetry = false): Promise<void> {
 
   gameState = "connecting";
   setOverlay("connecting");
+  serverName = null; // a new join, a new agent: its first name is not a rename
   fog.clear();
   displayState.clear();
 
