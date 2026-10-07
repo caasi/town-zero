@@ -326,7 +326,8 @@ export class Renderer {
     if (agent.role === "player") {
       // Diamond - a player, in the color of its name on every screen, so
       // players can tell each other apart by it. Six colors repeat, so you
-      // are marked by shape: a white ring around your diamond.
+      // are marked by shape: a white dot in the middle of your diamond (the
+      // facing dot is on the edge).
       ctx.fillStyle = playerColor(agent.name || agent.id);
       diamondPath(ctx, px, py);
       ctx.fill();
@@ -334,10 +335,10 @@ export class Renderer {
       ctx.lineWidth = 1.5;
       ctx.stroke();
       if (isPlayer) {
+        ctx.fillStyle = "#fff";
         ctx.beginPath();
-        ctx.arc(cx, cy, TILE_SIZE / 2 - 1, 0, Math.PI * 2);
-        ctx.lineWidth = 2;
-        ctx.stroke();
+        ctx.arc(cx, cy, TILE_SIZE / 8, 0, Math.PI * 2);
+        ctx.fill();
       }
     } else {
       // Triangle - NPCs

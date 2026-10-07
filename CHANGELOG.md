@@ -9,7 +9,8 @@ entries are grouped by date, not by version. The format follows
 ### Changed
 
 - You are drawn in the color of your name, the same color the other
-  players see you in, with a white ring so that you can find yourself.
+  players see you in, with a white dot in the middle so that you can find
+  yourself.
   Your name at the top left has that color too.
 - Food places run out. A berry bush or a food tile holds 3 food, and each
   one grows back 1 food every 30 seconds. An empty one shows no food.
