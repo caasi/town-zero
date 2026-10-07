@@ -11,7 +11,10 @@ export const innkeeperScenario = scenario("innkeeper", (s) => {
     position: { x: 11, y: 21 },
     initialBeliefs: [],
     gender: { kind: "female" },
-    personality: "She is grumpy and sharp-tongued, and she hates to waste time on talk, but she cares about the village more than she shows.",
+    // Checked with real Jev calls (spec 004): "cares about the village"
+    // pulled her to the neutral lines, the same as Reed; "complains about
+    // everything" makes her pick the grumbling ones.
+    personality: "She is grumpy and sharp-tongued, and she complains about everything. She shows her kindness only in what she does, never in what she says.",
     farewells: ["Staring won't fill your bowl. Off you go."],
   });
 
