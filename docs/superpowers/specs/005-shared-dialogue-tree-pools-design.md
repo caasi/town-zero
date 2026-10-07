@@ -1,6 +1,6 @@
 # 005 — Shared dialogue tree pools by village or region (draft)
 
-Status: draft design, not agreed yet. It was a TODO item in `CLAUDE.md`; it moved here so that it can be reviewed as a design, and so that agents do not load it every session. Spike first.
+Status: draft design, not agreed yet. It was a TODO item in `CLAUDE.md`; it moved here so that it can be reviewed as a design, and so that agents do not load it every session. Spike first. Terms: NPC is a non-player character; eDSL is the embedded domain-specific language for dialogue (`shared/src/script-dsl`).
 
 Pools of whole dialogue trees (subtrees with several levels, for example news → the monsters → where the den is), not single lines, so that common conversations can go deep. Many NPCs share a pool; the `reply` nodes inside pick by each NPC's personality, so one tree gives different NPCs different conversations (the spec 004 runs with swapped personalities show this). An NPC's own tree links into the pool trees for its village or region. Conditions read the NPC's beliefs, so what an NPC can talk about follows what news has reached it (the information model).
 

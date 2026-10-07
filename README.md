@@ -50,7 +50,7 @@ CI runs all three.
 - The Canvas 2D client draws the world with fog of war, movement prediction, a HUD (heads-up display) and a dialogue panel. The HUD shows the build commit in the bottom-right corner, so you can name the build in a bug report.
 - Den beasts are AI NPCs. Code makes a short list of options, the Jev model (TypeSafe AI) picks one, and code does it. Beasts guard their den, gather food at berry bushes, store it in the den, roar at intruders and attack threats. Food places run out and grow back slowly.
 - Each player has a name: a random adjective and animal on a first visit; select your name at the top left to change it. No two players or NPCs can have the same name. Players are drawn in the color of their name, and the players online are listed at the top right.
-- A dead player can revive in the village after about 5 seconds. A dead village NPC comes back on its own after about 30 seconds; a dead beast comes back after about 30 seconds, and the den pays food for it (nothing when no beast of the den is alive).
+- A dead player can revive in the village after about 5 seconds. A dead village NPC comes back on its own after about 30 seconds; a dead beast comes back after about 30 seconds when the den has food to pay for it; when no beast of the den is alive, the first one comes back free.
 - A Docker image is built for each push to `main` (see `deploy/README.md`).
 
 **Next:** shared dialogue pools and generated quests (see `TODO.md`). Changes by date are in `CHANGELOG.md`.

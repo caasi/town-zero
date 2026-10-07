@@ -43,9 +43,13 @@ Colyseus answers every path on its own port, so the client files cannot share it
 - Roll back: set `image:` in `compose.yaml` to `ghcr.io/caasi/town-zero:sha-<short>` and run `update.sh`. A pinned tag does not move. Set it back to `:main` to follow `main` again.
 - Stop: `docker compose down`, and remove the crontab line, or the next run starts it again.
 
+## After a deploy
+
+the Dockerfile also gives the commit to the server (`TOWN_ZERO_COMMIT`, full SHA), and `joined` carries it. When the client's short commit is not a prefix of it, or `joined` has no commit (a rollback to an older server), the client shows `#update-notice` (inside the always-rendered `role="status"` region `#update-banner`) with `Reload`, and `Retry` on the error screen reloads the page instead of reconnecting. After a deploy the player presses `Retry` (a reconnect, so a restarting container gives the in-game error, not an nginx 502); when that join finds another build, the page reloads at once. Only a `Retry` join reloads by itself, so a cached old page cannot reload forever. A dev client never shows it. `main.ts` has no tests; check this flow by hand. A deploy restarts the container, so every tab is disconnected and finds out on its next join.
+
 ## Costs and limits
 
-- Jev calls happen only while a player is active (a visible tab that sent a message in the last ~2 minutes), at most one per beast per second. An idle tab left open all night once cost ~9.5M tokens; the `[presence]` and `[idle] Jev paused (hidden N, idle N, players N)` / `[idle] Jev resumed` log lines record why Jev paused.
+- Jev calls happen only while a player is active (a visible tab that sent a message in the last ~2 minutes), at most one per beast per second. An idle tab left open all night once cost ~9.5M tokens; the `[presence]` and `[idle] Jev paused (hidden N, idle N, players N)` / `[idle] Jev resumed` log lines record why Jev paused. They are there to decide later whether the presence message is worth keeping: a hidden tab also stops sending input, so the idle timeout alone would catch it within ~2 minutes.
 - To count the Jev cost, add up the token counts in the server log. Each beast decision is logged as `[jev] <agent> chose <id> from <options> (in <input tokens>, out <output tokens>) at (<x>,<y>), carrying <food>, den food <believed count, or unknown, or none without a home>`; the position and beliefs are for the log only (Jev gets no coordinates). Count these as calls of unknown cost, not as free:
   - a line without `(in …, out …)`: the reply had no usable `usage` (the decision still counts; `usage` is a required field, so this is rare);
   - a `[jev] decision failed` line (timeout, HTTP error): the fallback rule decides, and the provider may still have charged the call.
