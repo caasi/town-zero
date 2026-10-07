@@ -54,7 +54,7 @@ JevController.update(state)            // GameRoom, once per tick, before proces
 | `roar` | a threat is in sight | show a "ROAR!" bubble, stand still ~2 s |
 | `attack:<id>` | one for each threat seen this tick | walk to it, face it, attack once per ~1 s; stop when it is no longer a threat |
 
-A threat is an enemy within 6 steps of the den core, or an enemy next to the agent. Beasts do not hunt enemies far from the den: they guard it. Food taken at the den (3) is less than a full load, so `bring_food_home` does not store it back; without this rule, take and deposit alternate and each turn is a paid call (seen in a spike with the real API: 88 calls in 45 s, 50 after the fix). A beast that has just stored its load carries nothing and may take food again, but that round (forage 5, store 5, take 3) still adds 2 food to the den.
+A threat is an enemy within 6 steps of the den core, or an enemy next to the agent. Beasts do not hunt enemies far from the den: they guard it. Food taken at the den (3) is less than a full load, so `bring_food_home` does not store it back; without this rule, take and deposit alternate and each turn is a paid call (seen in a spike with the real API: 88 calls in 45 s, 50 after the fix). A beast that stores its load keeps 3 food (the beast eats first, like a wolf), so it is not offered to take food back at once; before this rule it stored all 5, carried nothing, and took 3 back: two paid calls for 2 food in the den (seen in the server log).
 
 Berry bushes east of the den are the beasts' food source. Dead NPCs come back (`server/src/simulation/respawn.ts`): a village NPC after ~30 s; a den beast after ~30 s when the den pays 5 food, or for free when no beast of the den is alive, so a den never dies out.
 
