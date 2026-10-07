@@ -123,6 +123,11 @@ export class NetworkClient {
     this.room?.send("revive");
   }
 
+  // The server pauses Jev while every player is idle or has the tab hidden.
+  sendPresence(active: boolean): void {
+    this.room?.send("presence", { active });
+  }
+
   onDialogueState(cb: (data: DialogueStatePayload) => void): void {
     this.dialogueStateCallbacks.push(cb);
   }
