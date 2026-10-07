@@ -186,6 +186,7 @@ export function describeState(agent: Agent, state: SimulationState): Record<stri
     ? "an unknown amount of food"
     : `${known} food${known < DEN_FOOD_LOW ? " (low)" : ""}`;
   const foodTile = nearestKnownFood(agent, state);
+  const emptyTile = nearestKnownFood(agent, state, true);
   return {
     self: `a ${agent.role} of the den. HP ${agent.hp} of ${agent.maxHp}. Carrying ${food} food.${food === 0 ? " Hungry." : ""}`,
     home: !home
@@ -193,9 +194,13 @@ export function describeState(agent: Agent, state: SimulationState): Record<stri
       : home.isInTerritory(agent.position)
         ? `inside the den, which holds ${denFood}`
         : `the den is ${distance(agent.position, homeCenter(home))} steps away and holds ${denFood}`,
+    // Used-up places must show here too, or the state says "knows no place"
+    // while wait_for_food offers to wait at one, and Jev never picks it.
     food_places: foodTile
       ? `knows a place where food grows, ${distance(agent.position, foodTile)} steps away`
-      : "knows no place where food grows",
+      : emptyTile
+        ? `knows places where food grows, ${distance(agent.position, emptyTile)} steps away, but saw them eaten bare; they grow back in time`
+        : "knows no place where food grows",
     visible: enemies.length > 0 ? enemies : "no enemies in sight",
   };
 }

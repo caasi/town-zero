@@ -223,6 +223,12 @@ describe("wait_for_food", () => {
     return s;
   }
 
+  it("the state says the beast knows the used-up places, so it matches the option", () => {
+    const { state, beast } = emptyBush();
+    expect(describeState(beast, state).food_places)
+      .toBe("knows places where food grows, 6 steps away, but saw them eaten bare; they grow back in time");
+  });
+
   it("is offered only when the beast remembers a used-up food place", () => {
     const { state, beast } = setup();
     expect(buildOptions(beast, state).map((o) => o.id)).not.toContain("wait_for_food");
