@@ -188,7 +188,8 @@ export function describeState(agent: Agent, state: SimulationState): Record<stri
   const foodTile = nearestKnownFood(agent, state);
   const emptyTile = nearestKnownFood(agent, state, true);
   return {
-    self: `a ${agent.role} of the den. HP ${agent.hp} of ${agent.maxHp}. Carrying ${food} food.${food === 0 ? " Hungry." : ""}`,
+    // "(full)" matters: without it Jev sent full beasts to look for food (spike).
+    self: `a ${agent.role} of the den. HP ${agent.hp} of ${agent.maxHp}. Carrying ${food} food${food >= CARRY_FULL ? " (full)" : ""}.${food === 0 ? " Hungry." : ""}`,
     home: !home
       ? "no home"
       : home.isInTerritory(agent.position)

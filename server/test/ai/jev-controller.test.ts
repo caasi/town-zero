@@ -205,6 +205,16 @@ describe("what the beast knows", () => {
     expect(buildOptions(beast, state).map((o) => o.id)).not.toContain("bring_food_home");
   });
 
+  it("says when the beast carries a full load", () => {
+    // Without "(full)", real Jev calls picked explore 10 of 10 times for a
+    // beast with 5 food; with it, guard_den 9 of 10 (spike, 2026-10-07).
+    const { state, beast } = setup();
+    beast.addToInventory("food", 5);
+    expect(describeState(beast, state).self).toBe("a beast of the den. HP 100 of 100. Carrying 5 food (full).");
+    beast.inventory.food = 4;
+    expect(describeState(beast, state).self).toBe("a beast of the den. HP 100 of 100. Carrying 4 food.");
+  });
+
   it("describes an enemy by what it saw, not by the live agent", () => {
     const { state, beast, player } = setup();
     see(beast, player, state.tick);
