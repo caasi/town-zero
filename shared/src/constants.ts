@@ -26,6 +26,12 @@ export const PLAYER_NAME_MAX = 16;            // characters as a person sees the
 export const PLAYER_NAME_MAX_MARKS = 3;       // combining marks kept per character (Vietnamese, emoji keycaps)
 export const PLAYER_NAME_MAX_UNITS = 128;     // UTF-16 units in a whole name, a backstop for long emoji sequences
 
+// --- Join refusals ---
+// Close codes for a join that GameRoom.onJoin refuses. Not 4000 or 4001:
+// Colyseus uses those (CONSENTED, SERVER_SHUTDOWN, sent on every deploy).
+export const JOIN_REFUSED_NO_VILLAGE = 4100;
+export const JOIN_REFUSED_FULL = 4101;
+
 // --- Settlement ---
 export const HOUSING_POPULATION_CAP = 6;      // population per housing structure (village: 2 x 6 = 12)
 

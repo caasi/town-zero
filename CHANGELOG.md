@@ -8,6 +8,14 @@ entries are grouped by date, not by version. The format follows
 
 ### Changed
 
+- You are drawn in the color of your name, the same color the other
+  players see you in. You are a diamond in your color, and the other players
+  are white diamonds edged in their color. The player list shows each
+  color.
+  Your name at the top left has that color too.
+- You cannot take the name of another player or of an NPC, also with
+  other capital letters. A second tab of the same browser gets a number
+  after the name, such as "Quiet Otter 2".
 - Food places run out. A berry bush or a food tile holds 3 food, and each
   one grows back 1 food every 30 seconds. An empty one shows no food.
   Material tiles work the same way.
@@ -59,6 +67,9 @@ entries are grouped by date, not by version. The format follows
 
 ### Fixed
 
+- When the village is full, the error screen says so ("The village is
+  full. Try again later.") instead of "Connection failed: Village is
+  full".
 - The dialogue panel showed "npc" as the speaker; it shows the NPC's
   name now.
 - Walking into the map edge moved the player one tile off the map and then

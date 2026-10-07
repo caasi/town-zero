@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  normalizePlayerName, playerColor, randomPlayerName,
+  normalizePlayerName, playerColor, randomPlayerName, playerNameKey, uniquePlayerName,
   PLAYER_NAME_MAX, PLAYER_NAME_MAX_UNITS, PLAYER_COLORS, NAME_ADJECTIVES, NAME_ANIMALS,
 } from "@town-zero/shared";
 
@@ -67,7 +67,7 @@ describe("playerColor", () => {
     expect(used.size).toBe(PLAYER_COLORS.length);
   });
 
-  it("does not use the colors of you, NPCs and enemies", () => {
+  it("does not use the old self blue, NPC green or enemy red (exact values)", () => {
     for (const reserved of ["#4af", "#6c6", "#c44"]) expect(PLAYER_COLORS).not.toContain(reserved);
   });
 });
@@ -82,5 +82,36 @@ describe("randomPlayerName", () => {
     for (const a of NAME_ADJECTIVES) for (const n of NAME_ANIMALS) {
       expect(normalizePlayerName(`${a} ${n}`)).toBe(`${a} ${n}`);
     }
+  });
+});
+
+describe("playerNameKey", () => {
+  it("treats names that differ only in case or width as the same name", () => {
+    expect(playerNameKey("Quiet Otter")).toBe(playerNameKey("quiet OTTER"));
+    expect(playerNameKey("Quiet Otter")).toBe(playerNameKey("\uFF31uiet \uFF2Ftter")); // full-width Q and O
+    expect(playerNameKey("Quiet Otter")).not.toBe(playerNameKey("Quiet Otters"));
+    // ZWJ stays in a name (it joins emoji) but draws as nothing.
+    expect(playerNameKey("Quiet\u200D Otter")).toBe(playerNameKey("Quiet Otter"));
+    expect(playerNameKey("Quiet Ot\u200Dter")).toBe(playerNameKey("Quiet Otter"));
+  });
+});
+
+describe("uniquePlayerName", () => {
+  const takenBy = (...names: string[]) => (name: string) => names.map(playerNameKey).includes(playerNameKey(name));
+
+  it("keeps a free name", () => {
+    expect(uniquePlayerName("Quiet Otter", takenBy())).toBe("Quiet Otter");
+  });
+
+  it("adds the first free number to a taken name", () => {
+    expect(uniquePlayerName("Quiet Otter", takenBy("quiet otter"))).toBe("Quiet Otter 2");
+    expect(uniquePlayerName("Quiet Otter", takenBy("Quiet Otter", "Quiet Otter 2"))).toBe("Quiet Otter 3");
+  });
+
+  it("cuts the name so that the number still fits", () => {
+    const long = "ABCDEFGHIJKLMNOP"; // 16 characters
+    const name = uniquePlayerName(long, takenBy(long));
+    expect(name).toBe("ABCDEFGHIJKLMN 2");
+    expect(normalizePlayerName(name)).toBe(name);
   });
 });

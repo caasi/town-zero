@@ -1,5 +1,5 @@
 import { Room, Client } from "@colyseus/core";
-import { TICK_RATE_MS, REVIVE_DELAY_TICKS, IDLE_TIMEOUT_TICKS, normalizePlayerName } from "@town-zero/shared";
+import { TICK_RATE_MS, REVIVE_DELAY_TICKS, IDLE_TIMEOUT_TICKS, JOIN_REFUSED_FULL, JOIN_REFUSED_NO_VILLAGE, normalizePlayerName, playerNameKey, uniquePlayerName } from "@town-zero/shared";
 import { WorldStateSchema } from "./schemas/WorldStateSchema.js";
 import { generateMap } from "../map/generator.js";
 import { processTick, type SimulationState } from "../simulation/tick.js";
@@ -73,6 +73,10 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
       if (!agent || !data || typeof data !== "object") return;
       const name = normalizePlayerName((data as { name?: unknown }).name);
       if (!name || name === agent.name) return;
+      if (this.nameTaken(name, agent.id)) {
+        client.send("rename:rejected", { name });
+        return;
+      }
       console.log(`[name] ${agent.id} renamed ${agent.name} -> ${name}`);
       agent.name = name;
     });
@@ -147,17 +151,19 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
       .find((s) => s.type === "village");
 
     if (!village) {
-      client.leave(4000, "No village available");
+      client.leave(JOIN_REFUSED_NO_VILLAGE, "No village available");
       return;
     }
 
     if (village.populationIds.length >= village.getPopulationCap()) {
-      client.leave(4001, "Village is full");
+      client.leave(JOIN_REFUSED_FULL, "Village is full");
       return;
     }
 
     // The client sends a stored or random name; Player-N is for a client that sends none.
-    const name = normalizePlayerName(options?.name) ?? `Player-${this.nextPlayerId}`;
+    // Two tabs of one browser send the same stored name, so a taken name
+    // gets a number here instead of a refusal.
+    const name = uniquePlayerName(normalizePlayerName(options?.name) ?? `Player-${this.nextPlayerId}`, (n) => this.nameTaken(n));
     const id = `player-${this.nextPlayerId++}`;
 
     const spawnTile = findSpawnTile(village, this.simState);
@@ -222,6 +228,15 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
     this.hiddenSessions.delete(client.sessionId);
     purgeProximityState(this.simState, agentId);
     console.log(`${agentId} left and was removed (${client.sessionId})`);
+  }
+
+  /** No two agents, players or NPCs, share a name (compared by playerNameKey). */
+  private nameTaken(name: string, exceptId?: string): boolean {
+    const key = playerNameKey(name);
+    for (const agent of this.simState.agents.values()) {
+      if (agent.id !== exceptId && playerNameKey(agent.name) === key) return true;
+    }
+    return false;
   }
 
   // A message from the player marks its session active.

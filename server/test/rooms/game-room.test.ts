@@ -2,7 +2,7 @@ import "../../src/polyfill.js";
 import "../../src/encoder-config.js";
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { DIALOGUE_TIMEOUT_TICKS, FOOD_CONSUMPTION_INTERVAL, IDLE_TIMEOUT_TICKS, REVIVE_DELAY_TICKS, TICK_RATE_MS } from "@town-zero/shared";
+import { DIALOGUE_TIMEOUT_TICKS, FOOD_CONSUMPTION_INTERVAL, IDLE_TIMEOUT_TICKS, JOIN_REFUSED_FULL, REVIVE_DELAY_TICKS, TICK_RATE_MS } from "@town-zero/shared";
 import type { WorldStateSchema } from "../../src/rooms/schemas/WorldStateSchema.js";
 
 // Direct-instantiation approach: test GameRoom lifecycle methods directly
@@ -86,6 +86,43 @@ describe("GameRoom integration", () => {
       }
       tick(room);
       expect(playerSchema().name).toBe("Solid Heron");
+    });
+
+    const names = () => {
+      const all: string[] = [];
+      state.agents.forEach((agent: any) => { if (agent.controller === "player") all.push(agent.name); });
+      return all.sort();
+    };
+
+    it("gives a joining player a number when its name is taken", () => {
+      joinClient(room, mockClient("session-1"), { name: "Quiet Otter" });
+      joinClient(room, mockClient("session-2"), { name: "quiet otter" });
+      joinClient(room, mockClient("session-3"), { name: "Quiet Otter" });
+      tick(room);
+      // Each keeps the case it sent; only the number is added.
+      expect(names()).toEqual(["Quiet Otter", "Quiet Otter 3", "quiet otter 2"]);
+    });
+
+    it("refuses a rename to another player's or an NPC's name, and says so", () => {
+      const a = mockClient("session-1");
+      const b = mockClient("session-2");
+      joinClient(room, a, { name: "Quiet Otter" });
+      joinClient(room, b, { name: "Iron Falcon" });
+      for (const taken of ["QUIET OTTER", "Farmer Reed", "innkeeper"]) {
+        sendMessage(room, b, "rename", { name: taken });
+      }
+      tick(room);
+      expect(names()).toEqual(["Iron Falcon", "Quiet Otter"]);
+      expect(b.messages.filter((m: any) => m.type === "rename:rejected").map((m: any) => m.data))
+        .toEqual([{ name: "QUIET OTTER" }, { name: "Farmer Reed" }, { name: "innkeeper" }]);
+    });
+
+    it("lets a player change the case of its own name", () => {
+      const a = mockClient("session-1");
+      joinClient(room, a, { name: "Quiet Otter" });
+      sendMessage(room, a, "rename", { name: "quiet otter" });
+      tick(room);
+      expect(names()).toEqual(["quiet otter"]);
     });
 
     it("ignores a rename from a session without an agent", () => {
@@ -556,7 +593,7 @@ describe("GameRoom integration", () => {
     joinClient(room, rejected, { name: "TooMany" });
 
     expect(leaveSpy.called).toBe(true);
-    expect(leaveSpy.code).toBe(4001);
+    expect(leaveSpy.code).toBe(JOIN_REFUSED_FULL);
     expect(leaveSpy.reason).toBe("Village is full");
     expect(village.populationIds.length).toBe(cap);
   });

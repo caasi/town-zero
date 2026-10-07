@@ -14,6 +14,7 @@ export class NetworkClient {
   private dialogueEndCallbacks: Array<(data: { reason: string }) => void> = [];
   private dialogueErrorCallbacks: Array<(data: { error: string }) => void> = [];
   private leftCallbacks: Array<(code: number) => void> = [];
+  private renameRejectedCallbacks: Array<(data: { name: string }) => void> = [];
   private _serverCommit: unknown;
   private joinedResolve: ((agentId: string) => void) | null = null;
   private joinedReject: ((reason: Error) => void) | null = null;
@@ -86,6 +87,10 @@ export class NetworkClient {
       for (const cb of this.deathCallbacks) cb(data);
     });
 
+    this.room.onMessage("rename:rejected", (data: { name: string }) => {
+      for (const cb of this.renameRejectedCallbacks) cb(data);
+    });
+
     this.room.onMessage("revived", () => {
       for (const cb of this.revivedCallbacks) cb();
     });
@@ -116,6 +121,11 @@ export class NetworkClient {
 
   onVision(cb: (data: VisionData) => void): void {
     this.visionCallbacks.push(cb);
+  }
+
+  /** The server refused a rename, because another agent has that name. */
+  onRenameRejected(cb: (data: { name: string }) => void): void {
+    this.renameRejectedCallbacks.push(cb);
   }
 
   onDeath(cb: (data: { agentId: string; reviveInMs: number }) => void): void {

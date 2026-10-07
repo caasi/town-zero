@@ -324,12 +324,15 @@ export class Renderer {
     ctx.globalAlpha = isDead ? 0.5 : 1;
 
     if (agent.role === "player") {
-      // Diamond - a player: blue for you; the others in the color of their
-      // name, so they do not look like NPCs and match the player list.
-      ctx.fillStyle = isPlayer ? SELF_COLOR : playerColor(agent.name || agent.id);
+      // Diamond - a player, in the color of its name on every screen, so
+      // players can tell each other apart by it. Six colors repeat, so the
+      // fill tells you from the others: you are filled with your color and
+      // edged white; they are filled white and edged with their color.
+      const color = playerColor(agent.name || agent.id);
       diamondPath(ctx, px, py);
+      ctx.fillStyle = isPlayer ? color : "#fff";
       ctx.fill();
-      ctx.strokeStyle = "#fff";
+      ctx.strokeStyle = isPlayer ? "#fff" : color;
       ctx.lineWidth = 1.5;
       ctx.stroke();
     } else {
@@ -398,20 +401,24 @@ export class Renderer {
     // each tick without you, and a merged copy from a neighbour replaces a
     // tile only when it is newer.
     if (entity.role === "player") {
-      ctx.fillStyle = name ? playerColor(name) : LEFT_PLAYER_COLOR;
+      // White with a colored edge, as other players are drawn live.
       diamondPath(ctx, px, py);
+      ctx.fillStyle = "#fff";
+      ctx.fill();
+      ctx.strokeStyle = name ? playerColor(name) : LEFT_PLAYER_COLOR;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
     } else {
       const isEnemy = playerFaction !== "" && entity.faction !== playerFaction;
       ctx.fillStyle = isEnemy ? "#c44" : "#6c6";
       trianglePath(ctx, px, py);
+      ctx.fill();
     }
-    ctx.fill();
 
     ctx.globalAlpha = 1;
   }
 }
 
-export const SELF_COLOR = "#4af";
 const LEFT_PLAYER_COLOR = "#999";
 
 function diamondPath(ctx: CanvasRenderingContext2D, px: number, py: number): void {

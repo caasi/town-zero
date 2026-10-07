@@ -10,8 +10,8 @@ import { DialogueUI } from "./dialogue-ui.js";
 import { TILE_SIZE } from "./constants.js";
 import type { GameState } from "./types.js";
 import { isStaleClient } from "./version.js";
+import { leaveMessage, joinErrorMessage } from "./leave-message.js";
 import { loadPlayerName, savePlayerName, renameHintSeen, markRenameHintSeen } from "./player-name.js";
-import { SELF_COLOR } from "./renderer.js";
 
 // DOM elements
 const canvas = document.getElementById("game-canvas") as HTMLCanvasElement;
@@ -73,8 +73,21 @@ function updateHUD(): void {
   const currency = agent.inventory?.get("currency") ?? 0;
   inventoryEl.textContent = `🍖${food} 🪵${material} 💰${currency}`;
 
+  // After the join, every change of your name on the server is a rename it
+  // took, so it is kept; a refused one never shows here. The join's name is
+  // not kept: it can carry a number ("Quiet Otter 2") for a second tab.
+  if (agent.name && agent.name !== serverName) {
+    if (serverName !== null) {
+      playerName = agent.name;
+      savePlayerName(storage(), agent.name);
+    }
+    serverName = agent.name;
+  }
   // The server's name, after its cleaning; not while the field is open.
-  if (nameInput.classList.contains("hidden") && agent.name) nameText.textContent = agent.name;
+  if (nameInput.classList.contains("hidden") && agent.name) {
+    nameText.textContent = agent.name;
+    nameBtn.style.color = playerColor(agent.name); // the color others see you in
+  }
   updatePlayerList();
 }
 
@@ -88,18 +101,32 @@ function storage(): Storage {
 
 const { name: startName, isNew: newName } = loadPlayerName(storage());
 let playerName = startName;
+let serverName: string | null = null; // your name in the server state; null until the join
 nameText.textContent = playerName;
+nameBtn.style.color = playerColor(playerName);
 
 // Only for a name the game picked, and only until the player renames or ~20 s pass.
+const RENAME_HINT = nameHint.textContent;
 if (newName && !renameHintSeen(storage())) {
   nameHint.classList.remove("hidden");
   setTimeout(hideRenameHint, 20_000);
 }
 
 function hideRenameHint(): void {
-  nameHint.classList.add("hidden");
+  // Not "That name is taken", which uses the same place.
+  if (nameHint.textContent === RENAME_HINT) nameHint.classList.add("hidden");
   markRenameHintSeen(storage());
 }
+
+// Registered once: the network client lives across reconnects.
+let takenNoteTimer: ReturnType<typeof setTimeout> | undefined;
+network.onRenameRejected(() => {
+  nameHint.textContent = "That name is taken";
+  nameHint.classList.remove("hidden");
+  // A new refusal shows for its full time; an older timer must not hide it.
+  clearTimeout(takenNoteTimer);
+  takenNoteTimer = setTimeout(() => nameHint.classList.add("hidden"), 4000);
+});
 
 function closeNameInput(): void {
   nameInput.classList.add("hidden");
@@ -109,7 +136,7 @@ function closeNameInput(): void {
 nameBtn.addEventListener("click", () => {
   nameBtn.classList.add("hidden");
   nameInput.classList.remove("hidden");
-  nameInput.value = playerName;
+  nameInput.value = serverName ?? playerName; // the name shown, which can carry a join number
   nameInput.focus();
   nameInput.select();
 });
@@ -127,9 +154,6 @@ nameInput.addEventListener("keydown", (e) => {
   e.preventDefault();
   const name = normalizePlayerName(nameInput.value);
   if (name) {
-    playerName = name;
-    nameText.textContent = name;
-    savePlayerName(storage(), name);
     network.sendRename(name);
     hideRenameHint();
   }
@@ -149,7 +173,7 @@ function updatePlayerList(): void {
     if (a.role !== "player") return;
     const self = a.id === network.playerId;
     const name = a.name || a.id;
-    players.push({ name, color: self ? SELF_COLOR : playerColor(name), dead: a.state === "dead", self });
+    players.push({ name, color: playerColor(name), dead: a.state === "dead", self });
   });
   players.sort((a, b) => Number(b.self) - Number(a.self) || a.name.localeCompare(b.name));
   const key = JSON.stringify(players);
@@ -160,6 +184,7 @@ function updatePlayerList(): void {
     li.classList.toggle("dead", p.dead);
     const swatch = document.createElement("span");
     swatch.className = "swatch";
+    // A plain swatch for everyone; "(you)" already marks you.
     swatch.style.background = p.color;
     const label = document.createElement("span");
     label.textContent = p.self ? `${p.name} (you)` : p.name; // textContent: names are untrusted
@@ -293,6 +318,7 @@ async function connect(fromRetry = false): Promise<void> {
 
   gameState = "connecting";
   setOverlay("connecting");
+  serverName = null; // a new join, a new agent: its first name is not a rename
   fog.clear();
   displayState.clear();
 
@@ -328,7 +354,7 @@ async function connect(fromRetry = false): Promise<void> {
     network.onVision((vision) => fog.update(vision));
     network.onLeft((code) => {
       gameState = "error";
-      errorText.textContent = `Disconnected from the server (code ${code}). The game may have been updated.`;
+      errorText.textContent = leaveMessage(code);
       setOverlay("error");
       input?.setEnabled(false);
       dialogueUI.hide();
@@ -373,7 +399,7 @@ async function connect(fromRetry = false): Promise<void> {
     setOverlay("playing");
   } catch (err: any) {
     gameState = "error";
-    errorText.textContent = `Connection failed: ${err.message ?? err}`;
+    errorText.textContent = joinErrorMessage(err);
     setOverlay("error");
   } finally {
     isConnecting = false;
