@@ -36,6 +36,39 @@
     #hp-text { font-size: 12px; margin-bottom: 6px; }
     #inventory { font-size: 13px; }
 
+    /* Your name: a button that turns into a text field to rename. */
+    #name-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    #name-btn {
+      font: 13px monospace; color: #4af; background: none; border: none;
+      padding: 0; cursor: pointer; white-space: nowrap;
+    }
+    /* Cut the name, not the ✎ that says the button renames. */
+    #name-text {
+      display: inline-block; vertical-align: bottom; max-width: 36vw;
+      overflow: hidden; text-overflow: ellipsis;
+    }
+    #name-btn:hover, #name-btn:focus-visible { text-decoration: underline; }
+    #name-input {
+      font: 13px monospace; color: #eee; background: #222; border: 1px solid #4af;
+      padding: 1px 4px; width: min(34ch, 60vw); /* 16 wide (CJK) characters */
+    }
+    #name-hint { font-size: 11px; color: #aaa; }
+    #name-row .hidden { display: none; }
+
+    /* Players online, each in the color the map draws them in. */
+    #player-list {
+      position: absolute; top: 12px; right: 12px; list-style: none;
+      font-size: 12px; background: rgba(0,0,0,0.6); padding: 6px 10px; border-radius: 4px;
+    }
+    #player-list:empty { display: none; }
+    #player-list { max-width: 40vw; max-height: 50vh; overflow-y: auto; }
+    #player-list li { display: flex; align-items: center; gap: 6px; line-height: 1.6; }
+    #player-list li span:last-child { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    #player-list li.dead { opacity: 0.5; }
+    #player-list .swatch {
+      width: 9px; height: 9px; transform: rotate(45deg); flex: none;
+    }
+
     #key-hints {
       position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
       font-size: 12px; color: #888; background: rgba(0,0,0,0.6);
@@ -115,11 +148,17 @@
     <canvas id="game-canvas"></canvas>
     <div id="hud">
       <div id="hud-top-left">
+        <div id="name-row">
+          <button id="name-btn" type="button" title="Change your name"><span id="name-text"></span> ✎</button>
+          <input id="name-input" class="hidden" type="text" aria-label="Your name" autocomplete="off" spellcheck="false">
+          <span id="name-hint" class="hidden">← click to rename</span>
+        </div>
         <div id="hp-text">HP: 100/100</div>
         <div id="hp-bar-container"><div id="hp-bar" style="width:100%"></div></div>
         <div id="inventory">🍖0 🪵0 💰0</div>
       </div>
       <div id="key-hints">WASD:Move  E:Interact  Q:Attack  G:Gather  T:Deposit</div>
+      <ul id="player-list" aria-label="Players online"></ul>
       <div id="commit">%VITE_COMMIT%</div>
     </div>
 

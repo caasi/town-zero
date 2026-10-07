@@ -33,6 +33,12 @@ entries are grouped by date, not by version. The format follows
 
 ### Added
 
+- Name your player. On your first visit the game picks a name for you,
+  such as "Quiet Otter"; select your name at the top left to change it.
+  The browser remembers it.
+- Other players are drawn in their own color, with their name above
+  them, and a list of the players online is at the top right.
+
 - The innkeeper of Tandi, a grumpy woman who talks but gives no quest.
 - Friendly NPCs answer some questions with a reply that fits their
   personality and the village's food, picked by the AI from written lines.

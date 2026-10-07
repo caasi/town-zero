@@ -1,5 +1,5 @@
 // client/src/main.ts
-import { DEFAULT_VISION_RADIUS, TICK_RATE_MS } from "@town-zero/shared";
+import { DEFAULT_VISION_RADIUS, TICK_RATE_MS, normalizePlayerName, playerColor } from "@town-zero/shared";
 import { NetworkClient } from "./network.js";
 import { FogManager } from "./fog.js";
 import { Camera } from "./camera.js";
@@ -10,6 +10,8 @@ import { DialogueUI } from "./dialogue-ui.js";
 import { TILE_SIZE } from "./constants.js";
 import type { GameState } from "./types.js";
 import { isStaleClient } from "./version.js";
+import { loadPlayerName, savePlayerName, renameHintSeen, markRenameHintSeen } from "./player-name.js";
+import { SELF_COLOR } from "./renderer.js";
 
 // DOM elements
 const canvas = document.getElementById("game-canvas") as HTMLCanvasElement;
@@ -22,6 +24,11 @@ const updateNotice = document.getElementById("update-notice")!;
 const hpText = document.getElementById("hp-text")!;
 const hpBar = document.getElementById("hp-bar")!;
 const inventoryEl = document.getElementById("inventory")!;
+const nameBtn = document.getElementById("name-btn")!;
+const nameText = document.getElementById("name-text")!;
+const nameInput = document.getElementById("name-input") as HTMLInputElement;
+const nameHint = document.getElementById("name-hint")!;
+const playerListEl = document.getElementById("player-list")!;
 
 // Modules
 const network = new NetworkClient();
@@ -65,6 +72,100 @@ function updateHUD(): void {
   const material = agent.inventory?.get("material") ?? 0;
   const currency = agent.inventory?.get("currency") ?? 0;
   inventoryEl.textContent = `🍖${food} 🪵${material} 💰${currency}`;
+
+  // The server's name, after its cleaning; not while the field is open.
+  if (nameInput.classList.contains("hidden") && agent.name) nameText.textContent = agent.name;
+  updatePlayerList();
+}
+
+// --- Player name ---
+
+// Reading window.localStorage itself can throw (blocked site data); an empty
+// object makes every access throw, which player-name.ts handles.
+function storage(): Storage {
+  try { return window.localStorage; } catch { return {} as Storage; }
+}
+
+const { name: startName, isNew: newName } = loadPlayerName(storage());
+let playerName = startName;
+nameText.textContent = playerName;
+
+// Only for a name the game picked, and only until the player renames or ~20 s pass.
+if (newName && !renameHintSeen(storage())) {
+  nameHint.classList.remove("hidden");
+  setTimeout(hideRenameHint, 20_000);
+}
+
+function hideRenameHint(): void {
+  nameHint.classList.add("hidden");
+  markRenameHintSeen(storage());
+}
+
+function closeNameInput(): void {
+  nameInput.classList.add("hidden");
+  nameBtn.classList.remove("hidden");
+}
+
+nameBtn.addEventListener("click", () => {
+  nameBtn.classList.add("hidden");
+  nameInput.classList.remove("hidden");
+  nameInput.value = playerName;
+  nameInput.focus();
+  nameInput.select();
+});
+
+nameInput.addEventListener("keydown", (e) => {
+  // Enter and Esc also accept or drop an input method (IME) candidate, for
+  // example while typing a CJK name; that key press is not for the field.
+  // Safari ends the composition before this keydown, so isComposing is false
+  // there and only keyCode 229 tells.
+  if (e.isComposing || e.keyCode === 229) return;
+  if (e.key === "Escape") { closeNameInput(); nameBtn.focus(); return; }
+  if (e.key !== "Enter") return;
+  // Focus moves to the button below; without this the same Enter clicks it
+  // and opens the field again.
+  e.preventDefault();
+  const name = normalizePlayerName(nameInput.value);
+  if (name) {
+    playerName = name;
+    nameText.textContent = name;
+    savePlayerName(storage(), name);
+    network.sendRename(name);
+    hideRenameHint();
+  }
+  closeNameInput();
+  // Back to the button for a keyboard user; not on blur, which moved focus on purpose.
+  nameBtn.focus();
+});
+nameInput.addEventListener("blur", closeNameInput);
+
+// Rebuilt only when a name, a death or the set of players changes.
+let playerListKey = "";
+function updatePlayerList(): void {
+  const state = network.state;
+  if (!state?.agents) return;
+  const players: Array<{ name: string; color: string; dead: boolean; self: boolean }> = [];
+  state.agents.forEach((a: any) => {
+    if (a.role !== "player") return;
+    const self = a.id === network.playerId;
+    const name = a.name || a.id;
+    players.push({ name, color: self ? SELF_COLOR : playerColor(name), dead: a.state === "dead", self });
+  });
+  players.sort((a, b) => Number(b.self) - Number(a.self) || a.name.localeCompare(b.name));
+  const key = JSON.stringify(players);
+  if (key === playerListKey) return;
+  playerListKey = key;
+  playerListEl.replaceChildren(...players.map((p) => {
+    const li = document.createElement("li");
+    li.classList.toggle("dead", p.dead);
+    const swatch = document.createElement("span");
+    swatch.className = "swatch";
+    swatch.style.background = p.color;
+    const label = document.createElement("span");
+    label.textContent = p.self ? `${p.name} (you)` : p.name; // textContent: names are untrusted
+    li.append(swatch, label);
+    return li;
+  }));
 }
 
 // Player context for input handler
@@ -196,7 +297,7 @@ async function connect(fromRetry = false): Promise<void> {
   displayState.clear();
 
   try {
-    await network.connect("Player");
+    await network.connect(playerName);
     // Same value as the HUD's %VITE_COMMIT% (vite.config.ts).
     staleClient = isStaleClient(import.meta.env.VITE_COMMIT, network.serverCommit);
     if (staleClient && fromRetry) {

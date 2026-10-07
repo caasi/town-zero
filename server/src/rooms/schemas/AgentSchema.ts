@@ -2,6 +2,7 @@ import { schema, type SchemaType } from "@colyseus/schema";
 
 export const AgentSchema = schema({
   id: "string",
+  name: "string",
   faction: "string",
   role: "string",
   x: "number",

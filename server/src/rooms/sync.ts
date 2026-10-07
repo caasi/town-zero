@@ -10,6 +10,7 @@ import type { Grid } from "../simulation/grid.js";
 
 export function syncAgent(agent: Agent, agentSchema: AgentSchema): void {
   agentSchema.id = agent.id;
+  agentSchema.name = agent.name;
   agentSchema.faction = agent.faction;
   agentSchema.role = agent.role;
   agentSchema.x = agent.position.x;

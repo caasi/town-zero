@@ -147,6 +147,12 @@ export class InputHandler {
 
   update(): void {
     if (!this.enabled || !this.playerAgent || this._dialogueMode) return;
+    // A key held when the name field took focus would keep moving the player:
+    // keydown ignores the field, but update() reads held keys every frame.
+    if (document.activeElement instanceof HTMLInputElement) {
+      this.heldKeys.clear();
+      return;
+    }
     if (!this.displayState || !this.tiles) return;
 
     // Use the most recently pressed movement key (last in Set insertion order)
@@ -196,6 +202,8 @@ export class InputHandler {
 
   private handleKey(e: KeyboardEvent): void {
     if (!this.enabled) return;
+    // Typing in a text field (the name field) is not a game key.
+    if (e.target instanceof HTMLInputElement) return;
 
     // Dialogue mode input
     if (this._dialogueMode) {
