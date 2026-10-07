@@ -29,7 +29,7 @@ function setup() {
 
 function see(beast: Agent, other: Agent, tick: number) {
   beast.recordTile(other.position.x, other.position.y, "plains",
-    [{ id: other.id, type: "agent", faction: other.faction, position: { ...other.position }, role: other.role, hp: other.hp, maxHp: other.maxHp }], tick);
+    [{ id: other.id, type: "agent", faction: other.faction, position: { ...other.position }, role: other.role, hp: other.hp, maxHp: other.maxHp }], tick, 0);
 }
 
 const flush = () => new Promise((r) => setTimeout(r, 0));

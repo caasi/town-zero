@@ -88,7 +88,7 @@ describe("Jev reply timing (property)", () => {
               state.tick++;
               for (const b of beasts) {
                 b.recordTile(player.position.x, player.position.y, "plains",
-                  [{ id: "p1", type: "agent", faction: player.faction, position: { ...player.position }, role: player.role, hp: player.hp, maxHp: player.maxHp }], state.tick);
+                  [{ id: "p1", type: "agent", faction: player.faction, position: { ...player.position }, role: player.role, hp: player.hp, maxHp: player.maxHp }], state.tick, 0);
               }
               controller.update(state);
               for (const b of beasts) b.planBacklog = []; // the tick consumes the frame

@@ -151,7 +151,7 @@ export class Agent {
     return `${x},${y}`;
   }
 
-  recordTile(x: number, y: number, terrain: TerrainType, entities: EntitySnapshot[], tick: number, resourceAmount = 0): void {
+  recordTile(x: number, y: number, terrain: TerrainType, entities: EntitySnapshot[], tick: number, resourceAmount: number): void {
     this.mapMemory.set(this.memoryKey(x, y), { terrain, entities: [...entities], timestamp: tick, resourceAmount });
   }
 

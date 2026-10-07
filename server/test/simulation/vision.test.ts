@@ -103,6 +103,14 @@ describe("updateStoreKnowledge", () => {
     expect(beast.getBelief(storeFoodKey("den-1"))?.value).toBe(7);
   });
 
+  it("a den-mate next to the agent learns the count from it", () => {
+    const { beast, settlements } = setup();
+    updateStoreKnowledge(beast, settlements, 10);
+    const mate = new Agent({ id: "b2", position: { x: 2, y: 3 }, faction: "den-1", role: "beast", controller: "llm" });
+    mergeAdjacentMemories([beast, mate], new Grid(20, 20));
+    expect(mate.getBelief(storeFoodKey("den-1"))?.value).toBe(7);
+  });
+
   it("a dead agent learns nothing", () => {
     const { beast, settlements } = setup();
     beast.takeDamage(beast.hp);
@@ -117,8 +125,8 @@ describe("mergeAdjacentMemories", () => {
     const a = new Agent({ id: "a1", position: { x: 5, y: 5 }, faction: "v1", role: "farmer", controller: "llm" });
     const b = new Agent({ id: "a2", position: { x: 5, y: 6 }, faction: "v1", role: "scout", controller: "llm" });
 
-    a.recordTile(0, 0, "forest", [], 5);
-    b.recordTile(19, 19, "mountain", [], 8);
+    a.recordTile(0, 0, "forest", [], 5, 0);
+    b.recordTile(19, 19, "mountain", [], 8, 0);
 
     mergeAdjacentMemories([a, b], grid);
 
@@ -131,8 +139,8 @@ describe("mergeAdjacentMemories", () => {
     const a = new Agent({ id: "a1", position: { x: 5, y: 5 }, faction: "v1", role: "farmer", controller: "llm" });
     const b = new Agent({ id: "a2", position: { x: 8, y: 8 }, faction: "v1", role: "scout", controller: "llm" });
 
-    a.recordTile(0, 0, "forest", [], 5);
-    b.recordTile(19, 19, "mountain", [], 8);
+    a.recordTile(0, 0, "forest", [], 5, 0);
+    b.recordTile(19, 19, "mountain", [], 8, 0);
 
     mergeAdjacentMemories([a, b], grid);
 
@@ -145,7 +153,7 @@ describe("mergeAdjacentMemories", () => {
     const a = new Agent({ id: "a1", position: { x: 5, y: 5 }, faction: "v1", role: "farmer", controller: "llm" });
     const b = new Agent({ id: "a2", position: { x: 5, y: 6 }, faction: "den-1", role: "beast", controller: "llm" });
 
-    a.recordTile(0, 0, "forest", [], 5);
+    a.recordTile(0, 0, "forest", [], 5, 0);
 
     mergeAdjacentMemories([a, b], grid);
 

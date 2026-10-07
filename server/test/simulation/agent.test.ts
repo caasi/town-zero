@@ -123,7 +123,7 @@ describe("Agent", () => {
 
   it("records tile in map memory", () => {
     const agent = makeAgent();
-    agent.recordTile(3, 4, "forest", [{ id: "m1", type: "monster", faction: "den-1", position: { x: 3, y: 4 }, role: "beast", hp: 100, maxHp: 100 }], 10);
+    agent.recordTile(3, 4, "forest", [{ id: "m1", type: "monster", faction: "den-1", position: { x: 3, y: 4 }, role: "beast", hp: 100, maxHp: 100 }], 10, 0);
     const mem = agent.getMemory(3, 4);
     expect(mem).not.toBeNull();
     expect(mem!.terrain).toBe("forest");
