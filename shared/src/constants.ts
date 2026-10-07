@@ -23,6 +23,8 @@ export const RESOURCE_REGROW_TICKS = 240;      // every resource tile grows back
 
 // --- Player ---
 export const PLAYER_NAME_MAX = 16;            // characters as a person sees them (grapheme clusters)
+export const PLAYER_NAME_MAX_MARKS = 3;       // combining marks kept per character (Vietnamese, emoji keycaps)
+export const PLAYER_NAME_MAX_UNITS = 128;     // UTF-16 units in a whole name, a backstop for long emoji sequences
 
 // --- Settlement ---
 export const HOUSING_POPULATION_CAP = 6;      // population per housing structure (village: 2 x 6 = 12)

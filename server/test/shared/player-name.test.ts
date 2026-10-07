@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   normalizePlayerName, playerColor, randomPlayerName,
-  PLAYER_NAME_MAX, PLAYER_COLORS, NAME_ADJECTIVES, NAME_ANIMALS,
+  PLAYER_NAME_MAX, PLAYER_NAME_MAX_UNITS, PLAYER_COLORS, NAME_ADJECTIVES, NAME_ANIMALS,
 } from "@town-zero/shared";
 
 const graphemes = (s: string) => [...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(s)].length;
@@ -22,6 +22,25 @@ describe("normalizePlayerName", () => {
     const family = "👨‍👩‍👧"; // one character of 5 code points joined by ZWJ
     expect(normalizePlayerName(family.repeat(17))).toBe(family.repeat(16));
     expect(graphemes(normalizePlayerName(family.repeat(17))!)).toBe(PLAYER_NAME_MAX);
+  });
+
+  it("bounds a name that stacks combining marks (Zalgo text)", () => {
+    const zalgo = ("a" + "\u0301".repeat(5000)).repeat(20);
+    const name = normalizePlayerName(zalgo)!;
+    expect(name.length).toBeLessThanOrEqual(PLAYER_NAME_MAX_UNITS);
+    expect(name.startsWith("a")).toBe(true);
+  });
+
+  it("removes invisible and bidi format characters but keeps emoji joins", () => {
+    expect(normalizePlayerName("\u202Eabc\u2066d\u200Be")).toBe("abcde");
+    const family = "👨‍👩‍👧";
+    expect(normalizePlayerName(family)).toBe(family);
+  });
+
+  it("rejects a name with nothing visible in it", () => {
+    for (const bad of ["\u200B\u200B", "\u200D", "\u0301\u0301", "\u202E"]) {
+      expect(normalizePlayerName(bad), JSON.stringify(bad)).toBeNull();
+    }
   });
 
   it("rejects a name that is empty after cleaning, or not a string", () => {

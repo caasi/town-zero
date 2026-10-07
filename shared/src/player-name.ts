@@ -1,21 +1,38 @@
 // Player names: one rule for the client and the server, so a name the client
 // shows is the name the server keeps.
 
-import { PLAYER_NAME_MAX } from "./constants.js";
+import { PLAYER_NAME_MAX, PLAYER_NAME_MAX_MARKS, PLAYER_NAME_MAX_UNITS } from "./constants.js";
 
 const segmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 
 /**
- * The name to keep, or null when nothing is left. Client input is untrusted:
- * control characters and line breaks go, white space folds to one space, and
- * a long name is cut at PLAYER_NAME_MAX characters, never inside a character
- * (an emoji joined by ZWJ is one character).
+ * The name to keep, or null when nothing visible is left. Client input is
+ * untrusted, and every client draws the name:
+ * - control and format characters go (bidi overrides could reverse other
+ *   text, a zero-width space hides a name), except ZWJ, which joins emoji;
+ * - white space folds to one space;
+ * - at most PLAYER_NAME_MAX characters as a person sees them, never cut
+ *   inside one; each keeps at most PLAYER_NAME_MAX_MARKS combining marks, as
+ *   one character could stack thousands of them (Zalgo text);
+ * - at most PLAYER_NAME_MAX_UNITS UTF-16 units in all.
  */
 export function normalizePlayerName(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
-  const clean = raw.replace(/[\p{Cc}\u2028\u2029]/gu, " ").replace(/\s+/gu, " ").trim();
-  const cut = Array.from(segmenter.segment(clean), (s) => s.segment).slice(0, PLAYER_NAME_MAX).join("").trim();
-  return cut.length > 0 ? cut : null;
+  const clean = raw
+    .replace(/(?!\u200D)\p{Cf}/gu, "")              // format characters: gone
+    .replace(/[\p{Cc}\u2028\u2029\s]+/gu, " ")      // controls, line breaks, white space: one space
+    .trim();
+  let name = "";
+  let count = 0;
+  for (const { segment } of segmenter.segment(clean)) {
+    let marks = 0;
+    const char = Array.from(segment).filter((c) => !/\p{M}/u.test(c) || ++marks <= PLAYER_NAME_MAX_MARKS).join("");
+    if (count === PLAYER_NAME_MAX || name.length + char.length > PLAYER_NAME_MAX_UNITS) break;
+    name += char;
+    count++;
+  }
+  name = name.trim();
+  return /[^\p{M}\p{Z}\u200D]/u.test(name) ? name : null;
 }
 
 // Not the blue of yourself, the green of friendly NPCs or the red of enemies
