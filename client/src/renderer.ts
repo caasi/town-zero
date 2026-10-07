@@ -339,6 +339,10 @@ export class Renderer {
         ctx.beginPath();
         ctx.arc(cx, cy, TILE_SIZE / 8, 0, Math.PI * 2);
         ctx.fill();
+        // A dark edge, or the dot fades on the yellow and peach names.
+        ctx.strokeStyle = "#222";
+        ctx.lineWidth = 1;
+        ctx.stroke();
       }
     } else {
       // Triangle - NPCs
