@@ -108,6 +108,7 @@ Source of truth: `processTick` in `server/src/simulation/tick.ts`.
 - Colyseus Client constructor uses `http://`/`https://` scheme (not `ws://`/`wss://`) — SDK handles WebSocket upgrade internally
 - Food consumption is from agent personal inventory, not settlement (agents must `take` from settlement)
 - **Resource tiles run out and grow back.** A resource tile holds up to `RESOURCE_MAX_AMOUNT` units; `gather` takes one, and every tile grows back one unit per `RESOURCE_REGROW_TICKS` (both in `shared/src/constants.ts`). `TileMemory.resourceAmount` keeps what an agent saw, so a beast walks to a food place it remembers as having food and finds out it is empty when the place comes into sight. A used-up tile is synced with `resourceYield: ""`, so the client shows it as empty with no client change; `syncToSchema` assigns that field only when it changes
+- **Playwright output** (screenshots, snapshots, console logs) goes in `.playwright-mcp/`, which git ignores: give the Playwright MCP a file name under that folder, or none. Do not create a `screenshots/` folder in this repository.
 - Server runs on Node.js via tsx
 - Use pnpm, not bun — bun duplicates @colyseus/core instances causing matchmaker state isolation
 - Shared logic between server and client (e.g. `tilesInManhattanRadius` for vision shape, `isMoveBlocked` for movement) must live in `@town-zero/shared` — duplicating geometry/distance logic across packages causes shape mismatches
