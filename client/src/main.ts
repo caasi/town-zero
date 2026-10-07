@@ -115,6 +115,9 @@ nameBtn.addEventListener("click", () => {
 });
 
 nameInput.addEventListener("keydown", (e) => {
+  // Enter and Esc also accept or drop an input method (IME) candidate, for
+  // example while typing a CJK name; that key press is not for the field.
+  if (e.isComposing) return;
   if (e.key === "Escape") { closeNameInput(); return; }
   if (e.key !== "Enter") return;
   const name = normalizePlayerName(nameInput.value);
