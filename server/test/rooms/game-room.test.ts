@@ -229,6 +229,21 @@ describe("GameRoom integration", () => {
     });
   });
 
+  it.each([
+    ["abc1234def", "abc1234def"],
+    ["", "dev"],
+  ])("tells the client which build the server runs (TOWN_ZERO_COMMIT=%j)", (env, commit) => {
+    vi.stubEnv("TOWN_ZERO_COMMIT", env);
+    try {
+      const client = mockClient("session-1");
+      joinClient(room, client, { name: "Player" });
+      const joined = client.messages.find((m: any) => m.type === "joined");
+      expect(joined.data.commit).toBe(commit);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("multiple players join and appear in state", () => {
     const client1 = mockClient("session-1");
     const client2 = mockClient("session-2");
