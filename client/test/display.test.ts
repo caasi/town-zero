@@ -46,6 +46,16 @@ describe("DisplayState", () => {
       expect(ds.predictMove(1, 0, "idle", tiles)).toBe(false);
     });
 
+    it("rejects a move off the map edge (the tile is never in fog memory)", () => {
+      const ds = new DisplayState();
+      ds.setGridSize(10, 10);
+      ds.setLocalPlayer("p1");
+      initLocal(ds, "p1", { x: 0, y: 9, facing: "west" });
+      expect(ds.predictMove(-1, 9, "idle", makeTiles({}))).toBe(false);
+      initLocal(ds, "p1", { x: 9, y: 9, facing: "south" });
+      expect(ds.predictMove(9, 10, "idle", makeTiles({}))).toBe(false);
+    });
+
     it("allows move in same facing direction and updates display position", () => {
       const ds = new DisplayState();
       ds.setLocalPlayer("p1");
@@ -116,6 +126,16 @@ describe("DisplayState", () => {
   });
 
   describe("reconcileFromServer", () => {
+    it("does not replay a move off the map edge", () => {
+      const ds = new DisplayState();
+      ds.setGridSize(10, 10);
+      ds.setLocalPlayer("p1");
+      initLocal(ds, "p1", { x: 0, y: 0, facing: "west" });
+      const pending: InputFrame[] = [{ seq: 1, direction: "west" }];
+      ds.reconcileFromServer("p1", { x: 0, y: 0, facing: "west", lastProcessedInput: 0, state: "idle" }, pending);
+      expect(ds.get("p1")).toMatchObject({ displayX: 0, displayY: 0 });
+    });
+
     it("with no pending inputs, display equals server position", () => {
       const ds = new DisplayState();
       ds.setLocalPlayer("p1");

@@ -28,6 +28,11 @@ export class DisplayState {
   private displays = new Map<string, AgentDisplay>();
   private localPlayerId: string | null = null;
   private tileSource: TileSource | null = null;
+  private gridSize: { width: number; height: number } | null = null;
+
+  setGridSize(width: number, height: number): void {
+    this.gridSize = { width, height };
+  }
 
   setLocalPlayer(id: string | null): void {
     this.localPlayerId = id;
@@ -83,13 +88,7 @@ export class DisplayState {
       return true;
     }
 
-    const tile = tiles.get(`${targetX},${targetY}`);
-    if (tile) {
-      const terrain = tile.terrain as TerrainType;
-      if (terrain in TERRAIN_MOVE_COST && TERRAIN_MOVE_COST[terrain] === Infinity) {
-        return false;
-      }
-    }
+    if (this.blocked(targetX, targetY, tiles)) return false;
 
     display.displayX = targetX;
     display.displayY = targetY;
@@ -193,6 +192,16 @@ export class DisplayState {
     this.tileSource = null;
   }
 
+  // Mirrors the server's bounds and terrain check (executeDirection). An
+  // unknown tile inside the map is not blocked: fog hides it, and the server
+  // decides. A tile off the map is never in fog memory, so it needs the bounds.
+  private blocked(x: number, y: number, tiles: TileSource): boolean {
+    const size = this.gridSize;
+    if (size && (x < 0 || y < 0 || x >= size.width || y >= size.height)) return true;
+    const terrain = tiles.get(`${x},${y}`)?.terrain as TerrainType | undefined;
+    return terrain !== undefined && terrain in TERRAIN_MOVE_COST && TERRAIN_MOVE_COST[terrain] === Infinity;
+  }
+
   private replayOne(
     display: AgentDisplay,
     targetX: number,
@@ -206,13 +215,7 @@ export class DisplayState {
       return;
     }
 
-    const tile = tiles.get(`${targetX},${targetY}`);
-    if (tile) {
-      const terrain = tile.terrain as TerrainType;
-      if (terrain in TERRAIN_MOVE_COST && TERRAIN_MOVE_COST[terrain] === Infinity) {
-        return;
-      }
-    }
+    if (this.blocked(targetX, targetY, tiles)) return;
 
     display.displayX = targetX;
     display.displayY = targetY;
