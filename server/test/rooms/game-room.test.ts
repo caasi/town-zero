@@ -157,6 +157,15 @@ describe("GameRoom integration", () => {
       expect(jevTicks(3)).toBe(3);
     });
 
+    it("after IDLE_TIMEOUT_TICKS hidden, until the tab is shown again", () => {
+      const client = mockClient("session-1");
+      joinClient(room, client, { name: "Watcher" });
+      sendMessage(room, client, "presence", { active: false });
+      expect(jevTicks(IDLE_TIMEOUT_TICKS + 1)).toBe(0);
+      sendMessage(room, client, "presence", { active: true });
+      expect(jevTicks(3)).toBe(3);
+    });
+
     it("not while another player is active", () => {
       const away = mockClient("session-1");
       joinClient(room, away, { name: "Away" });
