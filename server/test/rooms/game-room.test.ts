@@ -2,7 +2,7 @@ import "../../src/polyfill.js";
 import "../../src/encoder-config.js";
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { DIALOGUE_TIMEOUT_TICKS, FOOD_CONSUMPTION_INTERVAL, IDLE_TIMEOUT_TICKS, REVIVE_DELAY_TICKS, TICK_RATE_MS } from "@town-zero/shared";
+import { DIALOGUE_TIMEOUT_TICKS, FOOD_CONSUMPTION_INTERVAL, IDLE_TIMEOUT_TICKS, JOIN_REFUSED_FULL, REVIVE_DELAY_TICKS, TICK_RATE_MS } from "@town-zero/shared";
 import type { WorldStateSchema } from "../../src/rooms/schemas/WorldStateSchema.js";
 
 // Direct-instantiation approach: test GameRoom lifecycle methods directly
@@ -593,7 +593,7 @@ describe("GameRoom integration", () => {
     joinClient(room, rejected, { name: "TooMany" });
 
     expect(leaveSpy.called).toBe(true);
-    expect(leaveSpy.code).toBe(4001);
+    expect(leaveSpy.code).toBe(JOIN_REFUSED_FULL);
     expect(leaveSpy.reason).toBe("Village is full");
     expect(village.populationIds.length).toBe(cap);
   });

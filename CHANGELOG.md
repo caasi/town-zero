@@ -69,8 +69,7 @@ entries are grouped by date, not by version. The format follows
 
 - When the village is full, the error screen says so ("The village is
   full. Try again later.") instead of "Connection failed: Village is
-  full", and a dropped connection with that code no longer says that the
-  game may have been updated.
+  full".
 - The dialogue panel showed "npc" as the speaker; it shows the NPC's
   name now.
 - Walking into the map edge moved the player one tile off the map and then

@@ -1,5 +1,5 @@
 import { Room, Client } from "@colyseus/core";
-import { TICK_RATE_MS, REVIVE_DELAY_TICKS, IDLE_TIMEOUT_TICKS, normalizePlayerName, playerNameKey, uniquePlayerName } from "@town-zero/shared";
+import { TICK_RATE_MS, REVIVE_DELAY_TICKS, IDLE_TIMEOUT_TICKS, JOIN_REFUSED_FULL, JOIN_REFUSED_NO_VILLAGE, normalizePlayerName, playerNameKey, uniquePlayerName } from "@town-zero/shared";
 import { WorldStateSchema } from "./schemas/WorldStateSchema.js";
 import { generateMap } from "../map/generator.js";
 import { processTick, type SimulationState } from "../simulation/tick.js";
@@ -151,12 +151,12 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
       .find((s) => s.type === "village");
 
     if (!village) {
-      client.leave(4000, "No village available");
+      client.leave(JOIN_REFUSED_NO_VILLAGE, "No village available");
       return;
     }
 
     if (village.populationIds.length >= village.getPopulationCap()) {
-      client.leave(4001, "Village is full");
+      client.leave(JOIN_REFUSED_FULL, "Village is full");
       return;
     }
 
