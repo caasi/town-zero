@@ -1,6 +1,6 @@
-import type { DialogueTreeData, Value, ResourceType } from "@town-zero/shared";
+import type { DialogueTreeData, Value, ResourceType, FarewellLine } from "@town-zero/shared";
 import { DialogueEngine } from "./dialogue-engine.js";
-import { interpolate, type EvalContext, type AgentAccessor } from "./evaluator.js";
+import { interpolate, checkCondition, type EvalContext, type AgentAccessor } from "./evaluator.js";
 import type { MutableContext } from "./executor.js";
 import type { Agent } from "../simulation/agent.js";
 
@@ -159,6 +159,13 @@ export class DialogueSession {
           text: "",
         };
     }
+  }
+
+  /** The first farewell whose condition holds, in this dialogue's context. */
+  farewell(lines: FarewellLine[]): string | null {
+    const ctx = this.buildEvalContext();
+    const line = lines.find((l) => !l.condition || checkCondition(l.condition, ctx));
+    return line ? interpolate(line.text, ctx) : null;
   }
 
   /** True while the NPC waits for Jev to pick its reply line. */

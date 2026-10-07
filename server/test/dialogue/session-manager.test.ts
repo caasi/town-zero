@@ -290,6 +290,36 @@ describe("session-manager", () => {
       expect(state.agents.get("player-0")!.state).toBe("idle");
     });
 
+    it("lets the NPC say the first farewell whose condition holds when the dialogue times out", () => {
+      const npc = state.agents.get("test-npc")!;
+      npc.profile = {
+        gender: { kind: "male" },
+        personality: "Dutiful.",
+        farewells: [
+          { text: ["Don't forget the food!"], condition: { type: "fact_ref", key: "food_quest_active" } },
+          { text: ["I'll be in the fields."] },
+        ],
+      };
+      startDialogue("player-0", "test-npc", state);
+      state.tick = 10 + DIALOGUE_TIMEOUT_TICKS;
+      tickDialogues(state);
+      expect(npc.bubbleText).toBe("I'll be in the fields.");
+
+      npc.setBelief("food_quest_active", { key: "food_quest_active", value: true, tick: 0, source: "test-npc" });
+      startDialogue("player-0", "test-npc", state);
+      state.tick += DIALOGUE_TIMEOUT_TICKS;
+      tickDialogues(state);
+      expect(npc.bubbleText).toBe("Don't forget the food!");
+    });
+
+    it("says no farewell when the dialogue ends another way", () => {
+      const npc = state.agents.get("test-npc")!;
+      npc.profile = { gender: { kind: "male" }, personality: "Dutiful.", farewells: [{ text: ["Bye."] }] };
+      startDialogue("player-0", "test-npc", state);
+      endDialogue("test-npc", state, "player_left");
+      expect(npc.bubbleText).toBeNull();
+    });
+
     it("does not timeout active sessions", () => {
       startDialogue("player-0", "test-npc", state);
       state.tick = 10 + Math.floor(DIALOGUE_TIMEOUT_TICKS / 2); // half the timeout
