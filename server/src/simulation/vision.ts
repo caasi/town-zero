@@ -47,6 +47,7 @@ export function updateVision(
 }
 
 export const storeFoodKey = (settlementId: string) => `food:${settlementId}`;
+export const isStoreFoodKey = (key: string) => key.startsWith("food:");
 
 /**
  * An agent inside a settlement sees its store. Away from it, the agent knows
