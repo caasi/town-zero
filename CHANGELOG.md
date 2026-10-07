@@ -10,6 +10,7 @@ entries are grouped by date, not by version. The format follows
 
 - Food places run out. A berry bush or a food tile holds 3 food, and each
   one grows back 1 food every 30 seconds. An empty one shows no food.
+  Material tiles work the same way.
 - When the berries a beast knows are all gone, it can wait near them until
   they grow back, instead of walking around to look for food.
 - A beast that brings food home keeps 3 food for itself and stores the
