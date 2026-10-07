@@ -1,5 +1,5 @@
 import { Room, Client } from "@colyseus/core";
-import { TICK_RATE_MS, REVIVE_DELAY_TICKS, IDLE_TIMEOUT_TICKS } from "@town-zero/shared";
+import { TICK_RATE_MS, REVIVE_DELAY_TICKS, IDLE_TIMEOUT_TICKS, normalizePlayerName } from "@town-zero/shared";
 import { WorldStateSchema } from "./schemas/WorldStateSchema.js";
 import { generateMap } from "../map/generator.js";
 import { processTick, type SimulationState } from "../simulation/tick.js";
@@ -66,6 +66,16 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
     this.onMessage("input:stop", () => {});
 
     this.onPlayerMessage("revive", (client: Client) => this.revive(client));
+
+    // A player may rename at any time; the name is shown to every client.
+    this.onPlayerMessage("rename", (client: Client, data: unknown) => {
+      const agent = this.simState.agents.get(this.sessionToAgent.get(client.sessionId) ?? "");
+      if (!agent || !data || typeof data !== "object") return;
+      const name = normalizePlayerName((data as { name?: unknown }).name);
+      if (!name || name === agent.name) return;
+      console.log(`[name] ${agent.id} renamed ${agent.name} -> ${name}`);
+      agent.name = name;
+    });
 
     this.onPlayerMessage("dialogue:advance", (client: Client) => {
       const agentId = this.sessionToAgent.get(client.sessionId);
@@ -146,8 +156,8 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
       return;
     }
 
-    const raw = typeof options?.name === "string" ? options.name.trim().slice(0, 32) : "";
-    const name = raw.length > 0 ? raw : `Player-${this.nextPlayerId}`;
+    // The client sends a stored or random name; Player-N is for a client that sends none.
+    const name = normalizePlayerName(options?.name) ?? `Player-${this.nextPlayerId}`;
     const id = `player-${this.nextPlayerId++}`;
 
     const spawnTile = findSpawnTile(village, this.simState);
@@ -156,6 +166,7 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
       id,
       position: { ...spawnTile },
       faction: village.faction,
+      name,
       role: "player",
       controller: "player",
     });

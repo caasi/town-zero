@@ -56,6 +56,43 @@ describe("GameRoom integration", () => {
     expect(playerAgent.role).toBe("player");
   });
 
+  describe("player names", () => {
+    const playerSchema = () => {
+      let found: any;
+      state.agents.forEach((agent: any) => { if (agent.controller === "player") found = agent; });
+      return found;
+    };
+
+    it("keeps the cleaned name from the join and shows it to everyone", () => {
+      joinClient(room, mockClient("session-1"), { name: "  Quiet   Otter " });
+      tick(room);
+      expect(playerSchema().name).toBe("Quiet Otter");
+    });
+
+    it("gives a numbered name when the join has none", () => {
+      joinClient(room, mockClient("session-1"), {});
+      tick(room);
+      expect(playerSchema().name).toMatch(/^Player-\d+$/);
+    });
+
+    it("renames on a rename message, and ignores a bad one", () => {
+      const client = mockClient("session-1");
+      joinClient(room, client, { name: "Quiet Otter" });
+      sendMessage(room, client, "rename", { name: "Solid Heron" });
+      tick(room);
+      expect(playerSchema().name).toBe("Solid Heron");
+      for (const bad of [{ name: "   " }, { name: 42 }, "Solid", null]) {
+        sendMessage(room, client, "rename", bad);
+      }
+      tick(room);
+      expect(playerSchema().name).toBe("Solid Heron");
+    });
+
+    it("ignores a rename from a session without an agent", () => {
+      expect(() => sendMessage(room, mockClient("not-joined"), "rename", { name: "Ghost" })).not.toThrow();
+    });
+  });
+
   it("player sends input frame and position updates", () => {
     const client = mockClient("session-1");
     joinClient(room, client, { name: "Mover" });
