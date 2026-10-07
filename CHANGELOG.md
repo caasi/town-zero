@@ -18,6 +18,9 @@ entries are grouped by date, not by version. The format follows
 
 ### Added
 
+- After an update, the game tells you that a new version is out and
+  shows a `Reload` button. `Retry` on the error screen then reloads the
+  page, so you get the new version.
 - Beasts guard their den, collect berries from bushes, bring full loads
   home and roar at intruders. They attack only enemies near the den or
   next to them.
