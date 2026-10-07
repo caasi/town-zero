@@ -144,7 +144,7 @@ describe("input frames (property)", () => {
     runAckProperty(INPUT_QUEUE_CAP);
   });
 
-  // Known violation (CLAUDE.md Known Debt): when more than INPUT_QUEUE_CAP
+  // Known violation (TODO.md, Known debt): when more than INPUT_QUEUE_CAP
   // frames wait (a burst, or more than one frame per tick for a while),
   // enqueueInput drops the oldest without an ack. The property found this
   // smallest case; it is pinned here so the result does not depend on the

@@ -3,7 +3,7 @@ import type { Agent } from "./agent.js";
 import type { Settlement } from "./settlement.js";
 import type { SimulationState } from "./tick.js";
 
-// Stopgap until downed NPCs (CLAUDE.md TODO): a dead NPC comes back, so a
+// Stopgap until downed NPCs (TODO.md): a dead NPC comes back, so a
 // room that lives long still has someone to talk to and something to fight.
 export const NPC_RESPAWN_TICKS = 240;  // ~30s: a village NPC comes back for free
 export const BEAST_BREED_TICKS = 240;  // ~30s: then the den pays food for a new beast
