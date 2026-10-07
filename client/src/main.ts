@@ -118,7 +118,7 @@ nameInput.addEventListener("keydown", (e) => {
   // Enter and Esc also accept or drop an input method (IME) candidate, for
   // example while typing a CJK name; that key press is not for the field.
   if (e.isComposing) return;
-  if (e.key === "Escape") { closeNameInput(); return; }
+  if (e.key === "Escape") { closeNameInput(); nameBtn.focus(); return; }
   if (e.key !== "Enter") return;
   const name = normalizePlayerName(nameInput.value);
   if (name) {
@@ -129,6 +129,8 @@ nameInput.addEventListener("keydown", (e) => {
     hideRenameHint();
   }
   closeNameInput();
+  // Back to the button for a keyboard user; not on blur, which moved focus on purpose.
+  nameBtn.focus();
 });
 nameInput.addEventListener("blur", closeNameInput);
 
