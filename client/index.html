@@ -53,12 +53,14 @@
       flex-direction: column; gap: 16px;
     }
     .overlay.hidden { display: none; }
-    #update-banner {
+    /* The status region stays rendered; a live region that turns visible
+       is often not announced. Only the notice inside it is shown or hidden. */
+    #update-notice {
       position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
       background: #333; color: #eee; border: 1px solid #666;
       font: 14px monospace; padding: 8px 12px; display: flex; gap: 12px; align-items: center;
     }
-    #update-banner.hidden { display: none; }
+    #update-notice.hidden { display: none; }
     .overlay button {
       font: 16px monospace; padding: 8px 20px; cursor: pointer;
       background: #333; color: #eee; border: 1px solid #666;
@@ -114,9 +116,11 @@
       <div id="commit">%VITE_COMMIT%</div>
     </div>
 
-    <div id="update-banner" class="hidden" role="status">
-      A new version of the game is out.
-      <button id="reload-btn">Reload</button>
+    <div id="update-banner" role="status">
+      <div id="update-notice" class="hidden">
+        A new version of the game is out.
+        <button id="reload-btn">Reload</button>
+      </div>
     </div>
     <div id="connecting-overlay" class="overlay">Connecting...</div>
     <div id="death-overlay" class="overlay hidden">

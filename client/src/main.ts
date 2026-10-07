@@ -18,7 +18,7 @@ const deathOverlay = document.getElementById("death-overlay")!;
 const reviveBtn = document.getElementById("revive-btn") as HTMLButtonElement;
 const errorOverlay = document.getElementById("error-overlay")!;
 const errorText = document.getElementById("error-text")!;
-const updateBanner = document.getElementById("update-banner")!;
+const updateNotice = document.getElementById("update-notice")!;
 const hpText = document.getElementById("hp-text")!;
 const hpBar = document.getElementById("hp-bar")!;
 const inventoryEl = document.getElementById("inventory")!;
@@ -195,7 +195,7 @@ async function connect(): Promise<void> {
     await network.connect("Player");
     // Same value as the HUD's %VITE_COMMIT% (vite.config.ts).
     staleClient = isStaleClient(import.meta.env.VITE_COMMIT, network.serverCommit);
-    updateBanner.classList.toggle("hidden", !staleClient);
+    updateNotice.classList.toggle("hidden", !staleClient);
     reportPresence();
 
     const state = network.state;
