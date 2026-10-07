@@ -131,6 +131,48 @@ describe("reply node", () => {
     expect(session.answerReply(second.token, "curt")).toBe(true);
   });
 
+  it("still answers (so the line is sent) when only the fallback is left during the call", () => {
+    const { npc, player } = makeAgents();
+    const collapsing: DialogueTreeData = {
+      ...tree,
+      nodes: {
+        ...tree.nodes,
+        answer: {
+          type: "reply",
+          lines: [
+            { id: "calm", description: "Explain calmly.", text: ["The village needs it."], next: "end" },
+            { id: "curt", description: "Answer curtly.", text: ["Help or leave."], next: "end",
+              condition: { type: "fact_ref", key: "has_bread" } },
+          ],
+        },
+      },
+    };
+    npc.setBelief("has_bread", { key: "has_bread", value: true, tick: 0, source: "reed" });
+    const session = new DialogueSession({ tree: collapsing, npc, player, currentTick: 0 });
+    session.select("ask_opt_0");
+    const { token } = session.takeReplyRequest()!;
+    npc.setBelief("has_bread", { key: "has_bread", value: false, tick: 0, source: "reed" });
+    expect(session.answerReply(token, "curt")).toBe(true);
+    expect(session.getState()).toMatchObject({ type: "text", text: "Help or leave." });
+  });
+
+  it("drops the answer once the dialogue moved past the node without a new request", () => {
+    const { session, npc } = atReply();
+    const { token } = session.takeReplyRequest()!;
+    // The NPC's lines shrink to the fallback, it shows, and the player moves on.
+    const node = (session as any).engine.getCurrentNode();
+    const saved = node.lines;
+    node.lines = [saved[0]];
+    try {
+      session.getState();
+      session.advance();
+    } finally {
+      node.lines = saved;
+    }
+    expect(session.isEnded()).toBe(true);
+    expect(session.answerReply(token, "curt")).toBe(false);
+  });
+
   it("checks the answer against the lines it offered, not the lines now", () => {
     const { session, npc } = atReply();
     npc.setBelief("has_bread", { key: "has_bread", value: true, tick: 0, source: "reed" });

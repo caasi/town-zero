@@ -32,9 +32,10 @@ export class DialogueSession {
   private disposed = false;
   // The option text the player chose last: what the NPC replies to.
   private lastPlayerLine: string | null = null;
-  // The open request for Jev: the lines it was offered, under a new token per
-  // request, so a late answer cannot land on a later visit of the node.
-  private replyRequest: { token: number; lines: ReplyLineData[] } | null = null;
+  // The open request for Jev: its token, the lines it offered, and the visit
+  // (length of the visited-node list) it belongs to. An answer counts only on
+  // that visit, so a late answer cannot land on a later node or visit.
+  private replyRequest: { token: number; lines: ReplyLineData[]; visit: number } | null = null;
   private nextReplyToken = 1;
 
   // Timeout tracking
@@ -188,7 +189,7 @@ export class DialogueSession {
     if (!this.isWaiting() || this.engine.isReplyAsked()) return null;
     this.engine.markReplyAsked();
     const lines = this.engine.getVisibleReplyLines(this.buildEvalContext());
-    this.replyRequest = { token: this.nextReplyToken++, lines };
+    this.replyRequest = { token: this.nextReplyToken++, lines, visit: this.engine.getVisitedNodes().length };
     return {
       token: this.replyRequest.token,
       nodeKey: `${this.engine.getTreeId()}/${this.engine.getCurrentNodeId()}`,
@@ -201,13 +202,17 @@ export class DialogueSession {
    * Jev's pick for request `token`. False when it is too late: the session
    * ended, moved on, or asked again. The pick is checked against the lines
    * that request offered (conditions may have changed since); an id it did
-   * not offer falls back to the first line.
+   * not offer falls back to the first line. True even when the node already
+   * picked its only line meanwhile: the caller must still send that line.
    */
   answerReply(token: number, lineId: string): boolean {
     const request = this.replyRequest;
-    if (this.disposed || !this.isWaiting() || request?.token !== token) return false;
+    if (this.disposed || request?.token !== token) return false;
+    if (this.engine.getVisitedNodes().length !== request.visit) return false;
     this.replyRequest = null;
-    this.engine.pickLine((request.lines.find((line) => line.id === lineId) ?? request.lines[0]).id);
+    if (!this.engine.getPickedLine()) {
+      this.engine.pickLine((request.lines.find((line) => line.id === lineId) ?? request.lines[0]).id);
+    }
     return true;
   }
 
