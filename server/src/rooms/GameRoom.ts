@@ -108,6 +108,7 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
     });
 
     // The client sends this on visibilitychange. Coming back counts as activity.
+    // Not onPlayerMessage: { active: false } must not refresh lastMessageTick.
     this.onMessage("presence", (client: Client, data: unknown) => {
       if (!data || typeof data !== "object" || typeof (data as any).active !== "boolean") return;
       if ((data as any).active) {
