@@ -117,7 +117,9 @@ nameBtn.addEventListener("click", () => {
 nameInput.addEventListener("keydown", (e) => {
   // Enter and Esc also accept or drop an input method (IME) candidate, for
   // example while typing a CJK name; that key press is not for the field.
-  if (e.isComposing) return;
+  // Safari ends the composition before this keydown, so isComposing is false
+  // there and only keyCode 229 tells.
+  if (e.isComposing || e.keyCode === 229) return;
   if (e.key === "Escape") { closeNameInput(); nameBtn.focus(); return; }
   if (e.key !== "Enter") return;
   // Focus moves to the button below; without this the same Enter clicks it
