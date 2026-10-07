@@ -7,10 +7,11 @@ import { syncToSchema, syncTiles, syncAgent } from "./sync.js";
 import { isValidInputFrame } from "./validation.js";
 import { extractVisionForPlayer } from "./vision.js";
 import { Agent } from "../simulation/agent.js";
-import { advanceDialogue, chooseDialogue, endDialogue, tickDialogues } from "../dialogue/session-manager.js";
+import { advanceDialogue, buildPayload, chooseDialogue, endDialogue, tickDialogues } from "../dialogue/session-manager.js";
 import { purgeProximityState } from "./proximity-state-cleanup.js";
 import { findSpawnTile, processRespawns } from "../simulation/respawn.js";
 import { JevController } from "../ai/jev-controller.js";
+import { ReplyController } from "../ai/reply-controller.js";
 import { jevChooser } from "../ai/jev.js";
 
 export class GameRoom extends Room<{ state: WorldStateSchema }> {
@@ -18,6 +19,7 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
   private sessionToAgent = new Map<string, string>();
   private nextPlayerId = 0;
   private jev!: JevController;
+  private replies!: ReplyController;
   // Dead player agents → tick from which "revive" is accepted.
   private reviveAt = new Map<string, number>();
   // Dead NPCs → tick at which they respawn (processRespawns).
@@ -31,7 +33,9 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
   onCreate() {
     this.simState = generateMap();
     const jevKey = process.env.TYPESAFE_API_KEY;
-    this.jev = new JevController(jevKey ? jevChooser(jevKey) : null);
+    const chooser = jevKey ? jevChooser(jevKey) : null;
+    this.jev = new JevController(chooser);
+    this.replies = new ReplyController(chooser);
     console.log(jevKey ? "AI NPCs: Jev" : "AI NPCs: fallback rules (TYPESAFE_API_KEY not set)");
 
     this.state = new WorldStateSchema();
@@ -274,6 +278,12 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
     const expired = tickDialogues(this.simState);
     for (const { playerId, reason } of expired) {
       this.sendToAgent(playerId, "dialogue:end", { reason });
+    }
+
+    // NPC replies that Jev picked since the last tick (spec 004). Not gated
+    // by hasActivePlayer: a dialogue means a player is there.
+    for (const session of this.replies.update(this.simState)) {
+      this.sendToAgent(session.playerId, "dialogue:state", buildPayload(session, this.simState));
     }
 
     syncToSchema(this.simState, this.state);

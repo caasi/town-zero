@@ -75,7 +75,8 @@ dialogue). While it waits, `dialogue:advance` and `dialogue:choose` return
 leave the dialogue while the server keeps the input lock. With this no-op,
 the cost is at most one call per reply node per visit. A failed call or
 the Jev call timeout (`TIMEOUT_MS`, 5 s in `jev.ts`) picks the first line.
-Without a key the first line shows at once, with no waiting state. The
+Without a key the first line comes on the next tick (the message
+handler answers with the waiting state, and the tick sends the line). The
 dialogue timeout (`DIALOGUE_TIMEOUT_TICKS`) cannot end a session while it
 waits, because the message that reached the node resets it. An answer that
 arrives after the session ended (Esc, the player left or died, the NPC died)

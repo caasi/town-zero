@@ -1,0 +1,128 @@
+import { describe, it, expect, vi } from "vitest";
+import { ReplyController, describeReplyState } from "../../src/ai/reply-controller.js";
+import type { Choice } from "../../src/ai/jev.js";
+import { startDialogue, advanceDialogue, chooseDialogue, endDialogue } from "../../src/dialogue/session-manager.js";
+import { Agent } from "../../src/simulation/agent.js";
+import { Grid } from "../../src/simulation/grid.js";
+import { Settlement } from "../../src/simulation/settlement.js";
+import type { SimulationState } from "../../src/simulation/tick.js";
+import type { DialogueTreeData } from "@town-zero/shared";
+
+const tree: DialogueTreeData = {
+  id: "reed-talk",
+  root: "ask",
+  nodes: {
+    ask: { type: "choice", options: [{ id: "ask_opt_0", label: ["What's in it for me?"], next: "answer" }] },
+    answer: {
+      type: "reply",
+      lines: [
+        { id: "calm", description: "Explain calmly.", text: ["The village needs it."], next: "end" },
+        { id: "curt", description: "Answer curtly.", text: ["Help or leave."], next: "end" },
+      ],
+    },
+    end: { type: "end" },
+  },
+};
+
+function waitingState(): SimulationState {
+  const reed = new Agent({ id: "reed", name: "Farmer Reed", position: { x: 5, y: 5 }, faction: "v", role: "farmer", controller: "bot" });
+  reed.profile = { gender: { kind: "male" }, personality: "He cares most about the village.", farewells: [] };
+  const player = new Agent({ id: "player-0", position: { x: 5, y: 6 }, faction: "v", role: "player", controller: "player" });
+  const village = new Settlement({ id: "v", faction: "v", type: "village", territory: [{ x: 5, y: 5 }] });
+  village.addResource("food", 12);
+  village.populationIds.push("reed");
+  const state: SimulationState = {
+    grid: new Grid(10, 10),
+    agents: new Map([["reed", reed], ["player-0", player]]),
+    settlements: new Map([["v", village]]),
+    tick: 0,
+    activeSessions: new Map(),
+    dialogueTrees: new Map([["reed-talk", tree]]),
+  };
+  reed.setBelief("food_quest_active", { key: "food_quest_active", value: true, tick: 0, source: "reed" });
+  startDialogue("player-0", "reed", state);
+  chooseDialogue("player-0", "ask_opt_0", state);
+  return state;
+}
+
+const flush = () => new Promise((r) => setTimeout(r, 0));
+
+describe("ReplyController", () => {
+  it("asks Jev once per waiting reply, with the lines as options", async () => {
+    const state = waitingState();
+    const choose = vi.fn().mockResolvedValue({ id: "curt" } satisfies Choice);
+    const replies = new ReplyController(choose);
+    replies.update(state);
+    replies.update(state);
+    expect(choose).toHaveBeenCalledTimes(1);
+    expect(choose.mock.calls[0][2]).toEqual({ calm: "Explain calmly.", curt: "Answer curtly." });
+  });
+
+  it("returns the session once Jev answers, showing the picked line", async () => {
+    const state = waitingState();
+    const replies = new ReplyController(vi.fn().mockResolvedValue({ id: "curt" }));
+    expect(replies.update(state)).toEqual([]);
+    await flush();
+    const [session] = replies.update(state);
+    expect(session.getState()).toMatchObject({ type: "text", text: "Help or leave." });
+    expect(replies.update(state)).toEqual([]);
+  });
+
+  it("falls back to the first line when the call fails", async () => {
+    const state = waitingState();
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const replies = new ReplyController(vi.fn().mockRejectedValue(new Error("down")));
+    try {
+      replies.update(state);
+      await flush();
+      const [session] = replies.update(state);
+      expect(session.getState()).toMatchObject({ text: "The village needs it." });
+    } finally {
+      error.mockRestore();
+    }
+  });
+
+  it("picks the first line at once without a key", () => {
+    const state = waitingState();
+    const [session] = new ReplyController(null).update(state);
+    expect(session.getState()).toMatchObject({ text: "The village needs it." });
+  });
+
+  it("drops an answer that arrives after the dialogue ended", async () => {
+    const state = waitingState();
+    let answer!: (c: Choice) => void;
+    const replies = new ReplyController(() => new Promise((r) => (answer = r)));
+    replies.update(state);
+    endDialogue("reed", state, "player_left");
+    answer({ id: "curt" });
+    await flush();
+    expect(replies.update(state)).toEqual([]);
+  });
+
+  it("logs the pick with its token counts", async () => {
+    const state = waitingState();
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      new ReplyController(vi.fn().mockResolvedValue({ id: "curt", usage: { input: 300, output: 20 } })).update(state);
+      await flush();
+      expect(log).toHaveBeenCalledWith("[jev] reed replied curt from calm, curt (in 300, out 20)");
+    } finally {
+      log.mockRestore();
+    }
+  });
+});
+
+describe("describeReplyState", () => {
+  it("describes the NPC, what the player said and the village in words", () => {
+    const state = waitingState();
+    const reed = state.agents.get("reed")!;
+    expect(describeReplyState(reed, "What's in it for me?", state)).toEqual({
+      npc: "Farmer Reed, a farmer of the village",
+      gender: "Farmer Reed is a man.",
+      personality: "He cares most about the village.",
+      beliefs: ["food quest active: true"],
+      village: "the storehouse holds 12 food (low)",
+      player_said: "What's in it for me?",
+    });
+  });
+});

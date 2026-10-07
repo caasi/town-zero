@@ -15,7 +15,7 @@ function nodeTypeFromMsg(type: string): DialogueStatePayload["nodeType"] {
   return "text";
 }
 
-function buildPayload(session: DialogueSession, state: SimulationState): DialogueStatePayload {
+export function buildPayload(session: DialogueSession, state: SimulationState): DialogueStatePayload {
   const msg = session.getState();
   const npc = state.agents.get(session.npcId)!;
   return {
