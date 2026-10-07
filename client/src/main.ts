@@ -182,7 +182,11 @@ function reportPresence(): void {
   if (!staleClient) network.sendPresence(!document.hidden);
 }
 
-async function connect(): Promise<void> {
+// fromRetry: the player pressed Retry after a disconnect, which every deploy
+// causes. A different build then means a deploy, so reload at once (the
+// server is up, as the join worked). Only after Retry: on a first load a
+// cached old page would otherwise reload forever.
+async function connect(fromRetry = false): Promise<void> {
   if (isConnecting) return;
   isConnecting = true;
 
@@ -195,6 +199,10 @@ async function connect(): Promise<void> {
     await network.connect("Player");
     // Same value as the HUD's %VITE_COMMIT% (vite.config.ts).
     staleClient = isStaleClient(import.meta.env.VITE_COMMIT, network.serverCommit);
+    if (staleClient && fromRetry) {
+      location.reload();
+      return;
+    }
     updateNotice.classList.toggle("hidden", !staleClient);
     reportPresence();
 
@@ -301,7 +309,7 @@ document.getElementById("retry-btn")!.addEventListener("click", () => {
   network.disconnect();
   input?.destroy();
   displayState.clear();
-  connect();
+  connect(true);
 });
 
 // Detect keyboard layout and update key hints
