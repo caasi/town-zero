@@ -117,7 +117,7 @@ Source of truth: `processTick` in `server/src/simulation/tick.ts`.
 - Player attacks have no cooldown (one per key press, up to 8/s). AI beasts wait ~1s between attacks, but the wait lives on the attack goal: a new goal (target left sight and came back) can hit at once.
 - After death the HUD can still show the last HP before 0 (the `death` message arrives before the state patch).
 - `material` and `currency` have no use since production and merchants were removed.
-- A respawned village NPC is added back to `populationIds` without a cap check: if a player took the freed slot, the village is one over its cap until someone leaves. It also respawns on the first free territory tile, not at its post (Farmer Reed starts at (9,19)).
+- A respawned village NPC (Farmer Reed or the innkeeper) is added back to `populationIds` without a cap check: if a player took the freed slot, the village is one over its cap until someone leaves. It also respawns on the first free territory tile, not at its post (Farmer Reed starts at (9,19), the innkeeper at (11,21)).
 - Resource tiles never run out (`gather` is unlimited), and a beast's food knowledge reads the yield from the grid for tiles in its MapMemory. Store the yield in `TileMemory` when tiles can be used up.
 
 ## TODO

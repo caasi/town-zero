@@ -1,7 +1,7 @@
 # 004 — NPC personality and replies picked by Jev
 
-Status: agreed design, not implemented. The spike code decides the details;
-update this file when the code differs.
+Status: implemented on `feat/npc-personality`. Update this file when the code
+differs.
 
 ## Goal
 
@@ -49,6 +49,9 @@ Three runs per cell, same pick in each unless noted.
   the neutral reply here. At 5 food the hungry line wins for every
   personality on the news node.
 - Gender changed no pick on these nodes.
+- At the starting storehouse (30 food, "low") the innkeeper's news is
+  "grumble, hungry" for every personality: there the state decides, and her
+  personality shows on the monsters node.
 
 ## Design
 
@@ -87,24 +90,33 @@ session only records "at a reply node, not asked" and later the picked line
 id. Each tick `GameRoom` scans the active sessions: it asks Jev for a session
 that waits, and when a session has an answer it moves the session to that line
 and sends the payload, as `tickDialogues` does. No call starts inside
-`getState()`, which runs twice per message. One call in flight per session. A
+`getState()`, which runs twice per message (it does pick the line when only
+one is left). A Jev answer waits in a queue until the next `update()`, so the
+session stays waiting until the tick that sends its line; an advance in
+between cannot skip it. Each request has a token and keeps the lines it
+offered: an answer counts only for its own request, checked against those
+lines. One call in flight per session. A
 separate abstraction for this can come later.
 
 **Async flow.** On a `reply` node the session sends a waiting
-state; the client shows "…" and ignores E, W and S (Esc still closes the
-dialogue). While it waits, `dialogue:advance` and `dialogue:choose` return
+state (`nodeType: "waiting"`); the client shows "…" and sends nothing on E
+(Esc still closes the dialogue). While it waits, `dialogue:advance` and `dialogue:choose` return
 `ok` and send the same waiting payload again; an error would make the client
 leave the dialogue while the server keeps the input lock. With this no-op,
 the cost is at most one call per reply node per visit. A failed call or
 the Jev call timeout (`TIMEOUT_MS`, 5 s in `jev.ts`) picks the first line.
 Without a key the first line comes on the next tick (the message
 handler answers with the waiting state, and the tick sends the line). The
-dialogue timeout (`DIALOGUE_TIMEOUT_TICKS`) cannot end a session while it
-waits, because the message that reached the node resets it. An answer that
+dialogue timeout (`DIALOGUE_TIMEOUT_TICKS`, 30 s) still applies while it
+waits; the Jev call times out first (5 s), so in practice it does not fire,
+and a chooser that never settles cannot hold the input lock forever. An answer that
 arrives after the session ended (Esc, the player left or died, the NPC died)
 is dropped: tie the pending answer to the session object, not to the NPC id,
-because the same NPC can start a new session within 5 s. Test this and the
-in-flight rule with `fc.scheduler`, as in `jev-timing.property.test.ts`. Log:
+because the same NPC can start a new session within 5 s. Unit tests with
+promises that the test resolves cover this and the in-flight rule (a late
+answer after a new dialogue with the same NPC, a stale token, an advance
+between the answer and the tick); a `fc.scheduler` property test was planned
+and is not written. Log:
 `[jev] <npc id> replied <line id> from <line ids> (in N, out N)`; the token
 counts show only when the reply has usage.
 
