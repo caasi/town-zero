@@ -39,7 +39,15 @@ export const farmerReedScenario = scenario("farmer-reed", (s) => {
 
     d.text("accept-text", ["Thank you! Bring me 5 food when you can."], { next: "done" });
 
-    d.text("haggle", ["The whole village benefits when we have enough food. Please reconsider."], { next: "quest-offer" });
+    // Jev picks from his personality (spec 004); the first line is the fallback.
+    d.reply("haggle", [
+      d.line("common-good", "Explain calmly that the whole village benefits when there is enough food.",
+        "The whole village eats from the same storehouse. You too, while you stay in Tandi.").goto("quest-offer"),
+      d.line("reward", "Offer the traveler a share of the next harvest as a reward.",
+        "Help us, and I'll set aside a sack from the next harvest for you. Deal?").goto("quest-offer"),
+      d.line("curt", "Answer curtly that there is no time to bargain.",
+        "I've no time to haggle. Help, or let me get back to the fields.").goto("quest-offer"),
+    ]);
 
     d.text("refuse", ["I understand. Come back if you change your mind."], { next: "done" });
 

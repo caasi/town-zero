@@ -6,6 +6,7 @@ import type { SimulationState } from "../simulation/tick.js";
 import type { Position } from "@town-zero/shared";
 import { stampTemplate, VILLAGE_TEMPLATE, DEN_TEMPLATE } from "./templates.js";
 import { farmerReedScenario } from "../scenarios/farmer-reed.js";
+import { innkeeperScenario } from "../scenarios/innkeeper.js";
 import { loadScenario } from "../simulation/scenario-loader.js";
 
 function rect(cx: number, cy: number, r: number): Position[] {
@@ -136,10 +137,12 @@ export function generateMap(): SimulationState {
 
   const state: SimulationState = { grid, agents, settlements, tick: 0, activeSessions: new Map(), dialogueTrees: new Map() };
 
-  // Load Farmer Reed scenario
-  const { dialogueTrees } = loadScenario(farmerReedScenario, state);
-  state.dialogueTrees = dialogueTrees;
-  village.populationIds.push("farmer-reed");
+  // Village NPCs. The loader does not add them to the village, and each one
+  // takes a slot of the population cap (2 housing x 4 = 8, so 6 players).
+  for (const data of [farmerReedScenario, innkeeperScenario]) {
+    for (const [id, tree] of loadScenario(data, state).dialogueTrees) state.dialogueTrees.set(id, tree);
+    for (const npc of data.npcs) village.populationIds.push(npc.id);
+  }
 
   return state;
 }

@@ -17,7 +17,7 @@ export function describeReplyState(npc: Agent, playerSaid: string | null, state:
   const home = Array.from(state.settlements.values()).find((s) => s.populationIds.includes(npc.id));
   const food = home?.inventory.food;
   return {
-    npc: `${npc.name}, a ${npc.role} of the village`,
+    npc: `${npc.name}, ${/^[aeiou]/.test(npc.role) ? "an" : "a"} ${npc.role} of the village`,
     ...(npc.profile && {
       gender: describeGender(npc.name, npc.profile.gender),
       personality: npc.profile.personality,
