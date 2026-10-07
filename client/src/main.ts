@@ -11,7 +11,6 @@ import { TILE_SIZE } from "./constants.js";
 import type { GameState } from "./types.js";
 import { isStaleClient } from "./version.js";
 import { loadPlayerName, savePlayerName, renameHintSeen, markRenameHintSeen } from "./player-name.js";
-import { SELF_COLOR } from "./renderer.js";
 
 // DOM elements
 const canvas = document.getElementById("game-canvas") as HTMLCanvasElement;
@@ -74,7 +73,10 @@ function updateHUD(): void {
   inventoryEl.textContent = `🍖${food} 🪵${material} 💰${currency}`;
 
   // The server's name, after its cleaning; not while the field is open.
-  if (nameInput.classList.contains("hidden") && agent.name) nameText.textContent = agent.name;
+  if (nameInput.classList.contains("hidden") && agent.name) {
+    nameText.textContent = agent.name;
+    nameBtn.style.color = playerColor(agent.name); // the color others see you in
+  }
   updatePlayerList();
 }
 
@@ -89,6 +91,7 @@ function storage(): Storage {
 const { name: startName, isNew: newName } = loadPlayerName(storage());
 let playerName = startName;
 nameText.textContent = playerName;
+nameBtn.style.color = playerColor(playerName);
 
 // Only for a name the game picked, and only until the player renames or ~20 s pass.
 if (newName && !renameHintSeen(storage())) {
@@ -129,6 +132,7 @@ nameInput.addEventListener("keydown", (e) => {
   if (name) {
     playerName = name;
     nameText.textContent = name;
+    nameBtn.style.color = playerColor(name);
     savePlayerName(storage(), name);
     network.sendRename(name);
     hideRenameHint();
@@ -149,7 +153,7 @@ function updatePlayerList(): void {
     if (a.role !== "player") return;
     const self = a.id === network.playerId;
     const name = a.name || a.id;
-    players.push({ name, color: self ? SELF_COLOR : playerColor(name), dead: a.state === "dead", self });
+    players.push({ name, color: playerColor(name), dead: a.state === "dead", self });
   });
   players.sort((a, b) => Number(b.self) - Number(a.self) || a.name.localeCompare(b.name));
   const key = JSON.stringify(players);

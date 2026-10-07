@@ -37,8 +37,8 @@ export function normalizePlayerName(raw: unknown): string | null {
   return /[^\p{M}\p{Z}\u200D]/u.test(name) ? name : null;
 }
 
-// Not the blue of yourself, the green of friendly NPCs or the red of enemies
-// (client/src/renderer.ts). A name always gets the same color: the color is a
+// Not the green of friendly NPCs or the red of enemies (client/src/renderer.ts),
+// and no blue, which is close to water. A name always gets the same color: the color is a
 // hash of the name, so every client draws a player the same way.
 export const PLAYER_COLORS = ["#e6c", "#f93", "#ee5", "#b8f", "#4db", "#fa8"] as const;
 

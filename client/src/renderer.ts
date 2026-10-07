@@ -324,14 +324,21 @@ export class Renderer {
     ctx.globalAlpha = isDead ? 0.5 : 1;
 
     if (agent.role === "player") {
-      // Diamond - a player: blue for you; the others in the color of their
-      // name, so they do not look like NPCs and match the player list.
-      ctx.fillStyle = isPlayer ? SELF_COLOR : playerColor(agent.name || agent.id);
+      // Diamond - a player, in the color of its name on every screen, so
+      // players can tell each other apart by it. Six colors repeat, so you
+      // are marked by shape: a white ring around your diamond.
+      ctx.fillStyle = playerColor(agent.name || agent.id);
       diamondPath(ctx, px, py);
       ctx.fill();
       ctx.strokeStyle = "#fff";
       ctx.lineWidth = 1.5;
       ctx.stroke();
+      if (isPlayer) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, TILE_SIZE / 2 - 1, 0, Math.PI * 2);
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
     } else {
       // Triangle - NPCs
       const isEnemy = playerFaction !== "" && agent.faction !== playerFaction;
@@ -411,7 +418,6 @@ export class Renderer {
   }
 }
 
-export const SELF_COLOR = "#4af";
 const LEFT_PLAYER_COLOR = "#999";
 
 function diamondPath(ctx: CanvasRenderingContext2D, px: number, py: number): void {

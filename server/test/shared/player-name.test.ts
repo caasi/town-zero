@@ -67,7 +67,7 @@ describe("playerColor", () => {
     expect(used.size).toBe(PLAYER_COLORS.length);
   });
 
-  it("does not use the colors of you, NPCs and enemies", () => {
+  it("does not use blue (water), NPC green or enemy red", () => {
     for (const reserved of ["#4af", "#6c6", "#c44"]) expect(PLAYER_COLORS).not.toContain(reserved);
   });
 });
