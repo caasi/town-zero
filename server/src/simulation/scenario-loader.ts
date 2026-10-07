@@ -22,6 +22,7 @@ export function loadScenario(
       role: npcDef.role,
       controller: "bot",
     });
+    agent.profile = npcDef.profile;
 
     // Inject initial beliefs
     for (const { key, value } of npcDef.initialBeliefs) {

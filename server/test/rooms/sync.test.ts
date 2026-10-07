@@ -118,7 +118,7 @@ describe("syncToSchema", () => {
     expect(schema!.x).toBe(10);  // core position
     expect(schema!.y).toBe(20);
     expect(schema!.population).toBe(3);
-    expect(schema!.maxPopulation).toBe(4); // 1 housing × HOUSING_POPULATION_CAP(4)
+    expect(schema!.maxPopulation).toBe(6); // 1 housing × HOUSING_POPULATION_CAP(6)
     expect(schema!.inventory.get("food")).toBe(30);
     expect(schema!.structures.length).toBe(2); // core + housing
     expect(schema!.structures.at(0)!.id).toBe("c1");

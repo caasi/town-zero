@@ -12,10 +12,11 @@ export type DialogueResult =
 
 function nodeTypeFromMsg(type: string): DialogueStatePayload["nodeType"] {
   if (type === "choice") return "choice";
+  if (type === "waiting") return "waiting";
   return "text";
 }
 
-function buildPayload(session: DialogueSession, state: SimulationState): DialogueStatePayload {
+export function buildPayload(session: DialogueSession, state: SimulationState): DialogueStatePayload {
   const msg = session.getState();
   const npc = state.agents.get(session.npcId)!;
   return {
@@ -207,6 +208,8 @@ export function chooseDialogue(
   }
 }
 
+const FAREWELL_BUBBLE_TICKS = 40; // ~5 s, as long as a proximity greeting
+
 export function tickDialogues(
   state: SimulationState,
 ): Array<{ playerId: string; npcId: string; reason: "timeout" | "npc_killed" }> {
@@ -222,7 +225,14 @@ export function tickDialogues(
   }
 
   for (const { npcId, reason } of expired) {
+    // Spec 004: a timed-out NPC says goodbye instead of going silent. Read the
+    // line before the session ends; set it after, so a talk:end handler cannot hide it.
+    const npc = state.agents.get(npcId);
+    const farewell = reason === "timeout" && npc?.profile
+      ? state.activeSessions.get(npcId)!.farewell(npc.profile.farewells)
+      : null;
     endDialogue(npcId, state, reason);
+    if (farewell) npc!.setBubble(farewell, FAREWELL_BUBBLE_TICKS, state.tick);
   }
 
   return expired;

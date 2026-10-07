@@ -16,11 +16,29 @@ function makeState(): SimulationState {
 }
 
 describe("loadScenario()", () => {
+  it("gives each NPC its profile from the scenario", () => {
+    const data = scenario("test", (s) => {
+      s.npc("innkeeper", {
+        role: "innkeeper", faction: "v1", position: { x: 1, y: 1 }, initialBeliefs: [],
+        gender: { kind: "female" },
+        personality: "Grumpy and impatient.",
+        farewells: ["Off you go."],
+      });
+    });
+    const state = makeState();
+    loadScenario(data, state);
+    expect(state.agents.get("innkeeper")!.profile).toEqual({
+      gender: { kind: "female" },
+      personality: "Grumpy and impatient.",
+      farewells: [{ text: ["Off you go."] }],
+    });
+  });
+
   it("spawns NPCs with initial beliefs", () => {
     const data: ScenarioData = {
       id: "test",
       npcs: [
-        {
+        { profile: { gender: { kind: "male" }, personality: "A plain villager.", farewells: [] },
           id: "elder",
           name: "Elder",
           role: "merchant",
@@ -60,7 +78,7 @@ describe("loadScenario()", () => {
     const data: ScenarioData = {
       id: "test",
       npcs: [
-        {
+        { profile: { gender: { kind: "male" }, personality: "A plain villager.", farewells: [] },
           id: "a",
           name: "A",
           role: "scout",
@@ -111,7 +129,7 @@ describe("loadScenario()", () => {
     const data: ScenarioData = {
       id: "test",
       npcs: [
-        {
+        { profile: { gender: { kind: "male" }, personality: "A plain villager.", farewells: [] },
           id: "guard",
           name: "Guard",
           role: "scout",
@@ -138,7 +156,7 @@ describe("loadScenario — handler registration", () => {
   it("registers NPC .on() handlers into agent.eventHandlers", () => {
     const state = makeState();
     const data = scenario("s1", (s) => {
-      s.npc("n1", { role: "villager", faction: "f", position: { x: 0, y: 0 }, initialBeliefs: [] })
+      s.npc("n1", { gender: { kind: "male" }, personality: "A plain villager.", role: "villager", faction: "f", position: { x: 0, y: 0 }, initialBeliefs: [] })
         .on("proximity:enter", ({ self }) => [bubble(self.id, "hi", { durationTicks: 5 })])
         .on("talk:start",      () => []);
     });

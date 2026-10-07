@@ -8,6 +8,9 @@ entries are grouped by date, not by version. The format follows
 
 ### Changed
 
+- The village holds 12 people (was 8): Farmer Reed, the innkeeper and 10
+  players.
+
 - The server log shows the token count of each AI decision, for example
   `[jev] mnpc-0 chose rest from rest, guard_den (in 424, out 41)`.
 - Beasts stop making AI decisions while no player is active. A player is
@@ -18,6 +21,12 @@ entries are grouped by date, not by version. The format follows
 
 ### Added
 
+- The innkeeper of Tandi, a grumpy woman who talks but gives no quest.
+- Friendly NPCs answer some questions with a reply that fits their
+  personality and the village's food, picked by the AI from written lines.
+  Farmer Reed and the innkeeper answer the same kind of question
+  differently.
+- An NPC says goodbye when you stand in a dialogue too long.
 - After an update, `Retry` on the error screen loads the new version of
   the game. If a page still runs another version than the server, it
   shows a notice with a `Reload` button.

@@ -1,4 +1,4 @@
-import type { DialogueTreeData, DialogueNodeData, ChoiceOptionData } from "@town-zero/shared";
+import type { DialogueTreeData, DialogueNodeData, ChoiceOptionData, ReplyLineData } from "@town-zero/shared";
 import { interpolate, checkCondition, type EvalContext } from "./evaluator.js";
 import { executeEffects, type MutableContext } from "./executor.js";
 
@@ -7,6 +7,9 @@ export class DialogueEngine {
   private currentNodeId: string;
   private visitedNodes: string[] = [];
   private selectedOptions: Record<string, string> = {};
+  // Reply node state; moveTo() clears both.
+  private pickedLineId: string | null = null;
+  private replyAsked = false;
 
   constructor(tree: DialogueTreeData) {
     this.tree = tree;
@@ -69,11 +72,41 @@ export class DialogueEngine {
     }));
   }
 
-  /** Advance past a text or action node. For action nodes, effects are NOT executed — use advanceWithEffects() instead. */
+  /** Lines of the current reply node: the first always, the others when their condition holds. */
+  getVisibleReplyLines(ctx: EvalContext): ReplyLineData[] {
+    const node = this.getCurrentNode();
+    if (node.type !== "reply") return [];
+    const [first, ...rest] = node.lines;
+    return [first, ...rest.filter((line) => !line.condition || checkCondition(line.condition, ctx))];
+  }
+
+  getPickedLine(): ReplyLineData | null {
+    const node = this.getCurrentNode();
+    if (node.type !== "reply" || this.pickedLineId === null) return null;
+    return node.lines.find((line) => line.id === this.pickedLineId) ?? null;
+  }
+
+  pickLine(lineId: string): void {
+    this.pickedLineId = lineId;
+    this.selectedOptions[this.currentNodeId] = lineId;
+  }
+
+  isReplyAsked(): boolean {
+    return this.replyAsked;
+  }
+
+  markReplyAsked(): void {
+    this.replyAsked = true;
+  }
+
+  /** Advance past a text or action node, or a reply node whose line is picked. For action nodes, effects are NOT executed — use advanceWithEffects() instead. */
   advance(): void {
     const node = this.getCurrentNode();
+    const picked = this.getPickedLine();
     if (node.type === "text" || node.type === "action") {
       this.moveTo(node.next);
+    } else if (picked) {
+      this.moveTo(picked.next);
     } else {
       throw new Error(`advance() called on "${node.type}" node "${this.currentNodeId}" — expected text or action`);
     }
@@ -120,6 +153,8 @@ export class DialogueEngine {
   }
 
   private moveTo(nodeId: string): void {
+    this.pickedLineId = null;
+    this.replyAsked = false;
     this.currentNodeId = nodeId;
     this.visitedNodes.push(nodeId);
   }

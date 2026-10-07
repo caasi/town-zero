@@ -57,6 +57,40 @@ describe("session-manager", () => {
     state = makeState();
   });
 
+  describe("while the NPC thinks about a reply", () => {
+    // "No" leads to a reply node with two lines, so the session waits for Jev.
+    function waitingState(): SimulationState {
+      const st = makeState();
+      const tree = makeTree();
+      (tree.nodes.offer as any).options[1].next = "answer";
+      tree.nodes.answer = {
+        type: "reply",
+        lines: [
+          { id: "calm", description: "Calm.", text: ["Pity."], next: "done" },
+          { id: "curt", description: "Curt.", text: ["Fine. Go."], next: "done" },
+        ],
+      };
+      st.dialogueTrees.set("test-npc-dialogue", tree);
+      startDialogue("player-0", "test-npc", st);
+      advanceDialogue("player-0", st);
+      chooseDialogue("player-0", "decline", st);
+      return st;
+    }
+
+    it("answers advance with ok and the same waiting text, not an error", () => {
+      const st = waitingState();
+      const result = advanceDialogue("player-0", st);
+      expect(result).toMatchObject({ ok: true, ended: false, payload: { nodeType: "waiting", content: "…" } });
+      expect(st.activeSessions.get("test-npc")!.isWaiting()).toBe(true);
+    });
+
+    it("answers choose with ok and the same waiting text, not an error", () => {
+      const st = waitingState();
+      const result = chooseDialogue("player-0", "accept", st);
+      expect(result).toMatchObject({ ok: true, payload: { content: "…" } });
+    });
+  });
+
   describe("startDialogue", () => {
     it("creates session and locks both agents", () => {
       const result = startDialogue("player-0", "test-npc", state);
@@ -254,6 +288,36 @@ describe("session-manager", () => {
       // Session should be cleaned up
       expect(state.activeSessions.has("test-npc")).toBe(false);
       expect(state.agents.get("player-0")!.state).toBe("idle");
+    });
+
+    it("lets the NPC say the first farewell whose condition holds when the dialogue times out", () => {
+      const npc = state.agents.get("test-npc")!;
+      npc.profile = {
+        gender: { kind: "male" },
+        personality: "Dutiful.",
+        farewells: [
+          { text: ["Don't forget the food!"], condition: { type: "fact_ref", key: "food_quest_active" } },
+          { text: ["I'll be in the fields."] },
+        ],
+      };
+      startDialogue("player-0", "test-npc", state);
+      state.tick = 10 + DIALOGUE_TIMEOUT_TICKS;
+      tickDialogues(state);
+      expect(npc.bubbleText).toBe("I'll be in the fields.");
+
+      npc.setBelief("food_quest_active", { key: "food_quest_active", value: true, tick: 0, source: "test-npc" });
+      startDialogue("player-0", "test-npc", state);
+      state.tick += DIALOGUE_TIMEOUT_TICKS;
+      tickDialogues(state);
+      expect(npc.bubbleText).toBe("Don't forget the food!");
+    });
+
+    it("says no farewell when the dialogue ends another way", () => {
+      const npc = state.agents.get("test-npc")!;
+      npc.profile = { gender: { kind: "male" }, personality: "Dutiful.", farewells: [{ text: ["Bye."] }] };
+      startDialogue("player-0", "test-npc", state);
+      endDialogue("test-npc", state, "player_left");
+      expect(npc.bubbleText).toBeNull();
     });
 
     it("does not timeout active sessions", () => {

@@ -10,6 +10,8 @@ import type { WorldStateSchema } from "../../src/rooms/schemas/WorldStateSchema.
 // these tests focus on the wiring between Colyseus lifecycle and simulation.
 
 import type { SimulationState } from "../../src/simulation/tick.js";
+import { startDialogue, advanceDialogue, chooseDialogue } from "../../src/dialogue/session-manager.js";
+import { ReplyController } from "../../src/ai/reply-controller.js";
 import { mockClient, createTestRoom, joinClient, leaveClient, sendInput, sendMessage, tick } from "./room-harness.js";
 
 describe("GameRoom integration", () => {
@@ -242,6 +244,42 @@ describe("GameRoom integration", () => {
     } finally {
       vi.unstubAllEnvs();
     }
+  });
+
+  it("sends an NPC's reply line on a later tick (spec 004)", () => {
+    const client = mockClient("session-1");
+    joinClient(room, client, { name: "Player" });
+    const agentId = client.messages.find((m: any) => m.type === "joined").data.agentId;
+    room.simState.agents.get(agentId)!.position = { x: 11, y: 20 }; // next to the innkeeper
+    startDialogue(agentId, "innkeeper", room.simState);
+    advanceDialogue(agentId, room.simState); // greeting → menu
+    const waiting = chooseDialogue(agentId, "menu_opt_0", room.simState); // "What's the news in Tandi?"
+    expect(waiting).toMatchObject({ ok: true, payload: { content: "…" } });
+
+    tick(room); // no key in tests: the first line
+    const states = client.messages.filter((m: any) => m.type === "dialogue:state");
+    expect(states.at(-1).data.content).toContain("More beasts in the hills every week");
+  });
+
+  it("sends a reply line that Jev answers between ticks, and ignores advance while it waits", async () => {
+    let answer!: (c: { id: string }) => void;
+    room.replies = new ReplyController(() => new Promise((r) => (answer = r)));
+    const client = mockClient("session-1");
+    joinClient(room, client, { name: "Player" });
+    const agentId = client.messages.find((m: any) => m.type === "joined").data.agentId;
+    room.simState.agents.get(agentId)!.position = { x: 11, y: 20 };
+    startDialogue(agentId, "innkeeper", room.simState);
+    advanceDialogue(agentId, room.simState);
+    chooseDialogue(agentId, "menu_opt_0", room.simState);
+    tick(room); // asks Jev
+
+    answer({ id: "tease" });
+    await new Promise((r) => setTimeout(r, 0));
+    // Answered, but not sent yet: an advance must not skip the line.
+    expect(advanceDialogue(agentId, room.simState)).toMatchObject({ ok: true, payload: { nodeType: "waiting" } });
+    tick(room);
+    const states = client.messages.filter((m: any) => m.type === "dialogue:state");
+    expect(states.at(-1).data.content).toContain("carry a basket");
   });
 
   it("multiple players join and appear in state", () => {

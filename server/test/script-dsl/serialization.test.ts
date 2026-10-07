@@ -7,7 +7,7 @@ import type { Fact, DialogueProgressEntry } from "@town-zero/shared";
 describe("JSON serialization round-trip", () => {
   it("ScenarioData survives JSON round-trip", () => {
     const data = scenario("test", (s) => {
-      s.npc("a", {
+      s.npc("a", { gender: { kind: "male" }, personality: "A plain villager.",
         role: "merchant",
         faction: "v1",
         position: { x: 1, y: 2 },

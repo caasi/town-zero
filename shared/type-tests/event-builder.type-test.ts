@@ -9,7 +9,7 @@
 import { scenario, bubble } from "../src/script-dsl/index.js";
 
 scenario("type-tests", (s) => {
-  const npc = s.npc("n1", {
+  const npc = s.npc("n1", { gender: { kind: "male" }, personality: "A plain villager.",
     role: "villager",
     faction: "f",
     position: { x: 0, y: 0 },

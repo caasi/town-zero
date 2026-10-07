@@ -1,7 +1,7 @@
 import type {
   Value, Expr, Effect, AgentRef, TextTemplate,
   ScenarioData, NpcDefinition, DialogueTreeData, DialogueNodeData,
-  ChoiceOptionData,
+  ChoiceOptionData, Gender, FarewellLine, ReplyLineData, ReplyLines,
 } from "../script-types.js";
 import type { NpcHandlerEntry } from "../script-types.js";
 import type { ResourceType } from "../types.js";
@@ -66,11 +66,38 @@ function createOptionBuilder(label: TextTemplate): { builder: OptionBuilder; get
   return { builder, getData: () => data };
 }
 
+// --- Reply line builder ---
+
+export interface LineBuilder {
+  when(condition: ExprBuilder): LineBuilder;
+  goto(nodeId: string): LineBuilder;
+}
+
+type LineData = ReplyLineData & { condition?: Expr };
+
+function createLineBuilder(id: string, description: string, text: TextTemplate): { builder: LineBuilder; getData: () => LineData } {
+  const data: LineData = { id, description, text, next: "" };
+  const builder: LineBuilder = {
+    when(condition: ExprBuilder) {
+      data.condition = condition.toExpr();
+      return builder;
+    },
+    goto(nodeId: string) {
+      data.next = nodeId;
+      return builder;
+    },
+  };
+  return { builder, getData: () => data };
+}
+
 // --- Dialogue builder ---
 
 interface DialogueBuilderApi {
   text(id: string, content: TextTemplate, opts?: { context?: string; next?: string; speaker?: string }): void;
   choice(id: string, options: OptionBuilder[]): void;
+  /** NPC reply lines; Jev picks one from the NPC's profile (spec 004). The first line is the neutral fallback. */
+  reply(id: string, lines: [LineBuilder, ...LineBuilder[]]): void;
+  line(id: string, description: string, text: string | TextTemplate): LineBuilder;
   action(id: string, effects: Effect[], opts: { next: string }): void;
   end(id: string): void;
   option(label: string | TextTemplate): OptionBuilder;
@@ -84,6 +111,7 @@ function createDialogueBuilder(
   const entryPoints: Array<{ nodeId: string; condition: Expr }> = [];
   const nodeOrder: string[] = [];
   const optionBuilders = new Map<OptionBuilder, () => ChoiceOptionData>();
+  const lineBuilders = new Map<LineBuilder, () => LineData>();
 
   const pendingAutoChain: string[] = [];
 
@@ -120,6 +148,29 @@ function createDialogueBuilder(
         return data;
       });
       registerNode(id, { type: "choice", options: optionData });
+    },
+
+    reply(id, lineList) {
+      const lines = lineList.map((lb, i) => {
+        const getData = lineBuilders.get(lb);
+        if (!getData) throw new Error(`Unknown line builder at index ${i} in reply node "${id}"`);
+        const data = getData();
+        if (data.next === "") throw new Error(`Line "${data.id}" in reply node "${id}" is missing goto() target`);
+        return data;
+      });
+      if (lines[0].condition) {
+        throw new Error(`The first line of reply node "${id}" is the fallback and cannot have a condition`);
+      }
+      const ids = new Set(lines.map((l) => l.id));
+      if (ids.size !== lines.length) throw new Error(`Reply node "${id}" has duplicate line ids`);
+      const [{ condition: _none, ...first }, ...rest] = lines;
+      registerNode(id, { type: "reply", lines: [first, ...rest] as ReplyLines });
+    },
+
+    line(id, description, text) {
+      const { builder, getData } = createLineBuilder(id, description, typeof text === "string" ? [text] : text);
+      lineBuilders.set(builder, getData);
+      return builder;
     },
 
     action(id, effects, opts) {
@@ -189,6 +240,9 @@ interface ScenarioBuilderApi {
     faction: string;
     position: { x: number; y: number };
     initialBeliefs: Array<{ key: string; value: Value }>;
+    gender: Gender;
+    personality: string;
+    farewells?: Array<string | { text: string; when: ExprBuilder }>;
   }): NpcBuilder;
   dialogue(npcId: string, dialogueId: string, fn: (d: DialogueBuilderApi) => void): void;
 }
@@ -213,6 +267,12 @@ export function scenario(id: string, fn: (s: ScenarioBuilderApi) => void): Scena
         faction: opts.faction,
         position: opts.position,
         initialBeliefs: opts.initialBeliefs,
+        profile: {
+          gender: opts.gender,
+          personality: opts.personality,
+          farewells: (opts.farewells ?? []).map((f): FarewellLine =>
+            typeof f === "string" ? { text: [f] } : { text: [f.text], condition: f.when.toExpr() }),
+        },
         dialogueIds: npcDialogueMap.get(npcId)!,
         handlers,
       });

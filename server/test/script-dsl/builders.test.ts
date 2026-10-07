@@ -80,7 +80,7 @@ describe("builders", () => {
   describe("scenario()", () => {
     it("builds a complete ScenarioData", () => {
       const data = scenario("test-scenario", (s) => {
-        s.npc("npc_a", {
+        s.npc("npc_a", { gender: { kind: "male" }, personality: "A plain villager.",
           role: "merchant",
           faction: "village_a",
           position: { x: 0, y: 0 },
@@ -106,7 +106,7 @@ describe("builders", () => {
   describe("dialogue builder", () => {
     it("auto-chains text nodes in source order", () => {
       const data = scenario("chain-test", (s) => {
-        s.npc("a", { role: "scout", faction: "f", position: { x: 0, y: 0 }, initialBeliefs: [] });
+        s.npc("a", { gender: { kind: "male" }, personality: "A plain villager.", role: "scout", faction: "f", position: { x: 0, y: 0 }, initialBeliefs: [] });
         s.dialogue("a", "d", (d) => {
           d.text("first", t`One`);
           d.text("second", t`Two`);
@@ -128,7 +128,7 @@ describe("builders", () => {
 
     it("choice options with conditions", () => {
       const data = scenario("choice-test", (s) => {
-        s.npc("a", { role: "scout", faction: "f", position: { x: 0, y: 0 }, initialBeliefs: [] });
+        s.npc("a", { gender: { kind: "male" }, personality: "A plain villager.", role: "scout", faction: "f", position: { x: 0, y: 0 }, initialBeliefs: [] });
         s.dialogue("a", "d", (d) => {
           d.choice("ch", [
             d.option("Option A").when(fact("x").gt(5)).goto("target_a"),
@@ -150,7 +150,7 @@ describe("builders", () => {
 
     it("action node with effects and explicit next", () => {
       const data = scenario("action-test", (s) => {
-        s.npc("a", { role: "scout", faction: "f", position: { x: 0, y: 0 }, initialBeliefs: [] });
+        s.npc("a", { gender: { kind: "male" }, personality: "A plain villager.", role: "scout", faction: "f", position: { x: 0, y: 0 }, initialBeliefs: [] });
         s.dialogue("a", "d", (d) => {
           d.action("act", [setFact("$npc", "done", true)], { next: "end_node" });
           d.end("end_node");
@@ -167,7 +167,7 @@ describe("builders", () => {
 
     it("auto-chains text nodes across the dialogue", () => {
       const data = scenario("chain-test-2", (s) => {
-        s.npc("a", { role: "scout", faction: "f", position: { x: 0, y: 0 }, initialBeliefs: [] });
+        s.npc("a", { gender: { kind: "male" }, personality: "A plain villager.", role: "scout", faction: "f", position: { x: 0, y: 0 }, initialBeliefs: [] });
         s.dialogue("a", "d", (d) => {
           d.text("t1", t`Hello`);
           d.text("t2", t`Goodbye`);
@@ -184,7 +184,7 @@ describe("builders", () => {
 
     it("throws on empty dialogue (no nodes)", () => {
       expect(() => scenario("empty-dialogue", (s) => {
-        s.npc("a", { role: "scout", faction: "f", position: { x: 0, y: 0 }, initialBeliefs: [] });
+        s.npc("a", { gender: { kind: "male" }, personality: "A plain villager.", role: "scout", faction: "f", position: { x: 0, y: 0 }, initialBeliefs: [] });
         s.dialogue("a", "d", (_d) => {
           // no nodes registered
         });
@@ -193,7 +193,7 @@ describe("builders", () => {
 
     it("throws when text node has dangling next (auto-chain not resolved)", () => {
       expect(() => scenario("dangling", (s) => {
-        s.npc("a", { role: "scout", faction: "f", position: { x: 0, y: 0 }, initialBeliefs: [] });
+        s.npc("a", { gender: { kind: "male" }, personality: "A plain villager.", role: "scout", faction: "f", position: { x: 0, y: 0 }, initialBeliefs: [] });
         s.dialogue("a", "d", (d) => {
           d.text("only", t`Hello`);
           // no end node, auto-chain leaves next: ""
@@ -203,7 +203,7 @@ describe("builders", () => {
 
     it("throws when option has no goto()", () => {
       expect(() => scenario("no-goto", (s) => {
-        s.npc("a", { role: "scout", faction: "f", position: { x: 0, y: 0 }, initialBeliefs: [] });
+        s.npc("a", { gender: { kind: "male" }, personality: "A plain villager.", role: "scout", faction: "f", position: { x: 0, y: 0 }, initialBeliefs: [] });
         s.dialogue("a", "d", (d) => {
           d.choice("ch", [
             d.option("Option A"),
@@ -224,7 +224,7 @@ describe("builders", () => {
 
     it("throws on duplicate dialogue ID", () => {
       expect(() => scenario("dup-dialogue", (s) => {
-        s.npc("a", { role: "scout", faction: "f", position: { x: 0, y: 0 }, initialBeliefs: [] });
+        s.npc("a", { gender: { kind: "male" }, personality: "A plain villager.", role: "scout", faction: "f", position: { x: 0, y: 0 }, initialBeliefs: [] });
         s.dialogue("a", "talk", (d) => { d.text("hi", t`Hi`); d.end("done"); });
         s.dialogue("a", "talk", (d) => { d.text("yo", t`Yo`); d.end("end"); });
       })).toThrow(/Duplicate dialogueId/);
@@ -232,14 +232,14 @@ describe("builders", () => {
 
     it("throws on duplicate NPC ID", () => {
       expect(() => scenario("dup-npc", (s) => {
-        s.npc("a", { role: "scout", faction: "f", position: { x: 0, y: 0 }, initialBeliefs: [] });
-        s.npc("a", { role: "merchant", faction: "f", position: { x: 1, y: 0 }, initialBeliefs: [] });
+        s.npc("a", { gender: { kind: "male" }, personality: "A plain villager.", role: "scout", faction: "f", position: { x: 0, y: 0 }, initialBeliefs: [] });
+        s.npc("a", { gender: { kind: "male" }, personality: "A plain villager.", role: "merchant", faction: "f", position: { x: 1, y: 0 }, initialBeliefs: [] });
       })).toThrow(/Duplicate npcId/);
     });
 
     it("d.entry() adds entryPoints to dialogue tree", () => {
       const data = scenario("entry-test", (s) => {
-        s.npc("a", { role: "farmer", faction: "f", position: { x: 0, y: 0 }, initialBeliefs: [] });
+        s.npc("a", { gender: { kind: "male" }, personality: "A plain villager.", role: "farmer", faction: "f", position: { x: 0, y: 0 }, initialBeliefs: [] });
         s.dialogue("a", "d", (d) => {
           d.text("greeting", ["Hello!"], { next: "done" });
           d.text("alt-entry", ["Welcome back!"], { next: "done" });
@@ -262,7 +262,7 @@ describe("builders", () => {
 
     it("option labels can be TextTemplate", () => {
       const data = scenario("tpl-label", (s) => {
-        s.npc("a", { role: "scout", faction: "f", position: { x: 0, y: 0 }, initialBeliefs: [] });
+        s.npc("a", { gender: { kind: "male" }, personality: "A plain villager.", role: "scout", faction: "f", position: { x: 0, y: 0 }, initialBeliefs: [] });
         s.dialogue("a", "d", (d) => {
           d.choice("ch", [
             d.option(t`I have ${player.prop("food")} food`).goto("end_node"),

@@ -16,7 +16,7 @@ export const STARVATION_DAMAGE = 10;          // HP lost per interval when starv
 export const DEFAULT_INVENTORY_CAPACITY = 20;
 
 // --- Settlement ---
-export const HOUSING_POPULATION_CAP = 4;      // population per housing structure
+export const HOUSING_POPULATION_CAP = 6;      // population per housing structure (village: 2 x 6 = 12)
 
 // --- Zone ---
 export enum ZoneType {

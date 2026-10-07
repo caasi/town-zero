@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { farmerReedScenario } from "../../src/scenarios/farmer-reed.js";
 import { loadScenario } from "../../src/simulation/scenario-loader.js";
 import { Grid } from "../../src/simulation/grid.js";
-import { startDialogue, advanceDialogue, chooseDialogue } from "../../src/dialogue/session-manager.js";
+import { startDialogue, advanceDialogue, chooseDialogue, buildPayload } from "../../src/dialogue/session-manager.js";
+import { ReplyController } from "../../src/ai/reply-controller.js";
 import type { SimulationState } from "../../src/simulation/tick.js";
 import { Agent } from "../../src/simulation/agent.js";
 
@@ -152,10 +153,12 @@ describe("farmer-reed scenario", () => {
       const r2 = chooseDialogue("player-0", haggleOpt!.id, state);
       expect(r2.ok).toBe(true);
       if (!r2.ok) return;
-      // haggle text node
-      expect(r2.payload.nodeType).toBe("text");
+      // haggle is a reply node: Reed thinks until a line is picked
+      expect(r2.payload.content).toBe("…");
+      const [session] = new ReplyController(null).update(state); // no key: the first line
+      expect(buildPayload(session, state).content).toContain("same storehouse");
 
-      // Advance past haggle text → should be back at quest-offer
+      // Advance past the reply → should be back at quest-offer
       const r3 = advanceDialogue("player-0", state);
       expect(r3.ok).toBe(true);
       if (!r3.ok) return;

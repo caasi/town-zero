@@ -21,7 +21,7 @@ describe("bubble() effect factory", () => {
 describe("s.npc().on() chaining", () => {
   it("returns builder from .on() so calls chain", () => {
     const data = scenario("test", (s) => {
-      const b = s.npc("n1", { role: "villager", faction: "f", position: { x: 0, y: 0 }, initialBeliefs: [] });
+      const b = s.npc("n1", { gender: { kind: "male" }, personality: "A plain villager.", role: "villager", faction: "f", position: { x: 0, y: 0 }, initialBeliefs: [] });
       const chained = b.on("proximity:enter", ({ self }) => [bubble(self.id, "hi", { durationTicks: 10 })]);
       expect(chained).toBe(b);
     });
@@ -32,7 +32,7 @@ describe("s.npc().on() chaining", () => {
 
   it("accepts multiple overloads with distinct payload types", () => {
     const data = scenario("test", (s) => {
-      s.npc("n1", { role: "villager", faction: "f", position: { x: 0, y: 0 }, initialBeliefs: [] })
+      s.npc("n1", { gender: { kind: "male" }, personality: "A plain villager.", role: "villager", faction: "f", position: { x: 0, y: 0 }, initialBeliefs: [] })
         .on("proximity:enter", ({ player }) => { void player.id; return []; })
         .on("talk:start",      ({ dialogueId }) => { void dialogueId; return []; })
         .on("combat:hit",      ({ hpAfter }) => { void hpAfter; return []; });

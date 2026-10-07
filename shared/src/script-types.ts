@@ -60,6 +60,7 @@ export interface DialogueProgressEntry {
 export type DialogueNodeData =
   | { type: "text"; speaker: string; content: TextTemplate; next: string }
   | { type: "choice"; options: ChoiceOptionData[] }
+  | { type: "reply"; lines: ReplyLines }
   | { type: "action"; effects: Effect[]; next: string }
   | { type: "end" };
 
@@ -69,6 +70,21 @@ export interface ChoiceOptionData {
   condition?: Expr;
   next: string;
 }
+
+/** An NPC reply that Jev may pick (spec 004). `description` is for Jev, `text` for the player. */
+export interface ReplyLineData {
+  id: string;
+  description: string;
+  text: TextTemplate;
+  next: string;
+}
+
+/**
+ * The first line is the fallback (no key, a failed call) and has no
+ * condition, so a reply node always has a line to show. It also takes Jev's
+ * first-option bias, so make it the neutral reply.
+ */
+export type ReplyLines = [ReplyLineData, ...Array<ReplyLineData & { condition?: Expr }>];
 
 export interface DialogueTreeData {
   id: string;
@@ -84,6 +100,27 @@ export interface NpcHandlerEntry {
   handler: EventHandler<unknown>;
 }
 
+// Story data (spec 004). The world allows every kind; the scenarios use only
+// male and female for now. No simulation rule reads it; the Jev state does.
+export type Gender =
+  | { kind: "male" }
+  | { kind: "female" }
+  | { kind: "nonbinary" }
+  | { kind: "other"; description: string };
+
+/** Said in the speech bubble when a dialogue times out. The first line whose condition holds wins. */
+export interface FarewellLine {
+  text: TextTemplate;
+  condition?: Expr;
+}
+
+export interface NpcProfile {
+  gender: Gender;
+  /** One English sentence for Jev. */
+  personality: string;
+  farewells: FarewellLine[];
+}
+
 export interface NpcDefinition {
   id: string;
   name: string;
@@ -91,6 +128,7 @@ export interface NpcDefinition {
   faction: string;
   position: Position;
   initialBeliefs: Array<{ key: string; value: Value }>;
+  profile: NpcProfile;
   dialogueIds: string[];
   handlers?: NpcHandlerEntry[];
 }
