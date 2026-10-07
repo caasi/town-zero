@@ -230,8 +230,7 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
     console.log(`${agentId} left and was removed (${client.sessionId})`);
   }
 
-  // A message from the player marks its session active.
-  /** No two agents, players or NPCs, share a name; case and full-width letters do not count. */
+  /** No two agents, players or NPCs, share a name (compared by playerNameKey). */
   private nameTaken(name: string, exceptId?: string): boolean {
     const key = playerNameKey(name);
     for (const agent of this.simState.agents.values()) {
@@ -240,6 +239,7 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
     return false;
   }
 
+  // A message from the player marks its session active.
   private onPlayerMessage(type: string, handler: (client: Client, data: unknown) => void) {
     this.onMessage(type, (client: Client, data: unknown) => {
       this.lastMessageTick.set(client.sessionId, this.simState.tick);
