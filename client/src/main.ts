@@ -9,6 +9,7 @@ import { DisplayState } from "./display.js";
 import { DialogueUI } from "./dialogue-ui.js";
 import { TILE_SIZE } from "./constants.js";
 import type { GameState } from "./types.js";
+import { isStaleClient } from "./version.js";
 
 // DOM elements
 const canvas = document.getElementById("game-canvas") as HTMLCanvasElement;
@@ -17,6 +18,7 @@ const deathOverlay = document.getElementById("death-overlay")!;
 const reviveBtn = document.getElementById("revive-btn") as HTMLButtonElement;
 const errorOverlay = document.getElementById("error-overlay")!;
 const errorText = document.getElementById("error-text")!;
+const updateBanner = document.getElementById("update-banner")!;
 const hpText = document.getElementById("hp-text")!;
 const hpBar = document.getElementById("hp-bar")!;
 const inventoryEl = document.getElementById("inventory")!;
@@ -170,6 +172,9 @@ function gameLoop(now: number): void {
 }
 
 // Connect
+// The server runs another build: this tab's code may not match its protocol.
+let staleClient = false;
+
 async function connect(): Promise<void> {
   if (isConnecting) return;
   isConnecting = true;
@@ -181,6 +186,9 @@ async function connect(): Promise<void> {
 
   try {
     await network.connect("Player");
+    // Same value as the HUD's %VITE_COMMIT% (vite.config.ts).
+    staleClient = isStaleClient(import.meta.env.VITE_COMMIT, network.serverCommit);
+    updateBanner.classList.toggle("hidden", !staleClient);
     network.sendPresence(!document.hidden);
 
     const state = network.state;
@@ -275,7 +283,14 @@ function startReviveCountdown(ms: number): void {
 reviveBtn.addEventListener("click", () => network.sendRevive());
 document.addEventListener("visibilitychange", () => network.sendPresence(!document.hidden));
 
+document.getElementById("reload-btn")!.addEventListener("click", () => location.reload());
+
 document.getElementById("retry-btn")!.addEventListener("click", () => {
+  // A reconnect would run the old code again; a reload fetches the new build.
+  if (staleClient) {
+    location.reload();
+    return;
+  }
   network.disconnect();
   input?.destroy();
   displayState.clear();

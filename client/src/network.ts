@@ -14,6 +14,7 @@ export class NetworkClient {
   private dialogueEndCallbacks: Array<(data: { reason: string }) => void> = [];
   private dialogueErrorCallbacks: Array<(data: { error: string }) => void> = [];
   private leftCallbacks: Array<(code: number) => void> = [];
+  private _serverCommit: unknown;
   private joinedResolve: ((agentId: string) => void) | null = null;
   private joinedReject: ((reason: Error) => void) | null = null;
   private joinedTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -64,9 +65,10 @@ export class NetworkClient {
       for (const cb of this.leftCallbacks) cb(code);
     });
 
-    this.room.onMessage("joined", (data: { agentId: string }) => {
+    this.room.onMessage("joined", (data: { agentId: string; commit?: unknown }) => {
       if (!this.joinedResolve) return;
       this._playerId = data.agentId;
+      this._serverCommit = data.commit;
       if (this.joinedTimeout) {
         clearTimeout(this.joinedTimeout);
         this.joinedTimeout = null;
@@ -101,6 +103,11 @@ export class NetworkClient {
     });
 
     await joinedPromise;
+  }
+
+  /** The build the server runs, from the joined message (undefined from older servers). */
+  get serverCommit(): unknown {
+    return this._serverCommit;
   }
 
   sendInput(frame: InputFrame): void {
