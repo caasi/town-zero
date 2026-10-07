@@ -60,13 +60,22 @@ describe("DisplayState", () => {
       expect(ds.get("p1")).toMatchObject({ displayX: from.x, displayY: from.y });
     });
 
+    // East, not west: x < 0 is blocked even with no map size, so only the
+    // east and south edges depend on the size that setGridSize stores.
     it("keeps the map size through clear(), which a revive calls", () => {
       const ds = new DisplayState();
       ds.setGridSize(10, 10);
       ds.clear();
       ds.setLocalPlayer("p1");
-      initLocal(ds, "p1", { x: 0, y: 5, facing: "west" });
-      expect(ds.predictMove(-1, 5, "idle", makeTiles({}))).toBe(false);
+      initLocal(ds, "p1", { x: 9, y: 5, facing: "east" });
+      expect(ds.predictMove(10, 5, "idle", makeTiles({}))).toBe(false);
+    });
+
+    it("has no east or south edge before the map size is known", () => {
+      const ds = new DisplayState();
+      ds.setLocalPlayer("p1");
+      initLocal(ds, "p1", { x: 9, y: 5, facing: "east" });
+      expect(ds.predictMove(10, 5, "idle", makeTiles({}))).toBe(true);
     });
 
     it("allows move in same facing direction and updates display position", () => {
