@@ -326,18 +326,14 @@ export class Renderer {
     if (agent.role === "player") {
       // Diamond - a player, in the color of its name on every screen, so
       // players can tell each other apart by it. Six colors repeat, so the
-      // shape tells you from the others: you are solid, they are hollow.
+      // fill tells you from the others: you are filled with your color and
+      // edged white; they are filled white and edged with their color.
       const color = playerColor(agent.name || agent.id);
       diamondPath(ctx, px, py);
-      if (isPlayer) {
-        ctx.fillStyle = color;
-        ctx.fill();
-        ctx.strokeStyle = "#fff";
-        ctx.lineWidth = 1.5;
-      } else {
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 3;
-      }
+      ctx.fillStyle = isPlayer ? color : "#fff";
+      ctx.fill();
+      ctx.strokeStyle = isPlayer ? "#fff" : color;
+      ctx.lineWidth = isPlayer ? 1.5 : 3;
       ctx.stroke();
     } else {
       // Triangle - NPCs
@@ -405,10 +401,12 @@ export class Renderer {
     // each tick without you, and a merged copy from a neighbour replaces a
     // tile only when it is newer.
     if (entity.role === "player") {
-      // Hollow, as other players are drawn live.
+      // White with a colored edge, as other players are drawn live.
+      diamondPath(ctx, px, py);
+      ctx.fillStyle = "#fff";
+      ctx.fill();
       ctx.strokeStyle = name ? playerColor(name) : LEFT_PLAYER_COLOR;
       ctx.lineWidth = 3;
-      diamondPath(ctx, px, py);
       ctx.stroke();
     } else {
       const isEnemy = playerFaction !== "" && entity.faction !== playerFaction;
