@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { RESOURCE_MAX_AMOUNT } from "@town-zero/shared";
 import { Grid } from "../../src/simulation/grid.js";
 import { GRID_WIDTH, GRID_HEIGHT, ZoneType } from "@town-zero/shared";
 
@@ -125,5 +126,36 @@ describe("Grid", () => {
     const grid = new Grid(10, 10);
     grid.setObjectType(-1, 0, "bush");
     expect(grid.getObjectType(-1, 0)).toBe("");
+  });
+
+  describe("resource amount", () => {
+    it("a new resource tile is full", () => {
+      const grid = new Grid(5, 5);
+      grid.setResourceYield(1, 1, "food");
+      expect(grid.getResourceAmount(1, 1)).toBe(RESOURCE_MAX_AMOUNT);
+      expect(grid.getResourceAmount(2, 2)).toBe(0);
+    });
+
+    it("taking uses up the tile", () => {
+      const grid = new Grid(5, 5);
+      grid.setResourceYield(1, 1, "food");
+      for (let i = 0; i < RESOURCE_MAX_AMOUNT; i++) expect(grid.takeResource(1, 1)).toBe("food");
+      expect(grid.takeResource(1, 1)).toBeNull();
+      expect(grid.getResourceAmount(1, 1)).toBe(0);
+      expect(grid.getResourceYield(1, 1)).toBe("food"); // still a food place
+      expect(grid.takeResource(2, 2)).toBeNull();
+    });
+
+    it("regrowth adds one to each resource tile, up to the maximum", () => {
+      const grid = new Grid(5, 5);
+      grid.setResourceYield(1, 1, "food");
+      grid.setResourceYield(3, 3, "food");
+      grid.takeResource(1, 1);
+      grid.takeResource(1, 1);
+      grid.regrowResources();
+      expect(grid.getResourceAmount(1, 1)).toBe(RESOURCE_MAX_AMOUNT - 1);
+      expect(grid.getResourceAmount(3, 3)).toBe(RESOURCE_MAX_AMOUNT);
+      expect(grid.getResourceAmount(2, 2)).toBe(0);
+    });
   });
 });

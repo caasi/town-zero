@@ -226,6 +226,19 @@ describe("syncTiles", () => {
     expect(state.tiles.get("0,1")!.ownerFaction).toBe("");
   });
 
+  it("shows a used-up resource tile as empty until it grows back", () => {
+    const sim = makeSimState();
+    sim.grid.setResourceYield(0, 0, "food");
+    const state = new WorldStateSchema();
+    syncTiles(sim.grid, state);
+    while (sim.grid.takeResource(0, 0));
+    syncToSchema(sim, state);
+    expect(state.tiles.get("0,0")!.resourceYield).toBe("");
+    sim.grid.regrowResources();
+    syncToSchema(sim, state);
+    expect(state.tiles.get("0,0")!.resourceYield).toBe("food");
+  });
+
   it("syncs zoneType from grid", () => {
     const grid = new Grid(3, 3);
     grid.setZoneType(1, 1, ZoneType.CORE);

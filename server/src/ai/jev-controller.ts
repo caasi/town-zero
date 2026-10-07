@@ -84,12 +84,12 @@ function isThreat(agent: Agent, enemy: EntitySnapshot, state: SimulationState): 
     || distance(agent.position, enemy.position) <= 1;
 }
 
-// ponytail: the yield of a tile never changes, so a tile in MapMemory plus the
-// grid's yield is what the agent knows. Store the yield in TileMemory once
-// tiles can run out.
+// The kind of resource a tile yields never changes, so the grid gives it; how
+// much is left comes from the agent's memory of the tile.
 function nearestKnownFood(agent: Agent, state: SimulationState): Position | undefined {
   let best: Position | undefined;
-  for (const key of agent.getAllMemory().keys()) {
+  for (const [key, mem] of agent.getAllMemory()) {
+    if (mem.resourceAmount === 0) continue;
     const [x, y] = key.split(",").map(Number);
     if (state.grid.getResourceYield(x, y) !== "food") continue;
     const d = distance(agent.position, { x, y });
@@ -259,6 +259,8 @@ export function nextFrame(agent: Agent, goal: Goal, state: SimulationState): Inp
     }
     case "forage": {
       if (agent.inventory.food >= CARRY_FULL) return null;
+      // Seen used up (vision reaches the tile before the beast does): re-ask.
+      if (!agent.getMemory(goal.tile.x, goal.tile.y)?.resourceAmount) return null;
       const d = distance(agent.position, goal.tile);
       if (d === 0) return null;
       if (d === 1) {

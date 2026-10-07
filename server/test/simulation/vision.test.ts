@@ -3,7 +3,7 @@ import { updateVision, mergeAdjacentMemories, updateStoreKnowledge, storeFoodKey
 import { Agent } from "../../src/simulation/agent.js";
 import { Settlement } from "../../src/simulation/settlement.js";
 import { Grid } from "../../src/simulation/grid.js";
-import { DEFAULT_VISION_RADIUS } from "@town-zero/shared";
+import { DEFAULT_VISION_RADIUS, RESOURCE_MAX_AMOUNT } from "@town-zero/shared";
 
 describe("updateVision", () => {
   it("records tiles within vision radius", () => {
@@ -18,6 +18,17 @@ describe("updateVision", () => {
     expect(mem).not.toBeNull();
     expect(mem!.terrain).toBe("forest");
     expect(mem!.timestamp).toBe(10);
+  });
+
+  it("records how much a resource tile holds when seen", () => {
+    const grid = new Grid(20, 20);
+    grid.setResourceYield(6, 5, "food");
+    grid.takeResource(6, 5);
+    const agent = new Agent({ id: "a1", position: { x: 5, y: 5 }, faction: "v1", role: "farmer", controller: "llm" });
+    updateVision(agent, grid, new Map([["a1", agent]]), 10);
+    grid.takeResource(6, 5); // later changes are not in the memory
+    expect(agent.getMemory(6, 5)!.resourceAmount).toBe(RESOURCE_MAX_AMOUNT - 1);
+    expect(agent.getMemory(5, 5)!.resourceAmount).toBe(0);
   });
 
   it("does not record tiles outside vision radius", () => {

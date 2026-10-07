@@ -55,8 +55,21 @@ function syncSettlement(settlement: Settlement, schema: SettlementSchema): void 
   }
 }
 
+// A used-up tile shows no resource, so a player sees that gathering there gives nothing.
+function shownYield(grid: Grid, x: number, y: number): string {
+  return grid.getResourceAmount(x, y) > 0 ? grid.getResourceYield(x, y) ?? "" : "";
+}
+
 export function syncToSchema(simState: SimulationState, roomState: WorldStateSchema): void {
   roomState.tick = simState.tick;
+
+  // Only resource amounts change after syncTiles. Assign only on change, so
+  // an idle tick adds nothing to the patch.
+  const { grid } = simState;
+  roomState.tiles.forEach((tile) => {
+    const shown = shownYield(grid, tile.x, tile.y);
+    if (tile.resourceYield !== shown) tile.resourceYield = shown;
+  });
 
   // Sync agents
   for (const [id, agent] of simState.agents) {
@@ -113,7 +126,7 @@ export function syncTiles(
       tile.x = x;
       tile.y = y;
       tile.terrain = grid.getTerrain(x, y) ?? "plains";
-      tile.resourceYield = grid.getResourceYield(x, y) ?? "";
+      tile.resourceYield = shownYield(grid, x, y);
       tile.ownerFaction = grid.getOwner(x, y) ?? "";
       tile.zoneType = grid.getZoneType(x, y);
       tile.objectType = grid.getObjectType(x, y);

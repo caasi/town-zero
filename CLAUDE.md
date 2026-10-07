@@ -90,6 +90,7 @@ Source of truth: `processTick` in `server/src/simulation/tick.ts`.
 - `NetworkClient.connect()` has a 10s join timeout with full cleanup on expiry, a concurrent-call guard (`isConnecting` in main.ts), and `disconnect()` rejects any in-flight join promise
 - Colyseus Client constructor uses `http://`/`https://` scheme (not `ws://`/`wss://`) — SDK handles WebSocket upgrade internally
 - Food consumption is from agent personal inventory, not settlement (agents must `take` from settlement)
+- **Resource tiles run out and grow back.** A resource tile holds up to `RESOURCE_MAX_AMOUNT` units; `gather` takes one, and every tile grows back one unit per `RESOURCE_REGROW_TICKS` (both in `shared/src/constants.ts`). `TileMemory.resourceAmount` keeps what an agent saw, so a beast walks to a food place it remembers as full and finds out there that it is empty. A used-up tile is synced with `resourceYield: ""`, so the client shows it as empty with no client change; `syncToSchema` assigns that field only when it changes
 - Server runs on Node.js via tsx
 - Use pnpm, not bun — bun duplicates @colyseus/core instances causing matchmaker state isolation
 - Shared logic between server and client (e.g. `tilesInManhattanRadius` for vision shape, `isMoveBlocked` for movement) must live in `@town-zero/shared` — duplicating geometry/distance logic across packages causes shape mismatches
@@ -117,7 +118,6 @@ Source of truth: `processTick` in `server/src/simulation/tick.ts`.
 - After death the HUD can still show the last HP before 0 (the `death` message arrives before the state patch).
 - `material` and `currency` have no use since production and merchants were removed.
 - A respawned village NPC (Farmer Reed or the innkeeper) is added back to `populationIds` without a cap check: if a player took the freed slot, the village is one over its cap until someone leaves. It also respawns on the first free territory tile, not at its post (Farmer Reed starts at (9,19), the innkeeper at (11,21)).
-- Resource tiles never run out (`gather` is unlimited), and a beast's food knowledge reads the yield from the grid for tiles in its MapMemory. Store the yield in `TileMemory` when tiles can be used up.
 
 ## TODO
 

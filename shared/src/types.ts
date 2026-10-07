@@ -114,6 +114,7 @@ export interface TileMemory {
   terrain: TerrainType;
   entities: EntitySnapshot[];
   timestamp: number;   // tick when last observed
+  resourceAmount: number; // units left on the tile when observed; 0 for a tile with no resource
 }
 
 // --- Dialogue ---

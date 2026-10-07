@@ -15,6 +15,12 @@ export const FOOD_CONSUMPTION_INTERVAL = 240; // ticks between food consumption 
 export const STARVATION_DAMAGE = 10;          // HP lost per interval when starving
 export const DEFAULT_INVENTORY_CAPACITY = 20;
 
+// --- Resources ---
+// The den has 4 berry bushes and 3 beasts that eat 1 food per ~30s: 4 food
+// per 30s just feeds them, so gathering by players makes the den short.
+export const RESOURCE_MAX_AMOUNT = 3;          // units a resource tile holds when full
+export const RESOURCE_REGROW_TICKS = 240;      // every resource tile grows back 1 unit per interval (~30s)
+
 // --- Settlement ---
 export const HOUSING_POPULATION_CAP = 6;      // population per housing structure (village: 2 x 6 = 12)
 

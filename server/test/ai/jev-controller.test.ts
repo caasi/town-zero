@@ -107,7 +107,7 @@ describe("buildOptions", () => {
     const { state, beast } = setup();
     state.grid.setResourceYield(8, 2, "food");
     expect(buildOptions(beast, state).map((o) => o.id)).not.toContain("forage");
-    beast.recordTile(8, 2, "plains", [], state.tick - 50); // seen long ago still counts
+    beast.recordTile(8, 2, "plains", [], state.tick - 50, 3); // seen long ago still counts
     const ids = buildOptions(beast, state).map((o) => o.id);
     expect(ids).toContain("forage");
     expect(ids).not.toContain("explore");
@@ -115,10 +115,19 @@ describe("buildOptions", () => {
     expect(buildOptions(beast, state).map((o) => o.id)).not.toContain("forage");
   });
 
+  it("does not offer forage for a food place it saw used up", () => {
+    const { state, beast } = setup();
+    state.grid.setResourceYield(8, 2, "food"); // full now, but the beast saw it empty
+    beast.recordTile(8, 2, "plains", [], state.tick - 50, 0);
+    const ids = buildOptions(beast, state).map((o) => o.id);
+    expect(ids).not.toContain("forage");
+    expect(ids).toContain("explore");
+  });
+
   it("every offered option yields a frame (no instant re-ask loop)", () => {
     const { state, beast, player, know } = setup();
     state.grid.setResourceYield(8, 2, "food");
-    beast.recordTile(8, 2, "plains", [], state.tick);
+    beast.recordTile(8, 2, "plains", [], state.tick, 3);
     state.settlements.get("den-1")!.inventory.food = 5; // low: bring_food_home is offered
     know();
     for (const food of [0, 3, 5]) {
@@ -243,6 +252,7 @@ describe("nextFrame", () => {
   it("forage: walks to the food place, faces it, gathers until full", () => {
     const { state, beast } = setup();
     const goal: Goal = { kind: "forage", tile: { x: 5, y: 2 } };
+    beast.recordTile(5, 2, "plains", [], state.tick, 3);
     beast.facing = "east";
     expect(nextFrame(beast, goal, state)).toEqual({ seq: 0, direction: "east" });
     beast.position = { x: 5, y: 3 }; // adjacent, food is to the north
@@ -250,6 +260,15 @@ describe("nextFrame", () => {
     beast.position = { x: 4, y: 2 };
     expect(nextFrame(beast, goal, state)?.action).toEqual({ type: "gather", resourceTile: { x: 5, y: 2 } });
     beast.addToInventory("food", 5);
+    expect(nextFrame(beast, goal, state)).toBeNull();
+  });
+
+  it("forage: ends when the beast sees the food place used up", () => {
+    const { state, beast } = setup();
+    const goal: Goal = { kind: "forage", tile: { x: 5, y: 2 } };
+    beast.recordTile(5, 2, "plains", [], state.tick, 1);
+    expect(nextFrame(beast, goal, state)).not.toBeNull();
+    beast.recordTile(5, 2, "plains", [], state.tick + 1, 0);
     expect(nextFrame(beast, goal, state)).toBeNull();
   });
 

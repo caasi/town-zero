@@ -1,3 +1,4 @@
+import { RESOURCE_REGROW_TICKS } from "@town-zero/shared";
 import type { InputFrame, DialogueTreeData } from "@town-zero/shared";
 import { Agent } from "./agent.js";
 import type { Grid } from "./grid.js";
@@ -57,7 +58,9 @@ export function processTick(state: SimulationState, { llmPaused = false } = {}):
     }
   }
 
-  // Phase 3: Consumption
+  // Phase 3: Consumption and regrowth (regrowth runs while Jev is paused too:
+  // the world clock does not stop)
+  if (tick % RESOURCE_REGROW_TICKS === 0) grid.regrowResources();
   for (const [, agent] of agents) {
     if (llmPaused && agent.controller === "llm") continue;
     processConsumption(agent, tick);

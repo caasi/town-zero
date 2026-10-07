@@ -42,7 +42,7 @@ export function updateVision(
       maxHp: a.maxHp,
     }));
 
-    agent.recordTile(tile.x, tile.y, terrain, snapshots, tick);
+    agent.recordTile(tile.x, tile.y, terrain, snapshots, tick, grid.getResourceAmount(tile.x, tile.y));
   }
 }
 
