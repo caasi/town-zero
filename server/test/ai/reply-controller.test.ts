@@ -6,6 +6,7 @@ import { Agent } from "../../src/simulation/agent.js";
 import { Grid } from "../../src/simulation/grid.js";
 import { Settlement } from "../../src/simulation/settlement.js";
 import type { SimulationState } from "../../src/simulation/tick.js";
+import { updateStoreKnowledge } from "../../src/simulation/vision.js";
 import type { DialogueTreeData } from "@town-zero/shared";
 
 const tree: DialogueTreeData = {
@@ -194,5 +195,15 @@ describe("describeReplyState", () => {
       village: "the storehouse holds 12 food (low)",
       player_said: "What's in it for me?",
     });
+  });
+
+  it("leaves out the store count that agents keep as a belief", () => {
+    // The village line gives the store; the belief changes with every
+    // deposit and would make each reply a new cache key, so a paid call.
+    const state = waitingState();
+    const reed = state.agents.get("reed")!;
+    updateStoreKnowledge(reed, state.settlements, state.tick);
+    expect(reed.getAllBeliefs().size).toBe(2);
+    expect(describeReplyState(reed, null, state).beliefs).toEqual(["food quest active: true"]);
   });
 });

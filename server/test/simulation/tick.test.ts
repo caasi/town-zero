@@ -4,7 +4,7 @@ import { processTick } from "../../src/simulation/tick.js";
 import { Grid } from "../../src/simulation/grid.js";
 import { Agent } from "../../src/simulation/agent.js";
 import { Settlement } from "../../src/simulation/settlement.js";
-import { FOOD_CONSUMPTION_INTERVAL, BASE_ATTACK_DAMAGE } from "@town-zero/shared";
+import { FOOD_CONSUMPTION_INTERVAL, BASE_ATTACK_DAMAGE, RESOURCE_MAX_AMOUNT, RESOURCE_REGROW_TICKS } from "@town-zero/shared";
 
 function makeWorld(): SimulationState {
   const grid = new Grid(10, 10);
@@ -33,6 +33,22 @@ describe("processTick", () => {
     const world = makeWorld();
     processTick(world);
     expect(world.tick).toBe(1);
+  });
+
+  it("resource tiles grow back one unit per interval", () => {
+    const world = makeWorld(); // food at (3,3)
+    world.grid.takeResource(3, 3);
+    for (let i = 1; i < RESOURCE_REGROW_TICKS; i++) processTick(world);
+    expect(world.grid.getResourceAmount(3, 3)).toBe(RESOURCE_MAX_AMOUNT - 1);
+    processTick(world);
+    expect(world.grid.getResourceAmount(3, 3)).toBe(RESOURCE_MAX_AMOUNT);
+  });
+
+  it("an agent at home learns the food in its store", () => {
+    const world = makeWorld();
+    world.settlements.get("v1")!.addResource("food", 4);
+    processTick(world);
+    expect(world.agents.get("a1")!.getBelief("food:v1")?.value).toBe(4);
   });
 
   describe("Phase 1: InputFrame consumption", () => {

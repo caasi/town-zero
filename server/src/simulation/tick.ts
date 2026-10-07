@@ -1,10 +1,11 @@
+import { RESOURCE_REGROW_TICKS } from "@town-zero/shared";
 import type { InputFrame, DialogueTreeData } from "@town-zero/shared";
 import { Agent } from "./agent.js";
 import type { Grid } from "./grid.js";
 import type { Settlement } from "./settlement.js";
 import { executeFrame, type TalkResult } from "./execute-frame.js";
 import { processConsumption } from "./resources.js";
-import { updateVision, mergeAdjacentMemories, getVisionRadius } from "./vision.js";
+import { updateVision, updateStoreKnowledge, mergeAdjacentMemories, getVisionRadius } from "./vision.js";
 import { decideBotAction } from "../ai/bot-controller.js";
 import { dispatch, applyEventEffects } from "./event-dispatch.js";
 
@@ -57,7 +58,9 @@ export function processTick(state: SimulationState, { llmPaused = false } = {}):
     }
   }
 
-  // Phase 3: Consumption
+  // Phase 3: Consumption and regrowth (regrowth runs while Jev is paused too:
+  // the world clock does not stop)
+  if (tick % RESOURCE_REGROW_TICKS === 0) grid.regrowResources();
   for (const [, agent] of agents) {
     if (llmPaused && agent.controller === "llm") continue;
     processConsumption(agent, tick);
@@ -66,6 +69,7 @@ export function processTick(state: SimulationState, { llmPaused = false } = {}):
   // Phase 4: Vision update
   for (const [, agent] of agents) {
     updateVision(agent, grid, agents, tick);
+    updateStoreKnowledge(agent, settlements, tick);
   }
 
   // Phase 4b: Bubble expiry + event dispatch.

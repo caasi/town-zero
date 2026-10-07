@@ -3,6 +3,7 @@ import { describeGender } from "./npc-words.js";
 import type { Agent } from "../simulation/agent.js";
 import type { SimulationState } from "../simulation/tick.js";
 import type { DialogueSession } from "../dialogue/dialogue-session.js";
+import { isStoreFoodKey } from "../simulation/vision.js";
 
 // Tandi is short of food (docs/story.md); below this the state says "low".
 const VILLAGE_FOOD_LOW = 40;
@@ -23,7 +24,11 @@ export function describeReplyState(npc: Agent, playerSaid: string | null, state:
       gender: describeGender(npc.name, npc.profile.gender),
       personality: npc.profile.personality,
     }),
-    beliefs: Array.from(npc.getAllBeliefs().values()).map((f) => `${f.key.replace(/_/g, " ")}: ${String(f.value)}`),
+    // Store counts change with every deposit; in the state they would make each
+    // reply a new cache key. The village line below gives the count.
+    beliefs: Array.from(npc.getAllBeliefs().values())
+      .filter((f) => !isStoreFoodKey(f.key))
+      .map((f) => `${f.key.replace(/_/g, " ")}: ${String(f.value)}`),
     village: food === undefined ? "no village" : `the storehouse holds ${food} food${food < VILLAGE_FOOD_LOW ? " (low)" : ""}`,
     ...(playerSaid && { player_said: playerSaid }),
   };

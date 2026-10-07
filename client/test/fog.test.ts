@@ -13,7 +13,7 @@ function makeLiveTiles(
   };
 }
 
-function noAgents(): Iterable<{ id: string; x: number; y: number; role: string; faction: string }> {
+function noAgents(): Iterable<{ id: string; x: number; y: number; role: string; faction: string; hp: number; maxHp: number }> {
   return [];
 }
 
@@ -95,8 +95,8 @@ describe("FogManager", () => {
       const fog = new FogManager();
       const tiles = makeLiveTiles({ "0,0": { terrain: "plains" } });
       const agents = [
-        { id: "p1", x: 0, y: 0, role: "player", faction: "v1" },
-        { id: "npc1", x: 0, y: 0, role: "farmer", faction: "v1" },
+        { id: "p1", x: 0, y: 0, role: "player", faction: "v1", hp: 100, maxHp: 100 },
+        { id: "npc1", x: 0, y: 0, role: "farmer", faction: "v1", hp: 100, maxHp: 100 },
       ];
 
       fog.revealAround(0, 0, 0, tiles, agents, "p1");

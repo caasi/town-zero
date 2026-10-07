@@ -5,6 +5,8 @@ import { Agent } from "../../src/simulation/agent.js";
 import { Settlement } from "../../src/simulation/settlement.js";
 import { Grid } from "../../src/simulation/grid.js";
 import type { SimulationState } from "../../src/simulation/tick.js";
+import { updateStoreKnowledge } from "../../src/simulation/vision.js";
+import { RESOURCE_REGROW_TICKS } from "@town-zero/shared";
 
 // Den around (2,2); beast inside it; player p1 to the east.
 function setup() {
@@ -21,12 +23,14 @@ function setup() {
     settlements: new Map([["den-1", den]]),
     activeSessions: new Map(), dialogueTrees: new Map(),
   };
-  return { state, beast, player, den };
+  const know = () => updateStoreKnowledge(beast, state.settlements, state.tick);
+  know(); // the beast was home at the last vision step
+  return { state, beast, player, den, know };
 }
 
 function see(beast: Agent, other: Agent, tick: number) {
   beast.recordTile(other.position.x, other.position.y, "plains",
-    [{ id: other.id, type: "agent", faction: other.faction, position: { ...other.position } }], tick);
+    [{ id: other.id, type: "agent", faction: other.faction, position: { ...other.position }, role: other.role, hp: other.hp, maxHp: other.maxHp }], tick, 0);
 }
 
 const flush = () => new Promise((r) => setTimeout(r, 0));
@@ -42,13 +46,14 @@ describe("buildOptions", () => {
   });
 
   it("offers only options that make sense now, rest first", () => {
-    const { state, beast, player } = setup();
+    const { state, beast, player, know } = setup();
     // Hungry, at home, no enemy in sight, no food place known.
     expect(buildOptions(beast, state, () => 0.9).map((o) => o.id)).toEqual(["rest", "guard_den", "explore", "eat_at_den"]);
 
     // Full load, outside the den, enemy near the den in sight, den food low.
     beast.addToInventory("food", 5);
     state.settlements.get("den-1")!.inventory.food = 5;
+    know();
     beast.position = { x: 5, y: 2 };
     see(beast, player, state.tick);
     expect(buildOptions(beast, state, () => 0.9).map((o) => o.id))
@@ -92,8 +97,9 @@ describe("buildOptions", () => {
   });
 
   it("does not offer to store food just taken at the den", () => {
-    const { state, beast, den } = setup();
+    const { state, beast, den, know } = setup();
     den.inventory.food = 5; // low
+    know();
     beast.addToInventory("food", 3); // what eat_at_den takes
     expect(buildOptions(beast, state).map((o) => o.id)).not.toContain("bring_food_home");
   });
@@ -102,7 +108,7 @@ describe("buildOptions", () => {
     const { state, beast } = setup();
     state.grid.setResourceYield(8, 2, "food");
     expect(buildOptions(beast, state).map((o) => o.id)).not.toContain("forage");
-    beast.recordTile(8, 2, "plains", [], state.tick - 50); // seen long ago still counts
+    beast.recordTile(8, 2, "plains", [], state.tick - 50, 3); // seen long ago still counts
     const ids = buildOptions(beast, state).map((o) => o.id);
     expect(ids).toContain("forage");
     expect(ids).not.toContain("explore");
@@ -110,11 +116,21 @@ describe("buildOptions", () => {
     expect(buildOptions(beast, state).map((o) => o.id)).not.toContain("forage");
   });
 
+  it("does not offer forage for a food place it saw used up", () => {
+    const { state, beast } = setup();
+    state.grid.setResourceYield(8, 2, "food"); // full now, but the beast saw it empty
+    beast.recordTile(8, 2, "plains", [], state.tick - 50, 0);
+    const ids = buildOptions(beast, state).map((o) => o.id);
+    expect(ids).not.toContain("forage");
+    expect(ids).toContain("explore");
+  });
+
   it("every offered option yields a frame (no instant re-ask loop)", () => {
-    const { state, beast, player } = setup();
+    const { state, beast, player, know } = setup();
     state.grid.setResourceYield(8, 2, "food");
-    beast.recordTile(8, 2, "plains", [], state.tick);
+    beast.recordTile(8, 2, "plains", [], state.tick, 3);
     state.settlements.get("den-1")!.inventory.food = 5; // low: bring_food_home is offered
+    know();
     for (const food of [0, 3, 5]) {
       for (const pos of [{ x: 2, y: 2 }, { x: 5, y: 2 }]) {
         beast.inventory.food = food;
@@ -150,6 +166,123 @@ describe("buildOptions", () => {
   });
 });
 
+describe("what the beast knows", () => {
+  it("reads the den food from its memory, not from the live store", () => {
+    const { state, beast, den } = setup(); // saw 10 food at home
+    beast.position = { x: 6, y: 6 };
+    den.inventory.food = 2;
+    expect(describeState(beast, state).home).toBe("the den is 8 steps away and holds 10 food");
+  });
+
+  it("says so when it never saw the den store", () => {
+    const { state } = setup();
+    const fresh = new Agent({ id: "b2", position: { x: 6, y: 6 }, faction: "den-1", role: "beast", controller: "llm" });
+    state.settlements.get("den-1")!.populationIds.push("b2");
+    state.agents.set("b2", fresh);
+    expect(describeState(fresh, state).home).toBe("the den is 8 steps away and holds an unknown amount of food");
+    // A hungry beast that does not know goes home to look.
+    expect(buildOptions(fresh, state).map((o) => o.id)).toContain("eat_at_den");
+  });
+
+  it("offers food at the den only when it believes there is some", () => {
+    const { state, beast, den, know } = setup();
+    beast.position = { x: 6, y: 6 };
+    den.inventory.food = 0; // gone since the beast left: it does not know
+    expect(buildOptions(beast, state).map((o) => o.id)).toContain("eat_at_den");
+
+    beast.position = { x: 2, y: 2 };
+    know(); // home again: it sees the empty store
+    beast.position = { x: 6, y: 6 };
+    den.inventory.food = 10; // refilled since: it does not know
+    expect(buildOptions(beast, state).map((o) => o.id)).not.toContain("eat_at_den");
+  });
+
+  it("offers to bring food home only when it believes the den is low", () => {
+    const { state, beast, den } = setup(); // saw 10 food: not low
+    beast.position = { x: 6, y: 6 };
+    beast.addToInventory("food", 5);
+    den.inventory.food = 1;
+    expect(buildOptions(beast, state).map((o) => o.id)).not.toContain("bring_food_home");
+  });
+
+  it("says when the beast carries a full load", () => {
+    // Without "(full)", real Jev calls picked explore 10 of 10 times for a
+    // beast with 5 food; with it, guard_den 9 of 10 (spike, 2026-10-07).
+    const { state, beast } = setup();
+    beast.addToInventory("food", 5);
+    expect(describeState(beast, state).self).toBe("a beast of the den. HP 100 of 100. Carrying 5 food (full).");
+    beast.inventory.food = 4;
+    expect(describeState(beast, state).self).toBe("a beast of the den. HP 100 of 100. Carrying 4 food.");
+  });
+
+  it("describes an enemy by what it saw, not by the live agent", () => {
+    const { state, beast, player } = setup();
+    see(beast, player, state.tick);
+    player.hp = 10;
+    player.position = { x: 15, y: 15 };
+    expect(describeState(beast, state).visible).toEqual(["p1, an enemy player, 4 steps away, HP 100 of 100, a threat to the den"]);
+  });
+});
+
+describe("wait_for_food", () => {
+  // Beast at the den core (2,2); a berry place at (8,2) that it saw used up.
+  function emptyBush() {
+    const s = setup();
+    s.state.grid.setResourceYield(8, 2, "food");
+    s.beast.recordTile(8, 2, "plains", [], s.state.tick, 0);
+    return s;
+  }
+
+  it("the state says the beast knows the used-up places, so it matches the option", () => {
+    const { state, beast } = emptyBush();
+    expect(describeState(beast, state).food_places)
+      .toBe("knows places where food grows, 6 steps away, but saw them eaten bare; they grow back in time");
+  });
+
+  it("is offered only when the beast remembers a used-up food place", () => {
+    const { state, beast } = setup();
+    expect(buildOptions(beast, state).map((o) => o.id)).not.toContain("wait_for_food");
+    const s = emptyBush();
+    expect(buildOptions(s.beast, s.state).map((o) => o.id)).toContain("wait_for_food");
+  });
+
+  it("walks near the place, then waits there", () => {
+    const { state, beast } = emptyBush();
+    const goal = buildOptions(beast, state).find((o) => o.id === "wait_for_food")!.goal;
+    expect(nextFrame(beast, goal, state)).toEqual({ seq: 0, direction: "east" });
+    beast.position = { x: 6, y: 2 }; // 2 steps away: close enough
+    expect(nextFrame(beast, goal, state)?.action).toEqual({ type: "idle" });
+  });
+
+  it("waits one regrowth interval at most", () => {
+    const { state, beast } = emptyBush();
+    const goal = buildOptions(beast, state).find((o) => o.id === "wait_for_food")!.goal;
+    beast.position = { x: 6, y: 2 };
+    state.tick += RESOURCE_REGROW_TICKS - 1;
+    expect(nextFrame(beast, goal, state)).not.toBeNull();
+    state.tick += 1;
+    expect(nextFrame(beast, goal, state)).toBeNull();
+  });
+
+  it("ends when the beast sees food grow back, so it can forage", () => {
+    const { state, beast } = emptyBush();
+    const goal = buildOptions(beast, state).find((o) => o.id === "wait_for_food")!.goal;
+    beast.position = { x: 6, y: 2 };
+    beast.recordTile(8, 2, "plains", [], state.tick + 1, 1);
+    expect(nextFrame(beast, goal, state)).toBeNull();
+    expect(buildOptions(beast, state).map((o) => o.id)).toContain("forage");
+  });
+
+  it("ends when a threat comes into sight", () => {
+    const { state, beast, player } = emptyBush();
+    const goal = buildOptions(beast, state).find((o) => o.id === "wait_for_food")!.goal;
+    beast.position = { x: 6, y: 2 };
+    player.position = { x: 5, y: 2 }; // next to the beast
+    see(beast, player, state.tick);
+    expect(nextFrame(beast, goal, state)).toBeNull();
+  });
+});
+
 describe("nextFrame", () => {
   it("attack: walks toward, turns to face, then attacks", () => {
     const { state, beast, player } = setup();
@@ -172,7 +305,9 @@ describe("nextFrame", () => {
     see(beast, player, state.tick);
     expect(nextFrame(beast, goal, state)?.action).toEqual({ type: "attack", targetId: "p1" });
 
+    // The next vision step does not record a dead agent, so the goal ends.
     player.takeDamage(1000);
+    state.tick += 1;
     expect(nextFrame(beast, goal, state)).toBeNull();
   });
 
@@ -187,6 +322,7 @@ describe("nextFrame", () => {
   it("forage: walks to the food place, faces it, gathers until full", () => {
     const { state, beast } = setup();
     const goal: Goal = { kind: "forage", tile: { x: 5, y: 2 } };
+    beast.recordTile(5, 2, "plains", [], state.tick, 3);
     beast.facing = "east";
     expect(nextFrame(beast, goal, state)).toEqual({ seq: 0, direction: "east" });
     beast.position = { x: 5, y: 3 }; // adjacent, food is to the north
@@ -197,15 +333,34 @@ describe("nextFrame", () => {
     expect(nextFrame(beast, goal, state)).toBeNull();
   });
 
-  it("store: walks home and deposits, then is done", () => {
+  it("forage: ends when the beast sees the food place used up", () => {
     const { state, beast } = setup();
-    beast.addToInventory("food", 4);
+    const goal: Goal = { kind: "forage", tile: { x: 5, y: 2 } };
+    beast.recordTile(5, 2, "plains", [], state.tick, 1);
+    expect(nextFrame(beast, goal, state)).not.toBeNull();
+    beast.recordTile(5, 2, "plains", [], state.tick + 1, 0);
+    expect(nextFrame(beast, goal, state)).toBeNull();
+  });
+
+  it("store: walks home and deposits what it does not eat itself, then is done", () => {
+    const { state, beast } = setup();
+    beast.addToInventory("food", 5);
     beast.position = { x: 6, y: 2 };
     expect(nextFrame(beast, { kind: "store" }, state)).toEqual({ seq: 0, direction: "west" });
     beast.position = { x: 3, y: 2 };
-    expect(nextFrame(beast, { kind: "store" }, state)?.action).toEqual({ type: "deposit", settlementId: "den-1" });
-    beast.inventory.food = 0;
+    expect(nextFrame(beast, { kind: "store" }, state)?.action).toEqual({ type: "deposit", settlementId: "den-1", keepFood: 3 });
+    beast.inventory.food = 3; // what the deposit leaves
     expect(nextFrame(beast, { kind: "store" }, state)).toBeNull();
+  });
+
+  it("after bringing food home, a beast is not offered to take food back", () => {
+    const { state, beast, den, know } = setup();
+    den.inventory.food = 5;
+    know(); // low
+    beast.inventory.food = 3; // what a deposit leaves
+    const ids = buildOptions(beast, state).map((o) => o.id);
+    expect(ids).not.toContain("eat_at_den");
+    expect(ids).not.toContain("bring_food_home");
   });
 
   it("attack: ends when the target is out of sight", () => {
@@ -273,13 +428,41 @@ describe("JevController", () => {
     const { state, beast, player } = setup();
     see(beast, player, state.tick);
     expect(await jevLogLine(state, { id: "rest", usage: { input: 424, output: 41 } }))
-      .toMatch(/^\[jev\] b1 chose rest from rest, .* \(in 424, out 41\)$/);
+      .toMatch(/^\[jev\] b1 chose rest from rest, .* \(in 424, out 41\) at \(2,2\), carrying 0, den food 10$/);
+  });
+
+  it("logs where the beast was and what it believed when it asked", async () => {
+    const { state, beast, den } = setup(); // saw 10 food at home
+    beast.position = { x: 6, y: 6 };
+    den.inventory.food = 0; // the beast does not know
+    beast.addToInventory("food", 2);
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      new JevController(vi.fn().mockResolvedValue({ id: "rest" })).update(state);
+      beast.position = { x: 9, y: 9 }; // changes after the question are not in the line
+      beast.addToInventory("food", 1);
+      await flush();
+      const line = log.mock.calls.map((c) => String(c[0])).find((l) => l.startsWith("[jev]"));
+      expect(line).toMatch(/ at \(6,6\), carrying 2, den food 10$/);
+    } finally {
+      log.mockRestore();
+    }
+  });
+
+  it("logs an unknown den food when the beast never saw it", async () => {
+    const { state } = setup();
+    const fresh = new Agent({ id: "b2", position: { x: 6, y: 6 }, faction: "den-1", role: "beast", controller: "llm" });
+    state.settlements.get("den-1")!.populationIds = ["b2"];
+    state.agents = new Map([["b2", fresh]]);
+    expect(await jevLogLine(state, { id: "rest" })).toMatch(/den food unknown$/);
   });
 
   it("logs a decision without token counts when the reply has none", async () => {
     const { state, beast, player } = setup();
     see(beast, player, state.tick);
-    expect(await jevLogLine(state, { id: "rest" })).toMatch(/^\[jev\] b1 chose rest from [^(]*$/);
+    const line = await jevLogLine(state, { id: "rest" });
+    expect(line).toMatch(/^\[jev\] b1 chose rest from /);
+    expect(line).not.toMatch(/\(in /);
   });
 
   it("asks once, then turns the chosen goal into frames", async () => {

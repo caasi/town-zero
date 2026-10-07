@@ -1,5 +1,5 @@
 // client/src/renderer.ts
-import { ZoneType, type Facing } from "@town-zero/shared";
+import { ZoneType, type EntitySnapshot, type Facing } from "@town-zero/shared";
 import type { FogLevel } from "./types.js";
 import type { FogManager } from "./fog.js";
 import type { Camera } from "./camera.js";
@@ -311,28 +311,20 @@ export class Renderer {
 
     ctx.globalAlpha = isDead ? 0.5 : 1;
 
-    if (isPlayer) {
-      // Diamond - player (only on visible tiles)
-      ctx.fillStyle = "#4af";
-      ctx.beginPath();
-      ctx.moveTo(cx, py + 3);
-      ctx.lineTo(px + TILE_SIZE - 3, cy);
-      ctx.lineTo(cx, py + TILE_SIZE - 3);
-      ctx.lineTo(px + 3, cy);
-      ctx.closePath();
+    if (agent.role === "player") {
+      // Diamond - a player: blue for you, pink for the others, so other
+      // players do not look like NPCs.
+      ctx.fillStyle = isPlayer ? SELF_COLOR : OTHER_PLAYER_COLOR;
+      diamondPath(ctx, px, py);
       ctx.fill();
       ctx.strokeStyle = "#fff";
       ctx.lineWidth = 1.5;
       ctx.stroke();
     } else {
-      // Triangle - other agents
+      // Triangle - NPCs
       const isEnemy = playerFaction !== "" && agent.faction !== playerFaction;
       ctx.fillStyle = isEnemy ? "#c44" : "#6c6";
-      ctx.beginPath();
-      ctx.moveTo(cx, py + 4);
-      ctx.lineTo(px + TILE_SIZE - 4, py + TILE_SIZE - 4);
-      ctx.lineTo(px + 4, py + TILE_SIZE - 4);
-      ctx.closePath();
+      trianglePath(ctx, px, py);
       ctx.fill();
       if (!isEnemy) {
         ctx.strokeStyle = "#3a3";
@@ -384,23 +376,46 @@ export class Renderer {
 
   private drawFogEntity(
     ctx: CanvasRenderingContext2D, px: number, py: number,
-    entity: { id: string; type: string; faction: string; position: { x: number; y: number } },
+    entity: EntitySnapshot,
     playerFaction: string,
   ): void {
-    const cx = px + TILE_SIZE / 2;
-    const cy = py + TILE_SIZE / 2;
     ctx.globalAlpha = 0.4;
 
-    // All agents render as triangles in fog (no diamond distinction)
-    const isEnemy = playerFaction !== "" && entity.faction !== playerFaction;
-    ctx.fillStyle = isEnemy ? "#c44" : "#6c6";
-    ctx.beginPath();
-    ctx.moveTo(cx, py + 4);
-    ctx.lineTo(px + TILE_SIZE - 4, py + TILE_SIZE - 4);
-    ctx.lineTo(px + 4, py + TILE_SIZE - 4);
-    ctx.closePath();
+    // A remembered player is never you: the server records your own tile
+    // each tick without you, and a merged copy from a neighbour replaces a
+    // tile only when it is newer.
+    if (entity.role === "player") {
+      ctx.fillStyle = OTHER_PLAYER_COLOR;
+      diamondPath(ctx, px, py);
+    } else {
+      const isEnemy = playerFaction !== "" && entity.faction !== playerFaction;
+      ctx.fillStyle = isEnemy ? "#c44" : "#6c6";
+      trianglePath(ctx, px, py);
+    }
     ctx.fill();
 
     ctx.globalAlpha = 1;
   }
+}
+
+const SELF_COLOR = "#4af";
+const OTHER_PLAYER_COLOR = "#e6c";
+
+function diamondPath(ctx: CanvasRenderingContext2D, px: number, py: number): void {
+  const cx = px + TILE_SIZE / 2;
+  const cy = py + TILE_SIZE / 2;
+  ctx.beginPath();
+  ctx.moveTo(cx, py + 3);
+  ctx.lineTo(px + TILE_SIZE - 3, cy);
+  ctx.lineTo(cx, py + TILE_SIZE - 3);
+  ctx.lineTo(px + 3, cy);
+  ctx.closePath();
+}
+
+function trianglePath(ctx: CanvasRenderingContext2D, px: number, py: number): void {
+  ctx.beginPath();
+  ctx.moveTo(px + TILE_SIZE / 2, py + 4);
+  ctx.lineTo(px + TILE_SIZE - 4, py + TILE_SIZE - 4);
+  ctx.lineTo(px + 4, py + TILE_SIZE - 4);
+  ctx.closePath();
 }

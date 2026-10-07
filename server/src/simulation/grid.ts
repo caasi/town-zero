@@ -1,10 +1,11 @@
-import { tilesInManhattanRadius, ZoneType } from "@town-zero/shared";
+import { RESOURCE_MAX_AMOUNT, tilesInManhattanRadius, ZoneType } from "@town-zero/shared";
 import type { Position, TerrainType, ResourceType, ObjectType } from "@town-zero/shared";
 
 interface TileData {
   terrain: TerrainType;
   owner: string | null;
   resourceYield: ResourceType | null;
+  resourceAmount: number;
   zoneType: ZoneType;
   objectType: ObjectType;
 }
@@ -21,6 +22,7 @@ export class Grid {
       terrain: "plains" as TerrainType,
       owner: null,
       resourceYield: null,
+      resourceAmount: 0,
       zoneType: ZoneType.EMPTY,
       objectType: "",
     }));
@@ -61,7 +63,29 @@ export class Grid {
 
   setResourceYield(x: number, y: number, resource: ResourceType | null): void {
     if (!this.inBounds(x, y)) return;
-    this.tiles[this.index(x, y)].resourceYield = resource;
+    const tile = this.tiles[this.index(x, y)];
+    tile.resourceYield = resource;
+    tile.resourceAmount = resource ? RESOURCE_MAX_AMOUNT : 0;
+  }
+
+  getResourceAmount(x: number, y: number): number {
+    if (!this.inBounds(x, y)) return 0;
+    return this.tiles[this.index(x, y)].resourceAmount;
+  }
+
+  /** Takes one unit; null when the tile has no resource or is used up. */
+  takeResource(x: number, y: number): ResourceType | null {
+    if (!this.inBounds(x, y)) return null;
+    const tile = this.tiles[this.index(x, y)];
+    if (!tile.resourceYield || tile.resourceAmount === 0) return null;
+    tile.resourceAmount--;
+    return tile.resourceYield;
+  }
+
+  regrowResources(): void {
+    for (const tile of this.tiles) {
+      if (tile.resourceYield && tile.resourceAmount < RESOURCE_MAX_AMOUNT) tile.resourceAmount++;
+    }
   }
 
   getZoneType(x: number, y: number): ZoneType {

@@ -40,7 +40,8 @@ export type Facing = "north" | "south" | "east" | "west";
 export type FrameAction =
   | { type: "gather"; resourceTile: Position }
   | { type: "attack"; targetId: string }
-  | { type: "deposit"; settlementId: string }
+  // keepFood: the food the agent keeps for itself; all else goes into the store
+  | { type: "deposit"; settlementId: string; keepFood?: number }
   | { type: "take"; settlementId: string; resource: ResourceType; amount: number }
   | { type: "talk"; targetId: string }
   | { type: "interact" }
@@ -104,12 +105,17 @@ export interface EntitySnapshot {
   type: string;       // "agent" | "monster"
   faction: string;
   position: Position;
+  // As seen at the tick of the TileMemory: an agent knows the HP it last saw.
+  role: string;
+  hp: number;
+  maxHp: number;
 }
 
 export interface TileMemory {
   terrain: TerrainType;
   entities: EntitySnapshot[];
   timestamp: number;   // tick when last observed
+  resourceAmount: number; // units left on the tile when observed; 0 for a tile with no resource
 }
 
 // --- Dialogue ---

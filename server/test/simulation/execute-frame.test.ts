@@ -81,6 +81,14 @@ describe("executeFrame", () => {
       expect(ctx.agent.inventory.material).toBe(1);
     });
 
+    it("gathers nothing from a used-up tile", () => {
+      const ctx = makeCtx();
+      ctx.agent.position = { x: 3, y: 2 };
+      while (ctx.grid.takeResource(3, 3));
+      executeFrame({ seq: 1, action: { type: "gather", resourceTile: { x: 3, y: 3 } } }, ctx);
+      expect(ctx.agent.inventory.food).toBe(0);
+    });
+
     it("rejects gather when not adjacent", () => {
       const ctx = makeCtx();
       ctx.agent.position = { x: 0, y: 0 };
@@ -146,6 +154,24 @@ describe("executeFrame", () => {
       executeFrame(frame, ctx);
       expect(ctx.agent.inventory.material).toBe(0);
       expect(ctx.settlements.get("v1")!.inventory.material).toBe(5);
+    });
+
+    it("keeps the food that keepFood names and deposits the rest", () => {
+      const ctx = makeCtx();
+      ctx.agent.addToInventory("food", 5);
+      ctx.agent.addToInventory("material", 2);
+      const before = ctx.settlements.get("v1")!.inventory.food;
+      executeFrame({ seq: 1, action: { type: "deposit", settlementId: "v1", keepFood: 3 } }, ctx);
+      expect(ctx.agent.inventory.food).toBe(3);
+      expect(ctx.settlements.get("v1")!.inventory.food).toBe(before + 2);
+      expect(ctx.agent.inventory.material).toBe(0);
+    });
+
+    it("deposits no food when the agent holds no more than keepFood", () => {
+      const ctx = makeCtx();
+      ctx.agent.addToInventory("food", 2);
+      executeFrame({ seq: 1, action: { type: "deposit", settlementId: "v1", keepFood: 3 } }, ctx);
+      expect(ctx.agent.inventory.food).toBe(2);
     });
 
     it("rejects deposit when not in territory", () => {

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import fc from "fast-check";
 import { buildOptions, nextFrame } from "../../src/ai/jev-controller.js";
+import { storeFoodKey } from "../../src/simulation/vision.js";
 import { Agent } from "../../src/simulation/agent.js";
 import { Settlement } from "../../src/simulation/settlement.js";
 import { Grid } from "../../src/simulation/grid.js";
@@ -19,8 +20,10 @@ const world = fc.record({
   walls: fc.subarray([[1, 0], [-1, 0], [0, 1], [0, -1]]),
   carried: fc.integer({ min: 0, max: 7 }),
   denFood: fc.integer({ min: 0, max: 20 }),
+  // What the beast believes the den holds: may be stale or never seen.
+  knownDenFood: fc.option(fc.integer({ min: 0, max: 20 }), { nil: undefined }),
   enemies: fc.array(fc.record({ at: pos, seenNow: fc.boolean() }), { maxLength: 3 }),
-  foodTiles: fc.array(pos, { maxLength: 4 }),
+  foodTiles: fc.array(fc.record({ at: pos, remembered: fc.integer({ min: 0, max: 3 }) }), { maxLength: 4 }),
   rand: fc.double({ min: 0, max: 1, maxExcluded: true, noNaN: true }),
 });
 
@@ -45,11 +48,15 @@ function build(w: World): { state: SimulationState; beast: Agent } {
     const enemy = new Agent({ id: `p${i}`, position: e.at, faction: "village-1", role: "player", controller: "player" });
     agents.set(enemy.id, enemy);
     beast.recordTile(e.at.x, e.at.y, "plains",
-      [{ id: enemy.id, type: "agent", faction: enemy.faction, position: { ...e.at } }], e.seenNow ? tick : tick - 1);
+      [{ id: enemy.id, type: "agent", faction: enemy.faction, position: { ...e.at }, role: enemy.role, hp: enemy.hp, maxHp: enemy.maxHp }], e.seenNow ? tick : tick - 1, 0);
   });
-  for (const p of w.foodTiles) {
+  for (const { at: p, remembered } of w.foodTiles) {
     grid.setResourceYield(p.x, p.y, "food");
-    beast.recordTile(p.x, p.y, "plains", [], tick - 10);
+    beast.recordTile(p.x, p.y, "plains", [], tick - 10, remembered);
+  }
+  if (w.knownDenFood !== undefined) {
+    const key = storeFoodKey("den-1");
+    beast.setBelief(key, { key, value: w.knownDenFood, tick: tick - 10, source: "b1" });
   }
   const state: SimulationState = {
     grid, tick, agents, settlements: new Map([["den-1", den]]), activeSessions: new Map(), dialogueTrees: new Map(),

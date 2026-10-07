@@ -45,10 +45,9 @@ export function performAttackOnFacingTarget(targetId: string, ctx: FrameContext)
 
 export function performGatherOnFacingTile(resourceTile: Position, ctx: FrameContext): void {
   const { agent, grid } = ctx;
-  const resource = grid.getResourceYield(resourceTile.x, resourceTile.y);
-  if (!resource) return;
   if (!isFacingTile(agent, resourceTile)) return;
-  agent.addToInventory(resource, 1);
+  const resource = grid.takeResource(resourceTile.x, resourceTile.y);
+  if (resource) agent.addToInventory(resource, 1);
 }
 
 export function performTalkOnFacingTarget(targetId: string, ctx: FrameContext): void {

@@ -45,15 +45,16 @@ JevController.update(state)            // GameRoom, once per tick, before proces
 |----|--------------|------|
 | `rest` | always (first, so the first-option bias lands on the safest choice) | idle ~3 s |
 | `guard_den` | the agent has a den, and the first frame toward a random tile within 3 steps of the den core exists (a step, or a wait when the agent is already there and no threat is in sight) | walk there, then wait there; ends after ~5 s, or when a threat is in sight while waiting |
-| `forage` | the agent carries less than 5 food and remembers a food tile (MapMemory) | walk to the nearest one, face it, `gather` until it carries 5 |
-| `explore` | the agent remembers no food tile, and the first frame toward a random tile within 8 steps of the den core exists | like `guard_den` |
-| `bring_food_home` | the agent carries 5 food (a full load) and the den holds less than 10 | walk home, `deposit` |
-| `eat_at_den` | food is 0 and the den has food | walk home, `take` food |
+| `forage` | the agent carries less than 5 food and remembers a food tile with food on it (MapMemory) | walk to the nearest one, face it, `gather` until it carries 5 or it sees the tile used up |
+| `wait_for_food` | the agent remembers a food tile that it saw used up, and remembers no food tile with food | walk to within 2 steps of the nearest used-up one, then wait; ends after one regrowth interval (~30 s), when it knows food again, or when a threat is in sight |
+| `explore` | the agent remembers no food tile with food, and the first frame toward a random tile within 8 steps of the den core exists | like `guard_den` |
+| `bring_food_home` | the agent carries 5 food (a full load) and believes the den holds less than 10 | walk home, `deposit` all but 3 food (the beast eats first, like a wolf) |
+| `eat_at_den` | food is 0 and the agent believes the den has food, or never saw it | walk home, `take` food |
 | `flee_to_den` | a threat is in sight and the agent is outside the den | walk home |
 | `roar` | a threat is in sight | show a "ROAR!" bubble, stand still ~2 s |
 | `attack:<id>` | one for each threat seen this tick | walk to it, face it, attack once per ~1 s; stop when it is no longer a threat |
 
-A threat is an enemy within 6 steps of the den core, or an enemy next to the agent. Beasts do not hunt enemies far from the den: they guard it. Food taken at the den (3) is less than a full load, so `bring_food_home` does not store it back; without this rule, take and deposit alternate and each turn is a paid call (seen in a spike with the real API: 88 calls in 45 s, 50 after the fix). A beast that has just stored its load carries nothing and may take food again, but that round (forage 5, store 5, take 3) still adds 2 food to the den.
+A threat is an enemy within 6 steps of the den core, or an enemy next to the agent. Beasts do not hunt enemies far from the den: they guard it. Food taken at the den (3) is less than a full load, so `bring_food_home` does not store it back; without this rule, take and deposit alternate and each turn is a paid call (seen in a spike with the real API: 88 calls in 45 s, 50 after the fix). A beast that stores its load keeps 3 food (the beast eats first, like a wolf), so it is not offered to take food back at once; before this rule it stored all 5, carried nothing, and took 3 back: two paid calls for 2 food in the den (seen in the server log).
 
 Berry bushes east of the den are the beasts' food source. Dead NPCs come back (`server/src/simulation/respawn.ts`): a village NPC after ~30 s; a den beast after ~30 s when the den pays 5 food, or for free when no beast of the den is alive, so a den never dies out.
 
@@ -74,7 +75,9 @@ Words, no coordinates:
 Information sources:
 
 - "Visible" comes from the agent's own MapMemory, tiles recorded this tick. This includes what an adjacent den-mate saw this tick: the memory merge copies tiles with their timestamp. That is the information model's adjacency sharing, so a beast can attack an enemy that its neighbour sees.
-- Enemy HP and role, and the food count of the den, come from live server state. Note: when the beast is away from the den, it should only know the food count from its last visit. See TODO in `CLAUDE.md`.
+- Enemy HP and role come from the same snapshots: what the agent saw at that tick, not the live agent.
+- The food count of the den comes from the belief `food:<settlement id>`. An agent inside a settlement updates it each tick, and adjacent agents of the same faction share it, so a beast away from home knows the count of its last visit, or "unknown" if it never saw it. The `take` action at the den still reads the real store.
+- How much food a place holds comes from the agent's TileMemory (`resourceAmount`, as seen); the kind of resource comes from the grid, because it never changes.
 
 ### Turning a goal into frames (`nextFrame`)
 
