@@ -130,6 +130,10 @@ export class NetworkClient {
     this.room?.send("revive");
   }
 
+  sendRename(name: string): void {
+    this.room?.send("rename", { name });
+  }
+
   // The server pauses Jev while every player is idle or has the tab hidden.
   sendPresence(active: boolean): void {
     this.room?.send("presence", { active });

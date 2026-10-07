@@ -1,5 +1,5 @@
 // client/src/renderer.ts
-import { ZoneType, type EntitySnapshot, type Facing } from "@town-zero/shared";
+import { ZoneType, playerColor, type EntitySnapshot, type Facing } from "@town-zero/shared";
 import type { FogLevel } from "./types.js";
 import type { FogManager } from "./fog.js";
 import type { Camera } from "./camera.js";
@@ -97,6 +97,18 @@ export class Renderer {
 
         // Bubble text above sprite (server clears with empty string; no client-side expiry)
         const bubble: string = typeof agent.bubbleText === "string" ? agent.bubbleText : "";
+        // Another player's name in its color; a bubble takes the same place and wins.
+        if (!bubble && agent.role === "player" && agent.id !== playerId && agent.name) {
+          ctx.save();
+          ctx.font = "11px monospace";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "bottom";
+          ctx.shadowColor = "#000";
+          ctx.shadowBlur = 3;
+          ctx.fillStyle = playerColor(agent.name);
+          ctx.fillText(agent.name, px + TILE_SIZE / 2, py - 1);
+          ctx.restore();
+        }
         if (bubble) {
           const cx = px + TILE_SIZE / 2;
           const bubbleY = py - 6; // baseline of bubble bottom edge above the tile
@@ -130,7 +142,7 @@ export class Renderer {
         const px = (x - vp.startX) * TILE_SIZE + vp.offsetX;
         const py = (y - vp.startY) * TILE_SIZE + vp.offsetY;
         for (const entity of snapshot.entities) {
-          this.drawFogEntity(ctx, px, py, entity, playerFaction);
+          this.drawFogEntity(ctx, px, py, entity, playerFaction, state?.agents?.get(entity.id)?.name);
         }
       }
     }
@@ -312,9 +324,9 @@ export class Renderer {
     ctx.globalAlpha = isDead ? 0.5 : 1;
 
     if (agent.role === "player") {
-      // Diamond - a player: blue for you, pink for the others, so other
-      // players do not look like NPCs.
-      ctx.fillStyle = isPlayer ? SELF_COLOR : OTHER_PLAYER_COLOR;
+      // Diamond - a player: blue for you; the others in the color of their
+      // name, so they do not look like NPCs and match the player list.
+      ctx.fillStyle = isPlayer ? SELF_COLOR : playerColor(agent.name || agent.id);
       diamondPath(ctx, px, py);
       ctx.fill();
       ctx.strokeStyle = "#fff";
@@ -378,6 +390,7 @@ export class Renderer {
     ctx: CanvasRenderingContext2D, px: number, py: number,
     entity: EntitySnapshot,
     playerFaction: string,
+    name: string | undefined, // of a player still online; a player who left has no name to color by
   ): void {
     ctx.globalAlpha = 0.4;
 
@@ -385,7 +398,7 @@ export class Renderer {
     // each tick without you, and a merged copy from a neighbour replaces a
     // tile only when it is newer.
     if (entity.role === "player") {
-      ctx.fillStyle = OTHER_PLAYER_COLOR;
+      ctx.fillStyle = name ? playerColor(name) : LEFT_PLAYER_COLOR;
       diamondPath(ctx, px, py);
     } else {
       const isEnemy = playerFaction !== "" && entity.faction !== playerFaction;
@@ -398,8 +411,8 @@ export class Renderer {
   }
 }
 
-const SELF_COLOR = "#4af";
-const OTHER_PLAYER_COLOR = "#e6c";
+export const SELF_COLOR = "#4af";
+const LEFT_PLAYER_COLOR = "#999";
 
 function diamondPath(ctx: CanvasRenderingContext2D, px: number, py: number): void {
   const cx = px + TILE_SIZE / 2;

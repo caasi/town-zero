@@ -196,6 +196,8 @@ export class InputHandler {
 
   private handleKey(e: KeyboardEvent): void {
     if (!this.enabled) return;
+    // Typing in a text field (the name field) is not a game key.
+    if (e.target instanceof HTMLInputElement) return;
 
     // Dialogue mode input
     if (this._dialogueMode) {
