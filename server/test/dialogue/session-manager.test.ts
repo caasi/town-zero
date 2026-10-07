@@ -80,7 +80,7 @@ describe("session-manager", () => {
     it("answers advance with ok and the same waiting text, not an error", () => {
       const st = waitingState();
       const result = advanceDialogue("player-0", st);
-      expect(result).toMatchObject({ ok: true, ended: false, payload: { nodeType: "text", content: "…" } });
+      expect(result).toMatchObject({ ok: true, ended: false, payload: { nodeType: "waiting", content: "…" } });
       expect(st.activeSessions.get("test-npc")!.isWaiting()).toBe(true);
     });
 

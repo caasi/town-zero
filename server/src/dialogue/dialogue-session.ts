@@ -1,4 +1,4 @@
-import type { DialogueTreeData, Value, ResourceType, FarewellLine } from "@town-zero/shared";
+import type { DialogueTreeData, Value, ResourceType, FarewellLine, ReplyLineData } from "@town-zero/shared";
 import { DialogueEngine } from "./dialogue-engine.js";
 import { interpolate, checkCondition, type EvalContext, type AgentAccessor } from "./evaluator.js";
 import type { MutableContext } from "./executor.js";
@@ -15,6 +15,8 @@ export interface DialogueStateMessage {
 
 /** What Jev needs to pick a reply line. Words only (spec 003). */
 export interface ReplyRequest {
+  /** Pass it back to answerReply: an answer counts only for the request it belongs to. */
+  token: number;
   playerLine: string | null;
   lines: Array<{ id: string; description: string }>;
 }
@@ -28,6 +30,10 @@ export class DialogueSession {
   private disposed = false;
   // The option text the player chose last: what the NPC replies to.
   private lastPlayerLine: string | null = null;
+  // The open request for Jev: the lines it was offered, under a new token per
+  // request, so a late answer cannot land on a later visit of the node.
+  private replyRequest: { token: number; lines: ReplyLineData[] } | null = null;
+  private nextReplyToken = 1;
 
   // Timeout tracking
   startTick: number;
@@ -180,20 +186,25 @@ export class DialogueSession {
     if (!this.isWaiting() || this.engine.isReplyAsked()) return null;
     this.engine.markReplyAsked();
     const lines = this.engine.getVisibleReplyLines(this.buildEvalContext());
+    this.replyRequest = { token: this.nextReplyToken++, lines };
     return {
+      token: this.replyRequest.token,
       playerLine: this.lastPlayerLine,
       lines: lines.map((line) => ({ id: line.id, description: line.description })),
     };
   }
 
   /**
-   * Jev's pick. False when it is too late: the session ended or moved on.
-   * An id that is not offered now falls back to the first line.
+   * Jev's pick for request `token`. False when it is too late: the session
+   * ended, moved on, or asked again. The pick is checked against the lines
+   * that request offered (conditions may have changed since); an id it did
+   * not offer falls back to the first line.
    */
-  answerReply(lineId: string): boolean {
-    if (this.disposed || !this.isWaiting()) return false;
-    const lines = this.engine.getVisibleReplyLines(this.buildEvalContext());
-    this.engine.pickLine((lines.find((line) => line.id === lineId) ?? lines[0]).id);
+  answerReply(token: number, lineId: string): boolean {
+    const request = this.replyRequest;
+    if (this.disposed || !this.isWaiting() || request?.token !== token) return false;
+    this.replyRequest = null;
+    this.engine.pickLine((request.lines.find((line) => line.id === lineId) ?? request.lines[0]).id);
     return true;
   }
 

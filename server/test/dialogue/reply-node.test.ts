@@ -46,6 +46,7 @@ describe("reply node", () => {
   it("asks once, with the lines whose condition holds and the player's line", () => {
     const { session } = atReply();
     expect(session.takeReplyRequest()).toEqual({
+      token: 1,
       playerLine: "What's in it for me?",
       lines: [
         { id: "calm", description: "Explain calmly." },
@@ -57,8 +58,8 @@ describe("reply node", () => {
 
   it("shows the picked line, then goes to its next node", () => {
     const { session } = atReply();
-    session.takeReplyRequest();
-    expect(session.answerReply("curt")).toBe(true);
+    const { token } = session.takeReplyRequest()!;
+    expect(session.answerReply(token, "curt")).toBe(true);
     expect(session.isWaiting()).toBe(false);
     expect(session.getState()).toMatchObject({ type: "text", speaker: "npc", text: "Help or leave." });
     session.advance();
@@ -67,8 +68,8 @@ describe("reply node", () => {
 
   it("uses the first line for an id that was not offered", () => {
     const { session } = atReply();
-    session.takeReplyRequest();
-    session.answerReply("reward"); // its condition is false
+    const { token } = session.takeReplyRequest()!;
+    session.answerReply(token, "reward"); // its condition is false
     expect(session.getState()).toMatchObject({ text: "The village needs it." });
   });
 
@@ -97,9 +98,46 @@ describe("reply node", () => {
 
   it("drops an answer that arrives after the session ended", () => {
     const { session } = atReply();
-    session.takeReplyRequest();
+    const { token } = session.takeReplyRequest()!;
     session.dispose();
-    expect(session.answerReply("curt")).toBe(false);
+    expect(session.answerReply(token, "curt")).toBe(false);
+  });
+
+  it("drops an answer for an earlier visit of the same node", () => {
+    const { npc, player } = makeAgents();
+    // The reply leads back to the question, so the node is visited twice.
+    const loop: DialogueTreeData = {
+      ...tree,
+      nodes: {
+        ...tree.nodes,
+        answer: {
+          type: "reply",
+          lines: [
+            { id: "calm", description: "Explain calmly.", text: ["The village needs it."], next: "ask" },
+            { id: "curt", description: "Answer curtly.", text: ["Help or leave."], next: "ask" },
+          ],
+        },
+      },
+    };
+    const session = new DialogueSession({ tree: loop, npc, player, currentTick: 0 });
+    session.select("ask_opt_0");
+    const first = session.takeReplyRequest()!;
+    session.answerReply(first.token, "calm");
+    session.advance(); // back to the question
+    session.select("ask_opt_0");
+    const second = session.takeReplyRequest()!;
+    expect(session.answerReply(first.token, "curt")).toBe(false);
+    expect(session.answerReply(second.token, "curt")).toBe(true);
+  });
+
+  it("checks the answer against the lines it offered, not the lines now", () => {
+    const { session, npc } = atReply();
+    npc.setBelief("has_bread", { key: "has_bread", value: true, tick: 0, source: "reed" });
+    const { token, lines } = session.takeReplyRequest()!;
+    expect(lines.map((l) => l.id)).toEqual(["calm", "curt", "reward"]);
+    npc.setBelief("has_bread", { key: "has_bread", value: false, tick: 0, source: "reed" });
+    session.answerReply(token, "reward");
+    expect(session.getState()).toMatchObject({ text: "Take some bread." });
   });
 
   it("ignores advance while it waits", () => {

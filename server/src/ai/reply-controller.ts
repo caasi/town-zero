@@ -47,7 +47,7 @@ export class ReplyController {
       const npc = state.agents.get(session.npcId);
       const fallback = request.lines[0].id;
       if (!this.choose || !npc) {
-        this.answer(session, fallback);
+        this.answer(session, request.token, fallback);
         continue;
       }
       const options = Object.fromEntries(request.lines.map((l) => [l.id, l.description]));
@@ -55,11 +55,11 @@ export class ReplyController {
         .then(({ id, usage }) => {
           const cost = usage ? ` (in ${usage.input}, out ${usage.output})` : "";
           console.log(`[jev] ${npc.id} replied ${id} from ${Object.keys(options).join(", ")}${cost}`);
-          this.answer(session, id);
+          this.answer(session, request.token, id);
         })
         .catch((err) => {
           console.error(`[jev] reply failed for ${npc.id}:`, err);
-          this.answer(session, fallback);
+          this.answer(session, request.token, fallback);
         });
     }
     const done = Array.from(this.answered).filter((s) => !s.isDisposed());
@@ -67,7 +67,7 @@ export class ReplyController {
     return done;
   }
 
-  private answer(session: DialogueSession, lineId: string): void {
-    if (session.answerReply(lineId)) this.answered.add(session);
+  private answer(session: DialogueSession, token: number, lineId: string): void {
+    if (session.answerReply(token, lineId)) this.answered.add(session);
   }
 }

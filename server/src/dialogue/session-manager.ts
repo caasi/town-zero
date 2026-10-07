@@ -12,6 +12,7 @@ export type DialogueResult =
 
 function nodeTypeFromMsg(type: string): DialogueStatePayload["nodeType"] {
   if (type === "choice") return "choice";
+  if (type === "waiting") return "waiting";
   return "text";
 }
 
