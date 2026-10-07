@@ -1,5 +1,5 @@
 import { Room, Client } from "@colyseus/core";
-import { TICK_RATE_MS, REVIVE_DELAY_TICKS } from "@town-zero/shared";
+import { TICK_RATE_MS, REVIVE_DELAY_TICKS, IDLE_TIMEOUT_TICKS } from "@town-zero/shared";
 import { WorldStateSchema } from "./schemas/WorldStateSchema.js";
 import { generateMap } from "../map/generator.js";
 import { processTick, type SimulationState } from "../simulation/tick.js";
@@ -22,6 +22,11 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
   private reviveAt = new Map<string, number>();
   // Dead NPCs → tick at which they respawn (processRespawns).
   private respawnAt = new Map<string, number>();
+  // Session → tick of its last player message, and sessions whose tab is
+  // hidden. Jev runs only while some player is active (hasActivePlayer).
+  private lastMessageTick = new Map<string, number>();
+  private hiddenSessions = new Set<string>();
+  private jevPaused = false;
 
   onCreate() {
     this.simState = generateMap();
@@ -35,7 +40,7 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
     syncTiles(this.simState.grid, this.state, this.simState.settlements);
     syncToSchema(this.simState, this.state);
 
-    this.onMessage("input", (client: Client, data: unknown) => {
+    this.onPlayerMessage("input", (client: Client, data: unknown) => {
       const agentId = this.sessionToAgent.get(client.sessionId);
       if (!agentId) return;
       const agent = this.simState.agents.get(agentId);
@@ -56,9 +61,9 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
     // opened before a deploy still send it on key release. Remove when stale.
     this.onMessage("input:stop", () => {});
 
-    this.onMessage("revive", (client: Client) => this.revive(client));
+    this.onPlayerMessage("revive", (client: Client) => this.revive(client));
 
-    this.onMessage("dialogue:advance", (client: Client) => {
+    this.onPlayerMessage("dialogue:advance", (client: Client) => {
       const agentId = this.sessionToAgent.get(client.sessionId);
       if (!agentId) return;
 
@@ -74,7 +79,7 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
       }
     });
 
-    this.onMessage("dialogue:choose", (client: Client, data: unknown) => {
+    this.onPlayerMessage("dialogue:choose", (client: Client, data: unknown) => {
       const agentId = this.sessionToAgent.get(client.sessionId);
       if (!agentId) return;
 
@@ -92,7 +97,7 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
       }
     });
 
-    this.onMessage("dialogue:close", (client: Client) => {
+    this.onPlayerMessage("dialogue:close", (client: Client) => {
       const agentId = this.sessionToAgent.get(client.sessionId);
       if (!agentId) return;
 
@@ -101,6 +106,20 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
 
       endDialogue(agent.talkingToNpcId, this.simState, "player_left");
       client.send("dialogue:end", { reason: "closed" });
+    });
+
+    // The client sends this on visibilitychange. Coming back counts as activity.
+    // Not onPlayerMessage: { active: false } must not refresh lastMessageTick.
+    this.onMessage("presence", (client: Client, data: unknown) => {
+      const agentId = this.sessionToAgent.get(client.sessionId);
+      if (!agentId) return;
+      if (!data || typeof data !== "object" || typeof (data as any).active !== "boolean") return;
+      const active: boolean = (data as any).active;
+      if (active) this.lastMessageTick.set(client.sessionId, this.simState.tick);
+      if (active !== this.hiddenSessions.has(client.sessionId)) return;
+      if (active) this.hiddenSessions.delete(client.sessionId);
+      else this.hiddenSessions.add(client.sessionId);
+      console.log(`[presence] ${agentId} ${active ? "visible" : "hidden"}`);
     });
 
     // Fixed-step simulation at 8 ticks/s: deltaTime is intentionally ignored
@@ -144,6 +163,7 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
     this.simState.agents.set(id, agent);
     village.populationIds.push(id);
     this.sessionToAgent.set(client.sessionId, id);
+    this.lastMessageTick.set(client.sessionId, this.simState.tick);
     client.send("joined", { agentId: id });
 
     console.log(`${name} joined as ${id} (${client.sessionId})`);
@@ -181,15 +201,52 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
     }
 
     this.sessionToAgent.delete(client.sessionId);
+    this.lastMessageTick.delete(client.sessionId);
+    this.hiddenSessions.delete(client.sessionId);
     purgeProximityState(this.simState, agentId);
     console.log(`${agentId} left and was removed (${client.sessionId})`);
   }
 
+  // A message from the player marks its session active.
+  private onPlayerMessage(type: string, handler: (client: Client, data: unknown) => void) {
+    this.onMessage(type, (client: Client, data: unknown) => {
+      this.lastMessageTick.set(client.sessionId, this.simState.tick);
+      handler(client, data);
+    });
+  }
+
+  // A tab left open must not cost Jev calls all night: a session counts only
+  // while its tab is visible and it sent a message in the last IDLE_TIMEOUT_TICKS.
+  private hasActivePlayer(): boolean {
+    for (const sessionId of this.sessionToAgent.keys()) {
+      if (this.hiddenSessions.has(sessionId)) continue;
+      const last = this.lastMessageTick.get(sessionId) ?? -Infinity;
+      if (this.simState.tick - last < IDLE_TIMEOUT_TICKS) return true;
+    }
+    return false;
+  }
+
+  // Records whether the hidden tab or the idle timeout paused Jev, so that
+  // the logs can show later whether the presence message earns its cost.
+  private logPauseChange(paused: boolean): void {
+    this.jevPaused = paused;
+    if (!paused) {
+      console.log("[idle] Jev resumed");
+      return;
+    }
+    const players = this.sessionToAgent.size;
+    const hidden = [...this.sessionToAgent.keys()].filter((id) => this.hiddenSessions.has(id)).length;
+    console.log(`[idle] Jev paused (hidden ${hidden}, idle ${players - hidden}, players ${players})`);
+  }
+
   private tick() {
-    // Jev calls cost money: with no player in the world, no AI NPC gets a new
-    // frame or decision. processTick still runs (hunger, vision) for everyone.
-    if (this.sessionToAgent.size > 0) this.jev.update(this.simState);
-    const talkResults = processTick(this.simState);
+    // Jev calls cost money: with no active player, no AI NPC gets a new
+    // frame or decision. processTick still runs (vision, hunger) for everyone
+    // except the paused llm agents, which do not get hungry.
+    const llmPaused = !this.hasActivePlayer();
+    if (llmPaused !== this.jevPaused) this.logPauseChange(llmPaused);
+    if (!llmPaused) this.jev.update(this.simState);
+    const talkResults = processTick(this.simState, { llmPaused });
     processRespawns(this.simState, this.respawnAt);
 
     // Send dialogue messages for talk actions executed this tick

@@ -1,8 +1,8 @@
 import "../../src/polyfill.js";
 import "../../src/encoder-config.js";
 
-import { describe, it, expect, beforeEach } from "vitest";
-import { DIALOGUE_TIMEOUT_TICKS, REVIVE_DELAY_TICKS, TICK_RATE_MS } from "@town-zero/shared";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { DIALOGUE_TIMEOUT_TICKS, FOOD_CONSUMPTION_INTERVAL, IDLE_TIMEOUT_TICKS, REVIVE_DELAY_TICKS, TICK_RATE_MS } from "@town-zero/shared";
 import type { WorldStateSchema } from "../../src/rooms/schemas/WorldStateSchema.js";
 
 // Direct-instantiation approach: test GameRoom lifecycle methods directly
@@ -127,6 +127,106 @@ describe("GameRoom integration", () => {
     beast.removeFromInventory("food", beast.inventory.food);
     for (let i = 0; i < 3; i++) tick(room);
     expect(beast.inventory.food).toBeGreaterThan(0); // took food from the den
+  });
+
+  describe("pauses Jev while every player is idle", () => {
+    // Counts the ticks on which the beasts get a Jev update.
+    function jevTicks(n: number): number {
+      const update = vi.spyOn(room.jev, "update");
+      for (let i = 0; i < n; i++) tick(room);
+      const calls = update.mock.calls.length;
+      update.mockRestore();
+      return calls;
+    }
+
+    it("while the only tab is hidden, until it comes back", () => {
+      const client = mockClient("session-1");
+      joinClient(room, client, { name: "Watcher" });
+      sendMessage(room, client, "presence", { active: false });
+      expect(jevTicks(3)).toBe(0);
+      sendMessage(room, client, "presence", { active: true });
+      expect(jevTicks(3)).toBe(3);
+    });
+
+    it("after IDLE_TIMEOUT_TICKS without a message, until the next input", () => {
+      const client = mockClient("session-1");
+      joinClient(room, client, { name: "Watcher" });
+      expect(jevTicks(IDLE_TIMEOUT_TICKS)).toBe(IDLE_TIMEOUT_TICKS);
+      expect(jevTicks(3)).toBe(0);
+      sendInput(room, client, { seq: 1, direction: "north" });
+      expect(jevTicks(3)).toBe(3);
+    });
+
+    it("after IDLE_TIMEOUT_TICKS hidden, until the tab is shown again", () => {
+      const client = mockClient("session-1");
+      joinClient(room, client, { name: "Watcher" });
+      sendMessage(room, client, "presence", { active: false });
+      expect(jevTicks(IDLE_TIMEOUT_TICKS + 1)).toBe(0);
+      sendMessage(room, client, "presence", { active: true });
+      expect(jevTicks(3)).toBe(3);
+    });
+
+    it.each([
+      ["revive", undefined],
+      ["dialogue:advance", undefined],
+      ["dialogue:choose", { optionId: "none" }],
+      ["dialogue:close", undefined],
+    ])("counts %s as activity", (type, data) => {
+      const client = mockClient("session-1");
+      joinClient(room, client, { name: "Watcher" });
+      jevTicks(IDLE_TIMEOUT_TICKS);
+      expect(jevTicks(1)).toBe(0);
+      sendMessage(room, client, type, data);
+      expect(jevTicks(3)).toBe(3);
+    });
+
+    it("and the paused beasts do not starve", () => {
+      const beast = room.simState.agents.get("mnpc-0")!;
+      beast.removeFromInventory("food", beast.inventory.food);
+      const hp = beast.hp;
+      for (let i = 0; i < FOOD_CONSUMPTION_INTERVAL * 2; i++) tick(room);
+      expect(beast.hp).toBe(hp);
+    });
+
+    it("and logs why, once per pause and resume", () => {
+      const log = vi.spyOn(console, "log").mockImplementation(() => {});
+      const client = mockClient("session-1");
+      joinClient(room, client, { name: "Watcher" });
+      tick(room);
+      sendMessage(room, client, "presence", { active: false });
+      sendMessage(room, client, "presence", { active: false });
+      for (let i = 0; i < 3; i++) tick(room);
+      sendMessage(room, client, "presence", { active: true });
+      tick(room);
+      const lines = log.mock.calls.map((c) => String(c[0])).filter((l) => /^\[(presence|idle)\]/.test(l));
+      log.mockRestore();
+      expect(lines).toEqual([
+        "[presence] player-0 hidden",
+        "[idle] Jev paused (hidden 1, idle 0, players 1)",
+        "[presence] player-0 visible",
+        "[idle] Jev resumed",
+      ]);
+    });
+
+    it("not while another player is active", () => {
+      const away = mockClient("session-1");
+      joinClient(room, away, { name: "Away" });
+      sendMessage(room, away, "presence", { active: false });
+      joinClient(room, mockClient("session-2"), { name: "Here" });
+      expect(jevTicks(3)).toBe(3);
+    });
+
+    it("ignores presence from a session without an agent", () => {
+      sendMessage(room, mockClient("not-joined"), "presence", { active: false });
+      expect(room.hiddenSessions.size).toBe(0);
+    });
+
+    it("ignores a malformed presence message", () => {
+      const client = mockClient("session-1");
+      joinClient(room, client, { name: "Watcher" });
+      sendMessage(room, client, "presence", { active: "no" });
+      expect(jevTicks(3)).toBe(3);
+    });
   });
 
   it("multiple players join and appear in state", () => {

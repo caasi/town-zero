@@ -17,7 +17,9 @@ export interface SimulationState {
   dialogueTrees: Map<string, DialogueTreeData>;
 }
 
-export function processTick(state: SimulationState): TalkResult[] {
+// llmPaused: GameRoom gave the llm agents no Jev update this tick. They
+// cannot decide to eat, so they must not get hungry either.
+export function processTick(state: SimulationState, { llmPaused = false } = {}): TalkResult[] {
   state.tick++;
 
   const { grid, agents, settlements, tick } = state;
@@ -57,6 +59,7 @@ export function processTick(state: SimulationState): TalkResult[] {
 
   // Phase 3: Consumption
   for (const [, agent] of agents) {
+    if (llmPaused && agent.controller === "llm") continue;
     processConsumption(agent, tick);
   }
 

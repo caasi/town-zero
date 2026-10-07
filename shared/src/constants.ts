@@ -32,6 +32,9 @@ export const REVIVE_DELAY_TICKS = 40;          // ticks before a dead player may
 // --- Dialogue ---
 export const DIALOGUE_TIMEOUT_TICKS = 240;    // ticks before dialogue timeout (~30s)
 
+// --- Presence ---
+export const IDLE_TIMEOUT_TICKS = 960;        // ticks without a player message before the player counts as idle (~2 min)
+
 // --- Movement reconciliation ---
 export const INPUT_QUEUE_CAP = 3;       // server-side per-agent input buffer depth
 export const PENDING_INPUT_CAP = 20;   // client-side pending input buffer safety valve

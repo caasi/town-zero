@@ -181,6 +181,7 @@ async function connect(): Promise<void> {
 
   try {
     await network.connect("Player");
+    network.sendPresence(!document.hidden);
 
     const state = network.state;
     if (state) {
@@ -272,6 +273,7 @@ function startReviveCountdown(ms: number): void {
 }
 
 reviveBtn.addEventListener("click", () => network.sendRevive());
+document.addEventListener("visibilitychange", () => network.sendPresence(!document.hidden));
 
 document.getElementById("retry-btn")!.addEventListener("click", () => {
   network.disconnect();
