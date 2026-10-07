@@ -135,7 +135,7 @@ function closeNameInput(): void {
 nameBtn.addEventListener("click", () => {
   nameBtn.classList.add("hidden");
   nameInput.classList.remove("hidden");
-  nameInput.value = playerName;
+  nameInput.value = serverName ?? playerName; // the name shown, which can carry a join number
   nameInput.focus();
   nameInput.select();
 });
