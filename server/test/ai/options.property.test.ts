@@ -45,7 +45,7 @@ function build(w: World): { state: SimulationState; beast: Agent } {
     const enemy = new Agent({ id: `p${i}`, position: e.at, faction: "village-1", role: "player", controller: "player" });
     agents.set(enemy.id, enemy);
     beast.recordTile(e.at.x, e.at.y, "plains",
-      [{ id: enemy.id, type: "agent", faction: enemy.faction, position: { ...e.at } }], e.seenNow ? tick : tick - 1);
+      [{ id: enemy.id, type: "agent", faction: enemy.faction, position: { ...e.at }, role: enemy.role, hp: enemy.hp, maxHp: enemy.maxHp }], e.seenNow ? tick : tick - 1);
   });
   for (const p of w.foodTiles) {
     grid.setResourceYield(p.x, p.y, "food");

@@ -4,7 +4,7 @@ import type { Grid } from "./grid.js";
 import type { Settlement } from "./settlement.js";
 import { executeFrame, type TalkResult } from "./execute-frame.js";
 import { processConsumption } from "./resources.js";
-import { updateVision, mergeAdjacentMemories, getVisionRadius } from "./vision.js";
+import { updateVision, updateStoreKnowledge, mergeAdjacentMemories, getVisionRadius } from "./vision.js";
 import { decideBotAction } from "../ai/bot-controller.js";
 import { dispatch, applyEventEffects } from "./event-dispatch.js";
 
@@ -66,6 +66,7 @@ export function processTick(state: SimulationState, { llmPaused = false } = {}):
   // Phase 4: Vision update
   for (const [, agent] of agents) {
     updateVision(agent, grid, agents, tick);
+    updateStoreKnowledge(agent, settlements, tick);
   }
 
   // Phase 4b: Bubble expiry + event dispatch.

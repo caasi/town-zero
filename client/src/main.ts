@@ -108,11 +108,11 @@ function gameLoop(now: number): void {
     // Sync display positions from server BEFORE input so predictions
     // aren't immediately overridden by an uninitialized state.
     const syncEntries: Array<[string, { x: number; y: number; facing: string }]> = [];
-    const agentList: Array<{ id: string; x: number; y: number; role: string; faction: string }> = [];
+    const agentList: Array<{ id: string; x: number; y: number; role: string; faction: string; hp: number; maxHp: number }> = [];
     if (network.state?.agents) {
       network.state.agents.forEach((agent: any) => {
         syncEntries.push([agent.id, { x: agent.x, y: agent.y, facing: agent.facing }]);
-        agentList.push({ id: agent.id, x: agent.x, y: agent.y, role: agent.role, faction: agent.faction });
+        agentList.push({ id: agent.id, x: agent.x, y: agent.y, role: agent.role, faction: agent.faction, hp: agent.hp, maxHp: agent.maxHp });
       });
       // Sync non-local agents
       displayState.syncFromServer(syncEntries);

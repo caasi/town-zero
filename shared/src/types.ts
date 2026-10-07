@@ -104,6 +104,10 @@ export interface EntitySnapshot {
   type: string;       // "agent" | "monster"
   faction: string;
   position: Position;
+  // As seen at the tick of the TileMemory: an agent knows the HP it last saw.
+  role: string;
+  hp: number;
+  maxHp: number;
 }
 
 export interface TileMemory {

@@ -2,6 +2,7 @@ import { DEFAULT_VISION_RADIUS, SCOUT_VISION_RADIUS } from "@town-zero/shared";
 import type { EntitySnapshot } from "@town-zero/shared";
 import type { Agent } from "./agent.js";
 import type { Grid } from "./grid.js";
+import type { Settlement } from "./settlement.js";
 
 export function getVisionRadius(agent: Agent): number {
   return agent.role === "scout" ? SCOUT_VISION_RADIUS : DEFAULT_VISION_RADIUS;
@@ -36,9 +37,28 @@ export function updateVision(
       type: a.faction.startsWith("den") ? "monster" : "agent",
       faction: a.faction,
       position: { ...a.position },
+      role: a.role,
+      hp: a.hp,
+      maxHp: a.maxHp,
     }));
 
     agent.recordTile(tile.x, tile.y, terrain, snapshots, tick);
+  }
+}
+
+export const storeFoodKey = (settlementId: string) => `food:${settlementId}`;
+
+/**
+ * An agent inside a settlement sees its store. Away from it, the agent knows
+ * only the count of its last visit, or what a same-faction neighbour told it
+ * (beliefs merge in mergeAdjacentMemories).
+ */
+export function updateStoreKnowledge(agent: Agent, settlements: Map<string, Settlement>, tick: number): void {
+  if (!agent.isAlive()) return;
+  for (const s of settlements.values()) {
+    if (!s.isInTerritory(agent.position)) continue;
+    const key = storeFoodKey(s.id);
+    agent.setBelief(key, { key, value: s.inventory.food, tick, source: agent.id });
   }
 }
 

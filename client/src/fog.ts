@@ -47,7 +47,7 @@ export class FogManager {
     cy: number,
     radius: number,
     tiles: { get(key: string): { terrain: string; resourceYield?: string; zoneType?: ZoneType; ownerFaction?: string; structureId?: string; objectType?: string } | undefined } | undefined,
-    agents: Iterable<{ id: string; x: number; y: number; role: string; faction: string }>,
+    agents: Iterable<{ id: string; x: number; y: number; role: string; faction: string; hp: number; maxHp: number }>,
     localPlayerId: string | null,
   ): void {
     this.predictedVisible.clear();
@@ -63,6 +63,9 @@ export class FogManager {
         type: agent.faction.startsWith("den") ? "monster" : "agent",
         faction: agent.faction,
         position: { x: agent.x, y: agent.y },
+        role: agent.role,
+        hp: agent.hp,
+        maxHp: agent.maxHp,
       });
       agentsByTile.set(key, arr);
     }

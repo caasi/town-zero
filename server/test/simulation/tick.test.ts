@@ -35,6 +35,13 @@ describe("processTick", () => {
     expect(world.tick).toBe(1);
   });
 
+  it("an agent at home learns the food in its store", () => {
+    const world = makeWorld();
+    world.settlements.get("v1")!.addResource("food", 4);
+    processTick(world);
+    expect(world.agents.get("a1")!.getBelief("food:v1")?.value).toBe(4);
+  });
+
   describe("Phase 1: InputFrame consumption", () => {
     it("consumes one InputFrame per tick from inputQueue", () => {
       const world = makeWorld();

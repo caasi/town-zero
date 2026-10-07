@@ -1,8 +1,9 @@
 import { DIRECTION_DELTA, isMoveBlocked } from "@town-zero/shared";
-import type { Facing, InputFrame, Position } from "@town-zero/shared";
+import type { EntitySnapshot, Facing, InputFrame, Position } from "@town-zero/shared";
 import type { Agent } from "../simulation/agent.js";
 import type { Settlement } from "../simulation/settlement.js";
 import type { SimulationState } from "../simulation/tick.js";
+import { storeFoodKey } from "../simulation/vision.js";
 import type { ChooseFn } from "./jev.js";
 
 export type Goal =
@@ -52,25 +53,31 @@ function homeCenter(home: Settlement): Position {
   return home.structures.find((s) => s.type === "core")?.position ?? home.territory[0];
 }
 
+/** The den food count at the last visit (or from a den-mate); undefined if never seen. */
+function knownFood(agent: Agent, home: Settlement): number | undefined {
+  return agent.getBelief(storeFoodKey(home.id))?.value as number | undefined;
+}
+
 /**
- * Enemies this agent knows about this tick, read from its own MapMemory (no
- * global knowledge). That memory includes what adjacent den-mates saw this
- * tick, because mergeAdjacentMemories copies tiles with their timestamp.
+ * Enemies this agent saw this tick, as it saw them, read from its own
+ * MapMemory (no global knowledge). That memory includes what adjacent
+ * den-mates saw this tick, because mergeAdjacentMemories copies tiles with
+ * their timestamp.
  */
-function visibleEnemies(agent: Agent, state: SimulationState): Agent[] {
-  const ids = new Set<string>();
+function visibleEnemies(agent: Agent, state: SimulationState): EntitySnapshot[] {
+  const seen = new Map<string, EntitySnapshot>();
   for (const [, mem] of agent.getAllMemory()) {
     if (mem.timestamp !== state.tick) continue;
-    for (const e of mem.entities) if (e.faction !== agent.faction) ids.add(e.id);
+    for (const e of mem.entities) if (e.faction !== agent.faction) seen.set(e.id, e);
   }
-  return [...ids].map((id) => state.agents.get(id)).filter((a): a is Agent => !!a?.isAlive());
+  return [...seen.values()];
 }
 
 /**
  * A threat is an enemy near the den, or one close enough to hit this beast.
  * Only threats are offered as targets, so beasts guard home instead of hunting.
  */
-function isThreat(agent: Agent, enemy: Agent, state: SimulationState): boolean {
+function isThreat(agent: Agent, enemy: EntitySnapshot, state: SimulationState): boolean {
   const home = homeOf(agent, state);
   return !home
     || distance(enemy.position, homeCenter(home)) <= GUARD_RADIUS
@@ -119,6 +126,7 @@ export function buildOptions(agent: Agent, state: SimulationState, rand = Math.r
   const home = homeOf(agent, state);
   const enemies = visibleEnemies(agent, state).filter((e) => isThreat(agent, e, state));
   const food = agent.inventory.food;
+  const denFood = home && knownFood(agent, home);
   const foodTile = nearestKnownFood(agent, state);
   if (home) {
     offer("guard_den", "Patrol around the den.",
@@ -133,10 +141,11 @@ export function buildOptions(agent: Agent, state: SimulationState, rand = Math.r
   }
   // Only a full load: food taken at the den (TAKE_FOOD < CARRY_FULL) is not
   // stored back, or take and deposit alternate and each turn is a paid call.
-  if (home && food >= CARRY_FULL && home.inventory.food < DEN_FOOD_LOW) {
+  // Not knowing the den food counts as low or as some: the beast goes to look.
+  if (home && food >= CARRY_FULL && (denFood ?? 0) < DEN_FOOD_LOW) {
     offer("bring_food_home", "Carry your food back and store it in the den.", { kind: "store" });
   }
-  if (home && food === 0 && home.inventory.food > 0) {
+  if (home && food === 0 && denFood !== 0) {
     offer("eat_at_den", "Go back to the den and take food.", { kind: "eat" });
   }
   if (home && enemies.length > 0 && !home.isInTerritory(agent.position)) {
@@ -158,7 +167,10 @@ export function describeState(agent: Agent, state: SimulationState): Record<stri
   const enemies = visibleEnemies(agent, state).map((e) =>
     `${e.id}, an enemy ${e.role}, ${distance(agent.position, e.position)} steps away, HP ${e.hp} of ${e.maxHp}, `
     + (isThreat(agent, e, state) ? "a threat to the den" : "far from the den"));
-  const denFood = home && `${home.inventory.food} food${home.inventory.food < DEN_FOOD_LOW ? " (low)" : ""}`;
+  const known = home && knownFood(agent, home);
+  const denFood = known === undefined
+    ? "an unknown amount of food"
+    : `${known} food${known < DEN_FOOD_LOW ? " (low)" : ""}`;
   const foodTile = nearestKnownFood(agent, state);
   return {
     self: `a ${agent.role} of the den. HP ${agent.hp} of ${agent.maxHp}. Carrying ${food} food.${food === 0 ? " Hungry." : ""}`,
@@ -180,9 +192,10 @@ export function fallbackGoal(agent: Agent, state: SimulationState): Goal {
   const food = agent.inventory.food;
   const threat = visibleEnemies(agent, state).find((e) => isThreat(agent, e, state));
   const foodTile = nearestKnownFood(agent, state);
-  if (food === 0 && home && home.inventory.food > 0) return { kind: "eat" };
+  const denFood = home && knownFood(agent, home);
+  if (food === 0 && home && denFood !== 0) return { kind: "eat" };
   if (threat) return { kind: "attack", targetId: threat.id };
-  if (home && food >= CARRY_FULL && home.inventory.food < DEN_FOOD_LOW) return { kind: "store" };
+  if (home && food >= CARRY_FULL && (denFood ?? 0) < DEN_FOOD_LOW) return { kind: "store" };
   if (foodTile && food < CARRY_FULL) return { kind: "forage", tile: foodTile };
   // Idle beasts wait at the den core, not where the last goal left them.
   if (home) return { kind: "wander", to: homeCenter(home), untilTick: state.tick + WANDER_TICKS };
@@ -217,9 +230,8 @@ const move = (direction: Facing): InputFrame => ({ seq: 0, direction });
 export function nextFrame(agent: Agent, goal: Goal, state: SimulationState): InputFrame | null {
   switch (goal.kind) {
     case "attack": {
-      const target = state.agents.get(goal.targetId);
-      if (!target?.isAlive() || !visibleEnemies(agent, state).includes(target)) return null;
-      if (!isThreat(agent, target, state)) return null;
+      const target = visibleEnemies(agent, state).find((e) => e.id === goal.targetId);
+      if (!target || !isThreat(agent, target, state)) return null;
       if (distance(agent.position, target.position) === 1) {
         const dir = stepToward(agent, target.position, state) ?? agent.facing;
         // Turn-before-move: a direction frame toward an adjacent tile only turns.

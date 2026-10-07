@@ -5,6 +5,7 @@ import { Agent } from "../../src/simulation/agent.js";
 import { Settlement } from "../../src/simulation/settlement.js";
 import { Grid } from "../../src/simulation/grid.js";
 import type { SimulationState } from "../../src/simulation/tick.js";
+import { updateStoreKnowledge } from "../../src/simulation/vision.js";
 
 // Den around (2,2); beast inside it; player p1 to the east.
 function setup() {
@@ -21,12 +22,14 @@ function setup() {
     settlements: new Map([["den-1", den]]),
     activeSessions: new Map(), dialogueTrees: new Map(),
   };
-  return { state, beast, player, den };
+  const know = () => updateStoreKnowledge(beast, state.settlements, state.tick);
+  know(); // the beast was home at the last vision step
+  return { state, beast, player, den, know };
 }
 
 function see(beast: Agent, other: Agent, tick: number) {
   beast.recordTile(other.position.x, other.position.y, "plains",
-    [{ id: other.id, type: "agent", faction: other.faction, position: { ...other.position } }], tick);
+    [{ id: other.id, type: "agent", faction: other.faction, position: { ...other.position }, role: other.role, hp: other.hp, maxHp: other.maxHp }], tick);
 }
 
 const flush = () => new Promise((r) => setTimeout(r, 0));
@@ -42,13 +45,14 @@ describe("buildOptions", () => {
   });
 
   it("offers only options that make sense now, rest first", () => {
-    const { state, beast, player } = setup();
+    const { state, beast, player, know } = setup();
     // Hungry, at home, no enemy in sight, no food place known.
     expect(buildOptions(beast, state, () => 0.9).map((o) => o.id)).toEqual(["rest", "guard_den", "explore", "eat_at_den"]);
 
     // Full load, outside the den, enemy near the den in sight, den food low.
     beast.addToInventory("food", 5);
     state.settlements.get("den-1")!.inventory.food = 5;
+    know();
     beast.position = { x: 5, y: 2 };
     see(beast, player, state.tick);
     expect(buildOptions(beast, state, () => 0.9).map((o) => o.id))
@@ -92,8 +96,9 @@ describe("buildOptions", () => {
   });
 
   it("does not offer to store food just taken at the den", () => {
-    const { state, beast, den } = setup();
+    const { state, beast, den, know } = setup();
     den.inventory.food = 5; // low
+    know();
     beast.addToInventory("food", 3); // what eat_at_den takes
     expect(buildOptions(beast, state).map((o) => o.id)).not.toContain("bring_food_home");
   });
@@ -111,10 +116,11 @@ describe("buildOptions", () => {
   });
 
   it("every offered option yields a frame (no instant re-ask loop)", () => {
-    const { state, beast, player } = setup();
+    const { state, beast, player, know } = setup();
     state.grid.setResourceYield(8, 2, "food");
     beast.recordTile(8, 2, "plains", [], state.tick);
     state.settlements.get("den-1")!.inventory.food = 5; // low: bring_food_home is offered
+    know();
     for (const food of [0, 3, 5]) {
       for (const pos of [{ x: 2, y: 2 }, { x: 5, y: 2 }]) {
         beast.inventory.food = food;
@@ -150,6 +156,54 @@ describe("buildOptions", () => {
   });
 });
 
+describe("what the beast knows", () => {
+  it("reads the den food from its memory, not from the live store", () => {
+    const { state, beast, den } = setup(); // saw 10 food at home
+    beast.position = { x: 6, y: 6 };
+    den.inventory.food = 2;
+    expect(describeState(beast, state).home).toBe("the den is 8 steps away and holds 10 food");
+  });
+
+  it("says so when it never saw the den store", () => {
+    const { state } = setup();
+    const fresh = new Agent({ id: "b2", position: { x: 6, y: 6 }, faction: "den-1", role: "beast", controller: "llm" });
+    state.settlements.get("den-1")!.populationIds.push("b2");
+    state.agents.set("b2", fresh);
+    expect(describeState(fresh, state).home).toBe("the den is 8 steps away and holds an unknown amount of food");
+    // A hungry beast that does not know goes home to look.
+    expect(buildOptions(fresh, state).map((o) => o.id)).toContain("eat_at_den");
+  });
+
+  it("offers food at the den only when it believes there is some", () => {
+    const { state, beast, den, know } = setup();
+    beast.position = { x: 6, y: 6 };
+    den.inventory.food = 0; // gone since the beast left: it does not know
+    expect(buildOptions(beast, state).map((o) => o.id)).toContain("eat_at_den");
+
+    beast.position = { x: 2, y: 2 };
+    know(); // home again: it sees the empty store
+    beast.position = { x: 6, y: 6 };
+    den.inventory.food = 10; // refilled since: it does not know
+    expect(buildOptions(beast, state).map((o) => o.id)).not.toContain("eat_at_den");
+  });
+
+  it("offers to bring food home only when it believes the den is low", () => {
+    const { state, beast, den } = setup(); // saw 10 food: not low
+    beast.position = { x: 6, y: 6 };
+    beast.addToInventory("food", 5);
+    den.inventory.food = 1;
+    expect(buildOptions(beast, state).map((o) => o.id)).not.toContain("bring_food_home");
+  });
+
+  it("describes an enemy by what it saw, not by the live agent", () => {
+    const { state, beast, player } = setup();
+    see(beast, player, state.tick);
+    player.hp = 10;
+    player.position = { x: 15, y: 15 };
+    expect(describeState(beast, state).visible).toEqual(["p1, an enemy player, 4 steps away, HP 100 of 100, a threat to the den"]);
+  });
+});
+
 describe("nextFrame", () => {
   it("attack: walks toward, turns to face, then attacks", () => {
     const { state, beast, player } = setup();
@@ -172,7 +226,9 @@ describe("nextFrame", () => {
     see(beast, player, state.tick);
     expect(nextFrame(beast, goal, state)?.action).toEqual({ type: "attack", targetId: "p1" });
 
+    // The next vision step does not record a dead agent, so the goal ends.
     player.takeDamage(1000);
+    state.tick += 1;
     expect(nextFrame(beast, goal, state)).toBeNull();
   });
 

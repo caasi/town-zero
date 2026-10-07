@@ -18,7 +18,7 @@ describe("extractVisionForPlayer", () => {
       id: "a1", position: { x: 5, y: 5 },
       faction: "village-1", role: "farmer", controller: "player",
     });
-    agent.recordTile(3, 4, "forest", [{ id: "a2", type: "agent", faction: "den-1", position: { x: 3, y: 4 } }], 5);
+    agent.recordTile(3, 4, "forest", [{ id: "a2", type: "agent", faction: "den-1", position: { x: 3, y: 4 }, role: "beast", hp: 100, maxHp: 100 }], 5);
     agent.recordTile(5, 5, "plains", [], 5);
 
     const result = extractVisionForPlayer(agent, 5);
