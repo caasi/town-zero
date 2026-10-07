@@ -19,12 +19,18 @@ export class DialogueUI {
     this.timerEl = this.container.querySelector(".dlg-timer")!;
   }
 
+  private waiting = false;
+
   show(payload: DialogueStatePayload): void {
     this.container.classList.remove("hidden");
 
     this.speakerEl.textContent = payload.speaker ?? payload.npcName;
 
-    if (payload.nodeType === "text") {
+    // The NPC thinks (spec 004): show "…" like text, but isShowingText() is
+    // false and there are no options, so E sends nothing. An E here used to
+    // skip the reply that Jev picked before it reached the client.
+    this.waiting = payload.nodeType === "waiting";
+    if (payload.nodeType === "text" || payload.nodeType === "waiting") {
       this.contentEl.textContent = payload.content ?? "";
       this.optionsEl.replaceChildren();
       this.options = [];
@@ -73,7 +79,7 @@ export class DialogueUI {
   }
 
   isShowingText(): boolean {
-    return this.options.length === 0 && !this.container.classList.contains("hidden");
+    return !this.waiting && this.options.length === 0 && !this.container.classList.contains("hidden");
   }
 
   updateTimer(remainingSeconds: number): void {

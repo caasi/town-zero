@@ -117,7 +117,7 @@ export interface TileMemory {
 export interface DialogueStatePayload {
   npcId: string;
   npcName: string;
-  nodeType: "text" | "choice";
+  nodeType: "text" | "choice" | "waiting"; // waiting: the NPC thinks; the client shows the text and ignores E
   speaker?: string;
   content?: string;
   options?: Array<{ id: string; label: string; enabled: boolean }>;
