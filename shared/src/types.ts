@@ -53,6 +53,22 @@ export interface InputFrame {
 }
 
 /**
+ * Whether a move onto (x, y) is refused: off the map, or terrain that cannot
+ * be entered. Unknown terrain (null/undefined) is not blocked: the client
+ * predicts through fog and the server decides. Server moves, beast steps and
+ * client prediction must share this rule, or prediction pulls the player back.
+ */
+export function isMoveBlocked(
+  x: number,
+  y: number,
+  map: { width: number; height: number },
+  terrain: TerrainType | null | undefined,
+): boolean {
+  if (x < 0 || y < 0 || x >= map.width || y >= map.height) return true;
+  return terrain != null && TERRAIN_MOVE_COST[terrain] === Infinity;
+}
+
+/**
  * Returns all positions within Manhattan distance `radius` of `center`.
  * Used by both server vision and client fog prediction.
  */

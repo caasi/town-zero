@@ -46,6 +46,38 @@ describe("DisplayState", () => {
       expect(ds.predictMove(1, 0, "idle", tiles)).toBe(false);
     });
 
+    it.each([
+      ["west", { x: 0, y: 5 }, { x: -1, y: 5 }],
+      ["east", { x: 9, y: 5 }, { x: 10, y: 5 }],
+      ["north", { x: 5, y: 0 }, { x: 5, y: -1 }],
+      ["south", { x: 5, y: 9 }, { x: 5, y: 10 }],
+    ])("rejects a move off the %s map edge (the tile is never in fog memory)", (facing, from, to) => {
+      const ds = new DisplayState();
+      ds.setGridSize(10, 10);
+      ds.setLocalPlayer("p1");
+      initLocal(ds, "p1", { ...from, facing });
+      expect(ds.predictMove(to.x, to.y, "idle", makeTiles({}))).toBe(false);
+      expect(ds.get("p1")).toMatchObject({ displayX: from.x, displayY: from.y });
+    });
+
+    // East, not west: x < 0 is blocked even with no map size, so only the
+    // east and south edges depend on the size that setGridSize stores.
+    it("keeps the map size through clear(), which a revive calls", () => {
+      const ds = new DisplayState();
+      ds.setGridSize(10, 10);
+      ds.clear();
+      ds.setLocalPlayer("p1");
+      initLocal(ds, "p1", { x: 9, y: 5, facing: "east" });
+      expect(ds.predictMove(10, 5, "idle", makeTiles({}))).toBe(false);
+    });
+
+    it("has no east or south edge before the map size is known", () => {
+      const ds = new DisplayState();
+      ds.setLocalPlayer("p1");
+      initLocal(ds, "p1", { x: 9, y: 5, facing: "east" });
+      expect(ds.predictMove(10, 5, "idle", makeTiles({}))).toBe(true);
+    });
+
     it("allows move in same facing direction and updates display position", () => {
       const ds = new DisplayState();
       ds.setLocalPlayer("p1");
@@ -116,6 +148,16 @@ describe("DisplayState", () => {
   });
 
   describe("reconcileFromServer", () => {
+    it("does not replay a move off the map edge", () => {
+      const ds = new DisplayState();
+      ds.setGridSize(10, 10);
+      ds.setLocalPlayer("p1");
+      initLocal(ds, "p1", { x: 0, y: 0, facing: "west" });
+      const pending: InputFrame[] = [{ seq: 1, direction: "west" }];
+      ds.reconcileFromServer("p1", { x: 0, y: 0, facing: "west", lastProcessedInput: 0, state: "idle" }, pending);
+      expect(ds.get("p1")).toMatchObject({ displayX: 0, displayY: 0 });
+    });
+
     it("with no pending inputs, display equals server position", () => {
       const ds = new DisplayState();
       ds.setLocalPlayer("p1");

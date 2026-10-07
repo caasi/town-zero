@@ -209,6 +209,7 @@ async function connect(fromRetry = false): Promise<void> {
     const state = network.state;
     if (state) {
       camera.setGridSize(state.width, state.height);
+      displayState.setGridSize(state.width, state.height);
     }
 
     input = new InputHandler();

@@ -92,7 +92,7 @@ Source of truth: `processTick` in `server/src/simulation/tick.ts`.
 - Food consumption is from agent personal inventory, not settlement (agents must `take` from settlement)
 - Server runs on Node.js via tsx
 - Use pnpm, not bun — bun duplicates @colyseus/core instances causing matchmaker state isolation
-- Shared logic between server and client (e.g. `tilesInManhattanRadius` for vision shape) must live in `@town-zero/shared` — duplicating geometry/distance logic across packages causes shape mismatches
+- Shared logic between server and client (e.g. `tilesInManhattanRadius` for vision shape, `isMoveBlocked` for movement) must live in `@town-zero/shared` — duplicating geometry/distance logic across packages causes shape mismatches
 - Client-side movement prediction (`display.ts`): `DisplayState` tracks predicted tile positions (`displayX/Y`) and lerped pixel positions (`renderX/Y`). `reconcileFromServer` accepts server state as baseline, prunes acknowledged `InputFrame[]` by seq, replays direction-only frames (skips action frames). `updateRender(dt)` lerps pixel positions toward display positions
 - Input uses held-key tracking (`keydown`/`keyup` Set) for local prediction and sends per-tick `input` messages (InputFrame with seq + direction) from `update()` while keys are held — not `keydown` repeat events (OS repeat has variable initial delay and rate). Action keys (E/T) send InputFrame with seq + action immediately on keydown
 - Fog memory uses a snapshot model (`TileSnapshot` = terrain + entities + timestamp). Fog level is derived: `predictedVisible` → visible, has snapshot → explored, else → unknown. No `level` field stored — add new tile properties to `TileSnapshot` and they're automatically captured

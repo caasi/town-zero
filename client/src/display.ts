@@ -1,5 +1,5 @@
 // client/src/display.ts
-import { TERRAIN_MOVE_COST, DIRECTION_DELTA } from "@town-zero/shared";
+import { DIRECTION_DELTA, isMoveBlocked } from "@town-zero/shared";
 import type { TerrainType, InputFrame } from "@town-zero/shared";
 import { TILE_SIZE } from "./constants.js";
 
@@ -28,6 +28,11 @@ export class DisplayState {
   private displays = new Map<string, AgentDisplay>();
   private localPlayerId: string | null = null;
   private tileSource: TileSource | null = null;
+  private gridSize: { width: number; height: number } | null = null;
+
+  setGridSize(width: number, height: number): void {
+    this.gridSize = { width, height };
+  }
 
   setLocalPlayer(id: string | null): void {
     this.localPlayerId = id;
@@ -83,13 +88,7 @@ export class DisplayState {
       return true;
     }
 
-    const tile = tiles.get(`${targetX},${targetY}`);
-    if (tile) {
-      const terrain = tile.terrain as TerrainType;
-      if (terrain in TERRAIN_MOVE_COST && TERRAIN_MOVE_COST[terrain] === Infinity) {
-        return false;
-      }
-    }
+    if (this.blocked(targetX, targetY, tiles)) return false;
 
     display.displayX = targetX;
     display.displayY = targetY;
@@ -193,6 +192,13 @@ export class DisplayState {
     this.tileSource = null;
   }
 
+  // The server's rule (isMoveBlocked) on fog memory. A tile off the map is
+  // never in fog memory, so the bounds come from the room state.
+  private blocked(x: number, y: number, tiles: TileSource): boolean {
+    const map = this.gridSize ?? { width: Infinity, height: Infinity };
+    return isMoveBlocked(x, y, map, tiles.get(`${x},${y}`)?.terrain as TerrainType | undefined);
+  }
+
   private replayOne(
     display: AgentDisplay,
     targetX: number,
@@ -206,13 +212,7 @@ export class DisplayState {
       return;
     }
 
-    const tile = tiles.get(`${targetX},${targetY}`);
-    if (tile) {
-      const terrain = tile.terrain as TerrainType;
-      if (terrain in TERRAIN_MOVE_COST && TERRAIN_MOVE_COST[terrain] === Infinity) {
-        return;
-      }
-    }
+    if (this.blocked(targetX, targetY, tiles)) return;
 
     display.displayX = targetX;
     display.displayY = targetY;

@@ -1,4 +1,4 @@
-import { TERRAIN_MOVE_COST, DIRECTION_DELTA } from "@town-zero/shared";
+import { DIRECTION_DELTA, isMoveBlocked } from "@town-zero/shared";
 import type { InputFrame, ResourceType, Facing } from "@town-zero/shared";
 import { dispatchInteract } from "./dispatch-interact.js";
 import type { Agent } from "./agent.js";
@@ -50,11 +50,7 @@ function executeDirection(direction: Facing, agent: Agent, grid: Grid): void {
 
   const target = { x: agent.position.x + delta.dx, y: agent.position.y + delta.dy };
 
-  // Bounds + terrain check
-  if (!grid.inBounds(target.x, target.y)) return;
-  const terrain = grid.getTerrain(target.x, target.y);
-  if (!terrain) return;
-  if (TERRAIN_MOVE_COST[terrain] === Infinity) return;
+  if (isMoveBlocked(target.x, target.y, grid, grid.getTerrain(target.x, target.y))) return;
 
   agent.position = target;
 }

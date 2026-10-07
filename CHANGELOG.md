@@ -32,6 +32,8 @@ entries are grouped by date, not by version. The format follows
 
 ### Fixed
 
+- Walking into the map edge moved the player one tile off the map and then
+  back. The client now knows the map size and does not predict that move.
 - Players were pulled back one tile when they released a movement key.
 - The client shows the error screen at once when the server closes the
   room, instead of freezing while it tries to reconnect.
