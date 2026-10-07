@@ -120,6 +120,9 @@ nameInput.addEventListener("keydown", (e) => {
   if (e.isComposing) return;
   if (e.key === "Escape") { closeNameInput(); nameBtn.focus(); return; }
   if (e.key !== "Enter") return;
+  // Focus moves to the button below; without this the same Enter clicks it
+  // and opens the field again.
+  e.preventDefault();
   const name = normalizePlayerName(nameInput.value);
   if (name) {
     playerName = name;
