@@ -124,7 +124,7 @@ Source of truth: `processTick` in `server/src/simulation/tick.ts`.
 
 Open items are in priority order: first small items for the deployed game, then the demo (random quests and NPCs with personality), then the rest.
 
-- [ ] **Personality for AI NPCs:** add a trait to the Jev state and check with real runs that it changes choices (demo: random quests + NPCs with personality).
+- [ ] **Personality for AI NPCs:** add a trait to the Jev state and check with real runs that it changes choices (demo: random quests + NPCs with personality). Show it in dialogue too: a new node type offers pre-written NPC replies, each with a plain-language description, and Jev picks one from the trait, beliefs and recent events (option conditions still filter; neutral reply first). Async, with a "thinking" state and a fallback reply. If the trait does not change the pick, random choice is enough and Jev is not needed.
 - [ ] **Dialogue-effect damage bypasses combat events.** The `damage` callback in `server/src/dialogue/dialogue-session.ts` (called by `executor.ts`) calls `Agent.takeDamage` directly; route it through `applyDamage` so `combat:hit` / `combat:death` fire for scripted damage.
 - [ ] **Dialogue eDSL review:** add `DialogueTreeData.validate()` for build-time graph integrity checks (dangling refs, empty next, action cycles)
 - [ ] **Quests:** generate quests; build them on NPC events plus dialogue actions (event handlers will need more than `bubble`); quest acceptance as a Jev `noul` question.
