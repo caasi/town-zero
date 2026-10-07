@@ -8,6 +8,12 @@ entries are grouped by date, not by version. The format follows
 
 ### Changed
 
+- Food places run out. A berry bush or a food tile holds 3 food, and each
+  one grows back 1 food every 30 seconds. An empty one shows no food.
+- Beasts know only what they saw. A beast away from the den knows the den
+  food from its last visit, or from a den-mate that it met. It sees an
+  enemy's HP at the moment it looks.
+
 - The village holds 12 people (was 8): Farmer Reed, the innkeeper and 10
   players.
 
