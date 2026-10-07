@@ -351,13 +351,18 @@ export class JevController {
     this.lastAskTick.set(agent.id, state.tick);
 
     const askedTick = state.tick;
+    // For the log only (Jev gets no coordinates): what the beast was and
+    // believed when it asked, so a decision can be explained from the log.
+    const home = homeOf(agent, state);
+    const denFood = home ? knownFood(agent, home) ?? "unknown" : "none";
+    const context = ` at (${agent.position.x},${agent.position.y}), carrying ${agent.inventory.food}, den food ${denFood}`;
     const options = buildOptions(agent, state, this.rand);
     const criteria = Object.fromEntries(options.map((o) => [o.id, o.description]));
     this.choose(describeState(agent, state), INSTRUCTIONS, criteria)
       .then(({ id, usage }) => {
         // The token counts let the server log give the Jev cost per hour.
         const cost = usage ? ` (in ${usage.input}, out ${usage.output})` : "";
-        console.log(`[jev] ${agent.id} chose ${id} from ${Object.keys(criteria).join(", ")}${cost}`);
+        console.log(`[jev] ${agent.id} chose ${id} from ${Object.keys(criteria).join(", ")}${cost}${context}`);
         // Died while waiting: a goal or a roar bubble would outlive the death.
         if (!agent.isAlive()) return;
         const goal = options.find((o) => o.id === id)!.goal;

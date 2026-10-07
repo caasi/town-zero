@@ -348,13 +348,23 @@ describe("JevController", () => {
     const { state, beast, player } = setup();
     see(beast, player, state.tick);
     expect(await jevLogLine(state, { id: "rest", usage: { input: 424, output: 41 } }))
-      .toMatch(/^\[jev\] b1 chose rest from rest, .* \(in 424, out 41\)$/);
+      .toMatch(/^\[jev\] b1 chose rest from rest, .* \(in 424, out 41\) at \(2,2\), carrying 0, den food 10$/);
+  });
+
+  it("logs where the beast was and what it believed when it asked", async () => {
+    const { state, beast, den } = setup(); // saw 10 food at home
+    beast.position = { x: 6, y: 6 };
+    den.inventory.food = 0;
+    beast.addToInventory("food", 2);
+    expect(await jevLogLine(state, { id: "rest" })).toMatch(/ at \(6,6\), carrying 2, den food 10$/);
   });
 
   it("logs a decision without token counts when the reply has none", async () => {
     const { state, beast, player } = setup();
     see(beast, player, state.tick);
-    expect(await jevLogLine(state, { id: "rest" })).toMatch(/^\[jev\] b1 chose rest from [^(]*$/);
+    const line = await jevLogLine(state, { id: "rest" });
+    expect(line).toMatch(/^\[jev\] b1 chose rest from /);
+    expect(line).not.toMatch(/\(in /);
   });
 
   it("asks once, then turns the chosen goal into frames", async () => {
