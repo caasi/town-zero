@@ -1,7 +1,7 @@
 // Player names: one rule for the client and the server, so a name the client
 // shows is the name the server keeps.
 
-export const PLAYER_NAME_MAX = 16; // characters as a person sees them (grapheme clusters)
+import { PLAYER_NAME_MAX } from "./constants.js";
 
 const segmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 

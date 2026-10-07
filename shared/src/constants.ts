@@ -21,6 +21,9 @@ export const DEFAULT_INVENTORY_CAPACITY = 20;
 export const RESOURCE_MAX_AMOUNT = 3;          // units a resource tile holds when full
 export const RESOURCE_REGROW_TICKS = 240;      // every resource tile grows back 1 unit per interval (~30s)
 
+// --- Player ---
+export const PLAYER_NAME_MAX = 16;            // characters as a person sees them (grapheme clusters)
+
 // --- Settlement ---
 export const HOUSING_POPULATION_CAP = 6;      // population per housing structure (village: 2 x 6 = 12)
 
