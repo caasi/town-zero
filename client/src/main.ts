@@ -183,9 +183,8 @@ function updatePlayerList(): void {
     li.classList.toggle("dead", p.dead);
     const swatch = document.createElement("span");
     swatch.className = "swatch";
-    // As on the map: you are your color; the others are white, edged with theirs.
-    swatch.style.background = p.self ? p.color : "#fff";
-    if (!p.self) swatch.style.border = `2px solid ${p.color}`;
+    // A plain swatch for everyone; "(you)" already marks you.
+    swatch.style.background = p.color;
     const label = document.createElement("span");
     label.textContent = p.self ? `${p.name} (you)` : p.name; // textContent: names are untrusted
     li.append(swatch, label);
