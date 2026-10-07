@@ -62,7 +62,7 @@ describe("Jev reply timing (property)", () => {
           });
           const reply = (criteria: Record<string, string>) => scheduled(criteria).then((id) => {
             if (id === null) throw new Error("Jev down");
-            return id;
+            return { id };
           });
           const controller = new JevController((_state, _instructions, criteria) => {
             asks++;

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { JevController, buildOptions, nextFrame, describeState, type Goal } from "../../src/ai/jev-controller.js";
-import { jevChooser } from "../../src/ai/jev.js";
+import { jevChooser, type Choice } from "../../src/ai/jev.js";
 import { Agent } from "../../src/simulation/agent.js";
 import { Settlement } from "../../src/simulation/settlement.js";
 import { Grid } from "../../src/simulation/grid.js";
@@ -256,11 +256,36 @@ describe("nextFrame", () => {
   });
 });
 
+// The [jev] line that one decision writes.
+async function jevLogLine(state: SimulationState, choice: Choice): Promise<string | undefined> {
+  const log = vi.spyOn(console, "log").mockImplementation(() => {});
+  try {
+    new JevController(vi.fn().mockResolvedValue(choice)).update(state);
+    await flush();
+    return log.mock.calls.map((c) => String(c[0])).find((l) => l.startsWith("[jev]"));
+  } finally {
+    log.mockRestore();
+  }
+}
+
 describe("JevController", () => {
+  it("logs each decision with its token usage", async () => {
+    const { state, beast, player } = setup();
+    see(beast, player, state.tick);
+    expect(await jevLogLine(state, { id: "rest", usage: { input: 424, output: 41 } }))
+      .toMatch(/^\[jev\] b1 chose rest from rest, .* \(in 424, out 41\)$/);
+  });
+
+  it("logs a decision without token counts when the reply has none", async () => {
+    const { state, beast, player } = setup();
+    see(beast, player, state.tick);
+    expect(await jevLogLine(state, { id: "rest" })).toMatch(/^\[jev\] b1 chose rest from [^(]*$/);
+  });
+
   it("asks once, then turns the chosen goal into frames", async () => {
     const { state, beast, player } = setup();
     see(beast, player, state.tick);
-    const choose = vi.fn().mockResolvedValue("attack:p1");
+    const choose = vi.fn().mockResolvedValue({ id: "attack:p1" });
     const controller = new JevController(choose);
 
     controller.update(state);
@@ -287,7 +312,7 @@ describe("JevController", () => {
       const [target, other] = "attack:p1" in criteria ? [player, p2] : [p2, player];
       target.takeDamage(1000);
       other.revive(other.position);
-      return `attack:${target.id}`;
+      return { id: `attack:${target.id}` };
     });
     const controller = new JevController(choose);
     for (let i = 0; i < 16; i++) {
@@ -302,7 +327,7 @@ describe("JevController", () => {
   it("starts goal deadlines when the reply arrives, not when it was asked", async () => {
     const { state, beast } = setup();
     let answer!: (id: string) => void;
-    const controller = new JevController(() => new Promise((r) => (answer = r)));
+    const controller = new JevController(() => new Promise((r) => (answer = (id) => r({ id }))));
     controller.update(state);
     state.tick += 30; // slow reply: longer than a rest goal (24 ticks)
     answer("rest");
@@ -314,7 +339,7 @@ describe("JevController", () => {
     const { state, beast, player } = setup();
     beast.addToInventory("food", 3);
     see(beast, player, state.tick);
-    const controller = new JevController(vi.fn().mockResolvedValue("roar"));
+    const controller = new JevController(vi.fn().mockResolvedValue({ id: "roar" }));
     controller.update(state);
     await flush();
     expect(beast.bubbleText).toBe("ROAR!");
@@ -326,7 +351,7 @@ describe("JevController", () => {
     const { state, beast, player } = setup();
     see(beast, player, state.tick);
     let answer!: (id: string) => void;
-    const controller = new JevController(() => new Promise((r) => (answer = r)));
+    const controller = new JevController(() => new Promise((r) => (answer = (id) => r({ id }))));
     controller.update(state);
     beast.takeDamage(1000);
     answer("roar");
@@ -360,7 +385,7 @@ describe("JevController", () => {
   it("moves a beast at most one step per 2 ticks", async () => {
     const { state, beast } = setup();
     beast.addToInventory("food", 3); // fed: no eat option
-    const controller = new JevController(vi.fn().mockResolvedValue("explore"), () => 0.99);
+    const controller = new JevController(vi.fn().mockResolvedValue({ id: "explore" }), () => 0.99);
     controller.update(state); // asks Jev
     await flush();
     let moves = 0;
@@ -413,13 +438,24 @@ describe("jevChooser", () => {
   const reply = (body: unknown, ok = true) =>
     vi.fn().mockResolvedValue({ ok, status: ok ? 200 : 500, json: async () => body });
 
-  it("sends a choice question and returns the chosen id", async () => {
-    const fetchFn = reply({ answers: { next: { choice: "b", confidence: 0.9 } } });
-    expect(await jevChooser("k", fetchFn)({ s: 1 }, "Pick.", options)).toBe("b");
+  it("sends a choice question and returns the chosen id with the token usage", async () => {
+    const fetchFn = reply({
+      answers: { next: { choice: "b", confidence: 0.9 } },
+      usage: { input_tokens: 296, output_tokens: 20 },
+    });
+    expect(await jevChooser("k", fetchFn)({ s: 1 }, "Pick.", options))
+      .toEqual({ id: "b", usage: { input: 296, output: 20 } });
     const [url, init] = fetchFn.mock.calls[0];
     expect(url).toBe("https://api.typesafe.ai/v1/systemone");
     expect(init.headers.Authorization).toBe("Bearer k");
     expect(JSON.parse(init.body).questions.next).toEqual({ type: "choice", instructions: "Pick.", criteria: options });
+  });
+
+  it("leaves out a usage that is not two integers", async () => {
+    for (const usage of [{ input_tokens: "many", output_tokens: 1 }, { input_tokens: NaN, output_tokens: 1 }, { input_tokens: 1.5, output_tokens: 1 }]) {
+      const fetchFn = reply({ answers: { next: { choice: "a" } }, usage });
+      expect(await jevChooser("k", fetchFn)({}, "Pick.", options)).toEqual({ id: "a" });
+    }
   });
 
   it("rejects an id that was not offered", async () => {

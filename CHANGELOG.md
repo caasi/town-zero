@@ -8,6 +8,8 @@ entries are grouped by date, not by version. The format follows
 
 ### Changed
 
+- The server log shows the token count of each AI decision, for example
+  `[jev] mnpc-0 chose rest from rest, guard_den (in 424, out 41)`.
 - Beasts stop making AI decisions while no player is active. A player is
   active while the browser tab is visible and the player did something in
   the last 2 minutes. Before this change, one tab left open overnight kept
