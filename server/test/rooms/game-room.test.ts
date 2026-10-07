@@ -216,6 +216,11 @@ describe("GameRoom integration", () => {
       expect(jevTicks(3)).toBe(3);
     });
 
+    it("ignores presence from a session without an agent", () => {
+      sendMessage(room, mockClient("not-joined"), "presence", { active: false });
+      expect(room.hiddenSessions.size).toBe(0);
+    });
+
     it("ignores a malformed presence message", () => {
       const client = mockClient("session-1");
       joinClient(room, client, { name: "Watcher" });

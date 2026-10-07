@@ -111,13 +111,15 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
     // The client sends this on visibilitychange. Coming back counts as activity.
     // Not onPlayerMessage: { active: false } must not refresh lastMessageTick.
     this.onMessage("presence", (client: Client, data: unknown) => {
+      const agentId = this.sessionToAgent.get(client.sessionId);
+      if (!agentId) return;
       if (!data || typeof data !== "object" || typeof (data as any).active !== "boolean") return;
       const active: boolean = (data as any).active;
       if (active) this.lastMessageTick.set(client.sessionId, this.simState.tick);
       if (active !== this.hiddenSessions.has(client.sessionId)) return;
       if (active) this.hiddenSessions.delete(client.sessionId);
       else this.hiddenSessions.add(client.sessionId);
-      console.log(`[presence] ${this.sessionToAgent.get(client.sessionId)} ${active ? "visible" : "hidden"}`);
+      console.log(`[presence] ${agentId} ${active ? "visible" : "hidden"}`);
     });
 
     // Fixed-step simulation at 8 ticks/s: deltaTime is intentionally ignored
