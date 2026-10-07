@@ -17,6 +17,8 @@ export interface DialogueStateMessage {
 export interface ReplyRequest {
   /** Pass it back to answerReply: an answer counts only for the request it belongs to. */
   token: number;
+  /** "<tree id>/<node id>": with the state words, the key of a cached pick. */
+  nodeKey: string;
   playerLine: string | null;
   lines: Array<{ id: string; description: string }>;
 }
@@ -189,6 +191,7 @@ export class DialogueSession {
     this.replyRequest = { token: this.nextReplyToken++, lines };
     return {
       token: this.replyRequest.token,
+      nodeKey: `${this.engine.getTreeId()}/${this.engine.getCurrentNodeId()}`,
       playerLine: this.lastPlayerLine,
       lines: lines.map((line) => ({ id: line.id, description: line.description })),
     };

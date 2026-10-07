@@ -121,6 +121,54 @@ describe("ReplyController", () => {
     expect(second.getState()).toMatchObject({ text: "The village needs it." });
   });
 
+  it("asks Jev again only when the state differs (the pick is cached)", async () => {
+    const state = waitingState();
+    const choose = vi.fn().mockResolvedValue({ id: "curt" });
+    const replies = new ReplyController(choose);
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      replies.update(state);
+      await flush();
+      replies.update(state);
+      const again = () => {
+        endDialogue("reed", state, "completed");
+        startDialogue("player-0", "reed", state);
+        chooseDialogue("player-0", "ask_opt_0", state);
+        return replies.update(state);
+      };
+      const [cached] = again(); // same state: answered from the cache, on this tick
+      expect(choose).toHaveBeenCalledTimes(1);
+      expect(cached.getState()).toMatchObject({ text: "Help or leave." });
+      expect(log).toHaveBeenCalledWith("[jev] reed replied curt from calm, curt (cached)");
+
+      state.settlements.get("v")!.addResource("food", 100); // the state changes
+      again();
+      expect(choose).toHaveBeenCalledTimes(2);
+    } finally {
+      log.mockRestore();
+    }
+  });
+
+  it("does not cache the fallback of a failed call", async () => {
+    const state = waitingState();
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const choose = vi.fn().mockRejectedValue(new Error("down"));
+    const replies = new ReplyController(choose);
+    try {
+      replies.update(state);
+      await flush();
+      replies.update(state);
+      endDialogue("reed", state, "completed");
+      startDialogue("player-0", "reed", state);
+      chooseDialogue("player-0", "ask_opt_0", state);
+      replies.update(state);
+      expect(choose).toHaveBeenCalledTimes(2);
+      await flush(); // let the second failure log while the spy is on
+    } finally {
+      error.mockRestore();
+    }
+  });
+
   it("logs the pick with its token counts", async () => {
     const state = waitingState();
     const log = vi.spyOn(console, "log").mockImplementation(() => {});

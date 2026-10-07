@@ -6,6 +6,7 @@ import type { DialogueSession } from "../dialogue/dialogue-session.js";
 
 // Tandi is short of food (docs/story.md); below this the state says "low".
 const VILLAGE_FOOD_LOW = 40;
+const CACHE_SIZE = 1000;
 
 const instructions = (name: string, playerSaid: string | null) =>
   (playerSaid ? `The traveler said to ${name}: "${playerSaid}". ` : `${name} talks with a traveler. `)
@@ -40,6 +41,11 @@ export class ReplyController {
   // in update(), on the tick that sends them, so no advance can skip a picked
   // line that the client has not seen.
   private arrived: Array<{ session: DialogueSession; token: number; lineId: string }> = [];
+  // Jev picks the same line for the same input (spec 004 runs: 3/3 and 4/4),
+  // so a pick is kept by everything Jev saw. This bounds the cost of a player
+  // who asks the same question again and again; a new state asks again.
+  // ponytail: oldest-first eviction at a fixed size; an LRU if hits matter.
+  private cache = new Map<string, string>();
 
   constructor(private choose: ChooseFn | null) {}
 
@@ -56,10 +62,21 @@ export class ReplyController {
         continue;
       }
       const options = Object.fromEntries(request.lines.map((l) => [l.id, l.description]));
-      this.choose(describeReplyState(npc, request.playerLine, state), instructions(npc.name, request.playerLine), options)
+      const words = describeReplyState(npc, request.playerLine, state);
+      const text = instructions(npc.name, request.playerLine);
+      const key = JSON.stringify([npc.id, request.nodeKey, words, text, options]);
+      const ids = Object.keys(options).join(", ");
+      const cached = this.cache.get(key);
+      if (cached !== undefined) {
+        console.log(`[jev] ${npc.id} replied ${cached} from ${ids} (cached)`);
+        this.answer(session, request.token, cached);
+        continue;
+      }
+      this.choose(words, text, options)
         .then(({ id, usage }) => {
           const cost = usage ? ` (in ${usage.input}, out ${usage.output})` : "";
-          console.log(`[jev] ${npc.id} replied ${id} from ${Object.keys(options).join(", ")}${cost}`);
+          console.log(`[jev] ${npc.id} replied ${id} from ${ids}${cost}`);
+          this.remember(key, id);
           this.arrived.push({ session, token: request.token, lineId: id });
         })
         .catch((err) => {
@@ -70,6 +87,11 @@ export class ReplyController {
     const done = Array.from(this.answered).filter((s) => !s.isDisposed());
     this.answered.clear();
     return done;
+  }
+
+  private remember(key: string, lineId: string): void {
+    if (this.cache.size >= CACHE_SIZE) this.cache.delete(this.cache.keys().next().value!);
+    this.cache.set(key, lineId);
   }
 
   private answer(session: DialogueSession, token: number, lineId: string): void {

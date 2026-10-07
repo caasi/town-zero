@@ -47,6 +47,7 @@ describe("reply node", () => {
     const { session } = atReply();
     expect(session.takeReplyRequest()).toEqual({
       token: 1,
+      nodeKey: "ask/answer",
       playerLine: "What's in it for me?",
       lines: [
         { id: "calm", description: "Explain calmly." },
