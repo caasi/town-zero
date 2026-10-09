@@ -24,8 +24,10 @@
     }
 
     /* HUD overlay */
+    /* viewport-fit=cover puts the page under the notch: the safe-area insets keep it clear. */
     #hud {
-      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      position: absolute;
+      inset: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
       pointer-events: none; font: 14px monospace; color: #eee;
     }
     #hud > * { pointer-events: auto; }
@@ -119,7 +121,8 @@
     #dialogue-overlay {
       position: absolute; bottom: 0; left: 0; right: 0;
       background: rgba(0,0,0,0.85); border-top: 2px solid #555;
-      padding: 16px 24px 28px; font: 14px monospace; color: #eee;
+      padding: 16px calc(24px + env(safe-area-inset-right)) calc(28px + env(safe-area-inset-bottom)) calc(24px + env(safe-area-inset-left));
+      font: 14px monospace; color: #eee;
       min-height: 120px;
     }
     #dialogue-overlay.hidden { display: none; }
@@ -141,7 +144,7 @@
       color: #666; font-style: italic; cursor: default;
     }
     .dlg-close {
-      position: absolute; top: 4px; right: 4px;
+      position: absolute; top: 4px; right: calc(4px + env(safe-area-inset-right));
       font: 18px monospace; color: #aaa; background: none; border: none;
       padding: 4px 8px; cursor: pointer;
     }
@@ -210,7 +213,7 @@
     }
     /* Bottom left: the close button keeps the top right, the key hints the bottom right. */
     .dlg-timer {
-      position: absolute; bottom: 8px; left: 24px;
+      position: absolute; bottom: calc(8px + env(safe-area-inset-bottom)); left: calc(24px + env(safe-area-inset-left));
       font-size: 12px; color: #aaa;
     }
     .dlg-timer.hidden { display: none; }
