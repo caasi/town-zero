@@ -221,7 +221,7 @@ function computeActionHint(): ActionHint {
   const playerId = network.playerId;
   const player = playerId ? state?.agents?.get(playerId) : undefined;
   const display = playerId ? displayState.get(playerId) : undefined;
-  if (!state || !player || !display) return null;
+  if (!state || !player || !display || player.state === "dead") return null;
   const agentAt = (x: number, y: number) => {
     let found: { faction: string; talkable: boolean } | undefined;
     state.agents.forEach((a: any) => {
