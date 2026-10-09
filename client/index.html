@@ -9,6 +9,8 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { width: 100%; height: 100%; overflow: hidden; background: #111; }
+    /* iOS Safari enlarges text in landscape on its own; the sizes here are final. */
+    html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
     /* The smallest touch target: Material asks 48dp, the iOS guidelines 44pt.
        Every control on a touch screen is at least this big. */
     :root { --touch-min: 48px; }
