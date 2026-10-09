@@ -1,5 +1,6 @@
 // client/src/controller.ts
 import type { InputHandler, TouchCode } from "./input.js";
+import { onTap } from "./tap.js";
 
 const DEAD_ZONE_PX = 10;
 
@@ -65,16 +66,11 @@ export function bindController(getInput: () => InputHandler | null): Controller 
     } catch { /* not allowed here; the page works without it */ }
   });
 
-  // On pointerup, not click: iOS Safari sends no click for a tap while another
-  // finger holds the D-pad. A click with detail 0 comes from a keyboard or a
-  // screen reader, which make no pointerup.
-  const act = () => {
+  onTap(actionBtn, () => {
     getInput()?.interact();
     // A focused button would take the next Space or Enter from a keyboard.
     actionBtn.blur();
-  };
-  actionBtn.addEventListener("pointerup", act);
-  actionBtn.addEventListener("click", (e) => { if (e.detail === 0) act(); });
+  });
   // Back: later it opens the system menu (issue #14).
 
   return { release: releasePad };

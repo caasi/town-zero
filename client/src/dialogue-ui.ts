@@ -1,5 +1,6 @@
 // client/src/dialogue-ui.ts
 import type { DialogueStatePayload } from "@town-zero/shared";
+import { onTap } from "./tap.js";
 
 export class DialogueUI {
   private container: HTMLElement;
@@ -22,10 +23,10 @@ export class DialogueUI {
     this.contentEl = this.container.querySelector(".dlg-content")!;
     this.optionsEl = this.container.querySelector(".dlg-options")!;
     this.timerEl = this.container.querySelector(".dlg-timer")!;
-    this.contentEl.addEventListener("click", () => {
+    onTap(this.contentEl, () => {
       if (this.isShowingText()) this.onAdvance?.();
     });
-    this.container.querySelector(".dlg-close")!.addEventListener("click", () => this.onClose?.());
+    onTap(this.container.querySelector<HTMLElement>(".dlg-close")!, () => this.onClose?.());
   }
 
   private waiting = false;
@@ -110,7 +111,8 @@ export class DialogueUI {
       el.type = "button";
       el.className = "dlg-option";
       el.disabled = !opt.enabled;
-      el.addEventListener("click", () => this.onChoose?.(opt.id));
+      // Some browsers send pointer events to a disabled button.
+      onTap(el, () => { if (opt.enabled) this.onChoose?.(opt.id); });
       if (i === this.selectedIndex) el.classList.add("selected");
       if (!opt.enabled) el.classList.add("disabled");
       el.textContent = opt.label;
