@@ -16,6 +16,17 @@ Limits and shortcuts in the code that are not fixed yet.
 - `material` and `currency` have no use since production and merchants were removed.
 - A respawned village NPC (non-player character: Farmer Reed or the innkeeper) is added back to `populationIds` without a cap check: if a player took the freed slot, the village is one over its cap until someone leaves. It also respawns on the first free territory tile, not at its post (Farmer Reed starts at (9,19), the innkeeper at (11,21)).
 
+### Accessibility
+
+Known gaps, accepted for now. The game draws on a canvas that a screen reader cannot read, and the keyboard path works.
+
+- The touch D-pad (`#dpad` in `client/index.html`) gives a screen reader no direction controls. The four arrows are `aria-hidden`, and a direction comes only from where the finger is. To fix, make each direction a named button, and keep the drag for held movement.
+- The action hint (Talk, Attack, Gather, Deposit) is drawn only on the canvas. The Action button is named only "Action", and the gray state (the action changes nothing) is visual only.
+- The B button (Back) does nothing yet, but a screen reader announces it as a working button.
+- Speech bubbles, and the name drawn over a player sprite, are only on the canvas. The list of players online (`#player-list`) is in the DOM.
+- A laptop with a touch screen matches `any-pointer: coarse`. It gets the touch controller, and it loses the keyboard hints (`#key-hints`, `.dlg-hint`), also in a dialogue.
+- The overlay buttons (Revive, Retry, Reload) and the name button are smaller than a touch target of about 44px.
+
 ## Open items
 
 Open items are in priority order: first small items for the deployed game, then the demo (random quests and NPCs with personality), then the rest.

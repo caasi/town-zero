@@ -4,6 +4,24 @@ All notable changes to town-zero. Each push to `main` is deployed, so the
 entries are grouped by date, not by version. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 2026-10-09
+
+### Added
+
+- You can play on a touch screen. A D-pad moves you, and the **A** button
+  does what **E** does. The controller is hidden in a dialogue.
+- A word beside your character tells what **E** or **A** will do
+  now: Talk, Attack, Gather or Deposit. It is gray when the action changes
+  nothing, for example a deposit with empty hands.
+- In a dialogue, you can click or tap the text to continue, tap an option
+  to choose it, and tap **✕** to close.
+
+### Changed
+
+- **E** deposits. Stand on a housing cell (**H**) of any village or den,
+  with nothing to do in front of you, and press **E** to store all you
+  carry there. The **T** key is gone.
+
 ## 2026-10-07
 
 ### Changed

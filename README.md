@@ -58,9 +58,10 @@ CI runs all three.
 ## Controls
 
 - **WASD** or **arrow keys**: move. The first press in a new direction only turns you.
-- **E**: interact with the tile in front of you. You talk to an NPC, attack an enemy, or gather from a resource tile.
-- **T**: deposit what you carry at the settlement you stand in.
-- In a dialogue: **W/S** to select, **E** or **Enter** to confirm, **Esc** to close.
+- **E**: interact with the tile in front of you. You talk to an NPC, attack an enemy, or gather from a resource tile. On a housing cell (**H** on the map) of a village or a den, with nothing to do in front of you, you deposit all you carry into that settlement.
+- In a dialogue: **W/S** to select, **E** or **Enter** to confirm, **Esc** to close. You can also click or tap the text to continue, tap an option to choose it, and tap **✕** to close.
+- On a touch screen: a D-pad to move, and a green **A** button that does what **E** does. The red **B** button (back) does nothing yet.
+- The word beside your character tells what **E** or **A** will do now. It stays off the tile in front of you. It is gray when the action changes nothing.
 
 The keys use physical positions, so they work on any keyboard layout.
 
