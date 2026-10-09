@@ -1,13 +1,13 @@
 // client/src/tap.ts
 
+const CLICK_AFTER_TAP_MS = 500;
+
 /**
  * Runs fn when a press on el is released over el, as a desktop button does.
  * On pointerup, not click: iOS Safari sends no click for a tap while another
  * finger is down (on the D-pad, for example). A click with detail 0 comes
  * from a keyboard or a screen reader, which make no pointerup.
  */
-const CLICK_AFTER_TAP_MS = 500;
-
 export function onTap(el: HTMLElement, fn: () => void): void {
   // A mouse has no implicit capture: its pointerup goes to whatever is under
   // it, so a press that began elsewhere must not count.
