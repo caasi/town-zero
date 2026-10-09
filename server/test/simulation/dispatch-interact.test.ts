@@ -5,7 +5,8 @@ import { Agent } from "../../src/simulation/agent.js";
 import { Grid } from "../../src/simulation/grid.js";
 import type { SimulationState } from "../../src/simulation/tick.js";
 import type { FrameContext, TalkResult } from "../../src/simulation/execute-frame.js";
-import { BASE_ATTACK_DAMAGE } from "@town-zero/shared";
+import { BASE_ATTACK_DAMAGE, ZoneType } from "@town-zero/shared";
+import { Settlement } from "../../src/simulation/settlement.js";
 import type { DialogueTreeData } from "@town-zero/shared";
 
 function makeState(overrides?: Partial<SimulationState>): SimulationState {
@@ -157,5 +158,69 @@ describe("dispatchInteract — priority order", () => {
     expect(agent.inventory.material).toBe(1);
     // Dead agent HP remains at 0 (not attacked further)
     expect(dead.hp).toBe(0);
+  });
+});
+
+describe("dispatchInteract — deposit on a housing cell", () => {
+  // Player at (5,5) on a housing cell of den-1, facing south → (5,6).
+  function setup() {
+    const state = makeState();
+    const agent = new Agent({ id: "p1", position: { x: 5, y: 5 }, faction: "v1", role: "player", controller: "player" });
+    agent.facing = "south";
+    agent.addToInventory("food", 3);
+    agent.addToInventory("material", 2);
+    state.agents.set("p1", agent);
+    state.grid.setZoneType(5, 5, ZoneType.HOUSING);
+    const den = new Settlement({ id: "den-1", faction: "den-1", type: "den", territory: [{ x: 5, y: 5 }] });
+    state.settlements.set("den-1", den);
+    return { state, agent, den };
+  }
+
+  it("deposits everything into the settlement that owns the cell, any faction", () => {
+    const { state, agent, den } = setup();
+    dispatchInteract(makeCtx(agent, state));
+    expect(agent.inventory.food).toBe(0);
+    expect(den.inventory.food).toBe(3);
+    expect(den.inventory.material).toBe(2);
+  });
+
+  it("a same-faction agent with no dialogue in front does not block deposit", () => {
+    const { state, agent, den } = setup();
+    state.agents.set("ally-1", new Agent({ id: "ally-1", position: { x: 5, y: 6 }, faction: "v1", role: "farmer", controller: "llm" }));
+    dispatchInteract(makeCtx(agent, state));
+    expect(den.inventory.food).toBe(3);
+  });
+
+  it("gather in front wins over deposit", () => {
+    const { state, agent, den } = setup();
+    state.grid.setResourceYield(5, 6, "food");
+    dispatchInteract(makeCtx(agent, state));
+    expect(agent.inventory.food).toBe(4);
+    expect(den.inventory.food).toBe(0);
+  });
+
+  it("a used-up resource in front does not block deposit", () => {
+    const { state, agent, den } = setup();
+    state.grid.setResourceYield(5, 6, "food");
+    while (state.grid.takeResource(5, 6)) { /* use the tile up */ }
+    dispatchInteract(makeCtx(agent, state));
+    expect(den.inventory.food).toBe(3);
+  });
+
+  it("an enemy in front is attacked, not deposited to", () => {
+    const { state, agent, den } = setup();
+    const enemy = new Agent({ id: "e1", position: { x: 5, y: 6 }, faction: "den-1", role: "beast", controller: "bot" });
+    state.agents.set("e1", enemy);
+    dispatchInteract(makeCtx(agent, state));
+    expect(enemy.hp).toBe(100 - BASE_ATTACK_DAMAGE);
+    expect(den.inventory.food).toBe(0);
+  });
+
+  it("a territory cell that is not housing does not deposit", () => {
+    const { state, agent, den } = setup();
+    state.grid.setZoneType(5, 5, ZoneType.EMPTY);
+    dispatchInteract(makeCtx(agent, state));
+    expect(agent.inventory.food).toBe(3);
+    expect(den.inventory.food).toBe(0);
   });
 });
