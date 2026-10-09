@@ -54,18 +54,6 @@ export function bindController(getInput: () => InputHandler | null): Controller 
   pad.addEventListener("pointercancel", release);
   pad.addEventListener("lostpointercapture", release);
 
-  // Full screen on a touch of the controller, again after the player leaves
-  // it. On pointerup: for touch, only pointerup is a user activation, and
-  // requestFullscreen needs one. iPhone Safari has no page full screen.
-  const root = document.documentElement as HTMLElement & { webkitRequestFullscreen?: () => void };
-  document.getElementById("controller")!.addEventListener("pointerup", () => {
-    if (document.fullscreenElement) return;
-    try {
-      if (root.requestFullscreen) root.requestFullscreen().catch(() => {});
-      else root.webkitRequestFullscreen?.();
-    } catch { /* not allowed here; the page works without it */ }
-  });
-
   onTap(actionBtn, () => {
     getInput()?.interact();
     // A focused button would take the next Space or Enter from a keyboard.
