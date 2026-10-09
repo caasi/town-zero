@@ -4,7 +4,7 @@ All notable changes to town-zero. Each push to `main` is deployed, so the
 entries are grouped by date, not by version. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## 2026-10-09
+## 2026-10-10
 
 ### Added
 
