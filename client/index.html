@@ -165,6 +165,9 @@
       #controller { display: block; }
       #key-hints, .dlg-hint { display: none; }
       .dlg-option { min-height: var(--touch-min); }
+      /* The text is a tap target too, and the close button must not cover its line ends. */
+      .dlg-content { min-height: var(--touch-min); }
+      .dlg-speaker, .dlg-content { padding-right: var(--touch-min); }
       .dlg-close { min-width: var(--touch-min); min-height: var(--touch-min); }
     }
     body.hide-controller #controller { display: none; }
@@ -202,10 +205,11 @@
        The left (X) and top (Y) cells stay empty for later buttons. */
     #ctl-buttons {
       right: calc(24px + env(safe-area-inset-right));
-      display: grid; grid-template: repeat(3, 52px) / repeat(3, 52px);
+      --face: max(52px, var(--touch-min));
+      display: grid; grid-template: repeat(3, var(--face)) / repeat(3, var(--face));
     }
     #ctl-buttons button {
-      width: 52px; height: 52px; border-radius: 50%; border: none; /* above --touch-min */
+      width: var(--face); height: var(--face); border-radius: 50%; border: none;
       background: #fff; font: bold 26px sans-serif;
     }
     #ctl-buttons button:active { background: #ddd; } /* keeps the green A and red B above 3:1 */
