@@ -27,6 +27,9 @@ entries are grouped by date, not by version. The format follows
 
 - The page no longer asks for full screen when you touch the controller.
   On Android it asked again at the next touch after each exit.
+- The food field north of the forest is gone. Its tiles showed only a
+  small dot, so they looked like empty grass. Gather food from the berry
+  bushes east of the village.
 
 ## 2026-10-07
 
