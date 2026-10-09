@@ -7,6 +7,7 @@ import { TileSchema } from "./schemas/TileSchema.js";
 import type { Agent } from "../simulation/agent.js";
 import type { Settlement } from "../simulation/settlement.js";
 import type { Grid } from "../simulation/grid.js";
+import { findTreeIdForNpc } from "../simulation/dialogue-entry-predicate.js";
 
 export function syncAgent(agent: Agent, agentSchema: AgentSchema): void {
   agentSchema.id = agent.id;
@@ -61,6 +62,12 @@ function shownYield(grid: Grid, x: number, y: number): string {
   return grid.getResourceAmount(x, y) > 0 ? grid.getResourceYield(x, y) ?? "" : "";
 }
 
+// A tree without entry points never starts a dialogue (resolveDialogueEntryNode).
+function isTalkable(id: string, simState: SimulationState): boolean {
+  const treeId = findTreeIdForNpc(id, simState);
+  return !!treeId && (simState.dialogueTrees.get(treeId)!.entryPoints?.length ?? 0) > 0;
+}
+
 export function syncToSchema(simState: SimulationState, roomState: WorldStateSchema): void {
   roomState.tick = simState.tick;
 
@@ -77,6 +84,7 @@ export function syncToSchema(simState: SimulationState, roomState: WorldStateSch
     let agentSchema = roomState.agents.get(id);
     if (!agentSchema) {
       agentSchema = new AgentSchema();
+      agentSchema.talkable = isTalkable(id, simState);
       roomState.agents.set(id, agentSchema);
     }
     syncAgent(agent, agentSchema);

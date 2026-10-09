@@ -24,6 +24,17 @@ function makeAgent(id: string, x = 5, y = 5): Agent {
 }
 
 describe("syncToSchema", () => {
+  it("marks an agent talkable when its dialogue tree has an entry point", () => {
+    const sim = makeSimState({
+      agents: new Map([["npc-1", makeAgent("npc-1")], ["a2", makeAgent("a2")]]),
+      dialogueTrees: new Map([["npc-1-tree", { entryPoints: [{}] } as any], ["a2-tree", { entryPoints: [] } as any]]),
+    });
+    const state = new WorldStateSchema();
+    syncToSchema(sim, state);
+    expect(state.agents.get("npc-1")!.talkable).toBe(true);
+    expect(state.agents.get("a2")!.talkable).toBe(false);
+  });
+
   it("syncs tick counter", () => {
     const sim = makeSimState({ tick: 42 });
     const state = new WorldStateSchema();
