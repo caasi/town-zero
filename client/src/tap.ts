@@ -11,6 +11,7 @@ export function onTap(el: HTMLElement, fn: () => void): void {
   // it, so a press that began elsewhere must not count.
   let down: number | null = null;
   el.addEventListener("pointerdown", (e) => { down = e.button === 0 ? e.pointerId : null; });
+  el.addEventListener("pointercancel", () => { down = null; });
   el.addEventListener("pointerup", (e) => {
     if (e.pointerId !== down) return; // not pressed here, or not the primary button
     down = null;
