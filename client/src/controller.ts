@@ -51,19 +51,19 @@ export function bindController(getInput: () => InputHandler | null): Controller 
   pad.addEventListener("pointermove", steer);
   pad.addEventListener("pointerup", release);
   pad.addEventListener("pointercancel", release);
+  pad.addEventListener("lostpointercapture", release);
 
-  // Try full screen once, on the first touch (a user gesture is required).
-  // iPad Safari and Android support it; iPhone Safari has no requestFullscreen
-  // for a page, so there it does nothing.
+  // Full screen on a touch of the controller, again after the player leaves
+  // it. On pointerup: for touch, only pointerup is a user activation, and
+  // requestFullscreen needs one. iPhone Safari has no page full screen.
   const root = document.documentElement as HTMLElement & { webkitRequestFullscreen?: () => void };
-  document.getElementById("controller")!.addEventListener("pointerdown", () => {
+  document.getElementById("controller")!.addEventListener("pointerup", () => {
     if (document.fullscreenElement) return;
     try {
       if (root.requestFullscreen) root.requestFullscreen().catch(() => {});
       else root.webkitRequestFullscreen?.();
     } catch { /* not allowed here; the page works without it */ }
-  }, { once: true });
-  pad.addEventListener("lostpointercapture", release);
+  });
 
   actionBtn.addEventListener("click", () => {
     getInput()?.interact();

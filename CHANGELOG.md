@@ -9,7 +9,9 @@ entries are grouped by date, not by version. The format follows
 ### Added
 
 - You can play on a touch screen. A D-pad moves you, and the **A** button
-  does what **E** does. The controller is hidden in a dialogue.
+  does what **E** does. The controller is hidden in a dialogue. A touch
+  of the controller asks for full screen; iPhone Safari cannot give it, but
+  its "Hide Toolbar" option works.
 - A word beside your character tells what **E** or **A** will do
   now: Talk, Attack, Gather or Deposit. It is gray when the action changes
   nothing, for example a deposit with empty hands.
