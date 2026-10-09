@@ -10,7 +10,13 @@ export function onTap(el: HTMLElement, fn: () => void): void {
   // A mouse has no implicit capture: its pointerup goes to whatever is under
   // it, so a press that began elsewhere must not count.
   let down: number | null = null;
-  el.addEventListener("pointerdown", (e) => { down = e.button === 0 ? e.pointerId : null; });
+  el.addEventListener("pointerdown", (e) => {
+    down = e.button === 0 ? e.pointerId : null;
+    // Capture, so the release comes back to el even off it and clears `down`;
+    // a mouse keeps one pointerId, and a stale one would let a later press
+    // from elsewhere act.
+    if (down !== null) el.setPointerCapture(e.pointerId);
+  });
   el.addEventListener("pointercancel", () => { down = null; });
   el.addEventListener("pointerup", (e) => {
     if (e.pointerId !== down) return; // not pressed here, or not the primary button
