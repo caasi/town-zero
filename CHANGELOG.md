@@ -6,17 +6,11 @@ entries are grouped by date, not by version. The format follows
 
 ## 2026-10-10
 
-### Removed
-
-- The page no longer asks for full screen when you touch the controller.
-  On Android it asked again after each exit.
-
 ### Added
 
 - You can play on a touch screen. A D-pad moves you, and the **A** button
-  does what **E** does. The controller is hidden in a dialogue. For more
-  room, use the browser's own option to hide its toolbar (on iPhone Safari,
-  "Hide Toolbar").
+  does what **E** does. The controller is hidden in a dialogue. On iPhone
+  Safari, the "Hide Toolbar" option gives more space.
 - A word beside your character tells what **E** or **A** will do
   now: Talk, Attack, Gather or Deposit. It is gray when the action changes
   nothing, for example a deposit with empty hands.
@@ -28,6 +22,11 @@ entries are grouped by date, not by version. The format follows
 - **E** deposits. Stand on a housing cell (**H**) of any village or den,
   with nothing to do in front of you, and press **E** to store all you
   carry there. The **T** key is gone.
+
+### Removed
+
+- The page no longer asks for full screen when you touch the controller.
+  On Android it asked again at the next touch after each exit.
 
 ## 2026-10-07
 
