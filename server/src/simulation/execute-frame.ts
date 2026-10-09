@@ -1,5 +1,5 @@
 import { DIRECTION_DELTA, isMoveBlocked } from "@town-zero/shared";
-import type { InputFrame, ResourceType, Facing } from "@town-zero/shared";
+import type { InputFrame, Facing } from "@town-zero/shared";
 import { dispatchInteract } from "./dispatch-interact.js";
 import type { Agent } from "./agent.js";
 import type { Grid } from "./grid.js";
@@ -9,6 +9,7 @@ import {
   performAttackOnFacingTarget,
   performGatherOnFacingTile,
   performTalkOnFacingTarget,
+  performDeposit,
 } from "./facing-actions.js";
 
 export type { FrameContext, TalkResult };
@@ -75,14 +76,7 @@ function executeAction(action: NonNullable<InputFrame["action"]>, ctx: FrameCont
       const settlement = settlements.get(action.settlementId);
       if (!settlement) return;
       if (!settlement.isInTerritory(agent.position)) return;
-      for (const res of ["food", "material", "currency"] as ResourceType[]) {
-        const keep = res === "food" ? action.keepFood ?? 0 : 0;
-        const amount = agent.inventory[res] - keep;
-        if (amount > 0) {
-          agent.removeFromInventory(res, amount);
-          settlement.addResource(res, amount);
-        }
-      }
+      performDeposit(settlement, agent, action.keepFood);
       break;
     }
     case "take": {

@@ -10,11 +10,23 @@ Limits and shortcuts in the code that are not fixed yet.
 
 - AI movement is a greedy step (`stepToward` in `jev-controller.ts`); a beast behind water gets no step and re-asks Jev at most once per second. Upgrade to BFS (breadth-first search) over passable tiles when maps get obstacles.
 - Player attacks have no cooldown (one per key press, up to 8/s). AI beasts wait ~1s between attacks, but the wait is stored on the attack goal: a new goal (target left sight and came back) can hit at once.
-- Speech bubbles are drawn in the same pass as the agents (`client/src/renderer.ts`), so an agent drawn later covers a bubble (seen: a player diamond over "Greetings, traveler!"). Draw them in a top layer: a canvas pass after all agents, or a glass / UI layer above the canvas.
+- Speech bubbles are drawn in the same pass as the agents (`client/src/renderer.ts`), so an agent drawn later covers a bubble (seen: a player diamond over "Greetings, traveler!"). The owner's direction: move the speech bubbles and the action hint to a UI (glass) layer above the canvas, directly under the touch controller. The hint is drawn after all agents for now.
 - Tabs of one browser share the stored player name (localStorage): a second tab joins with the same name, the server gives it a number ("Quiet Otter 2"), and the client does not keep that number. Not fixed on purpose.
 - After death the HUD (heads-up display) can still show the last HP (hit points) before 0 (the `death` message arrives before the state patch).
 - `material` and `currency` have no use since production and merchants were removed.
 - A respawned village NPC (non-player character: Farmer Reed or the innkeeper) is added back to `populationIds` without a cap check: if a player took the freed slot, the village is one over its cap until someone leaves. It also respawns on the first free territory tile, not at its post (Farmer Reed starts at (9,19), the innkeeper at (11,21)).
+
+### Accessibility
+
+Known gaps, accepted for now. The game draws on a canvas that a screen reader cannot read, and the keyboard path works.
+
+- The touch D-pad (`#dpad` in `client/index.html`) gives a screen reader no direction controls. The four arrows are `aria-hidden`, and a direction comes only from where the finger is. To fix, make each direction a named button, and keep the drag for held movement.
+- The action hint (Talk, Attack, Gather, Deposit) is drawn only on the canvas. The Action button is named only "Action", and the gray state (the action changes nothing) is visual only.
+- The B button (Back) does nothing yet, but a screen reader announces it as a working button.
+- In a dialogue, Tab and Enter cannot press the close button or an option: dialogue mode cancels every key (`handleKey` in `client/src/input.ts`), and the keyboard path is W/S, E and Esc.
+- Speech bubbles, and the name drawn over a player sprite, are only on the canvas. The list of players online (`#player-list`) is in the DOM.
+- A laptop with a touch screen matches `any-pointer: coarse`. It gets the touch controller, and it loses the keyboard hints (`#key-hints`, `.dlg-hint`), also in a dialogue.
+- The overlay buttons (Revive, Retry, Reload) and the name button are smaller than the touch minimum, `--touch-min` (48px) in `client/index.html`.
 
 ## Open items
 
