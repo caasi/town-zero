@@ -25,7 +25,7 @@ Known gaps, accepted for now. The game draws on a canvas that a screen reader ca
 - The B button (Back) does nothing yet, but a screen reader announces it as a working button.
 - Speech bubbles, and the name drawn over a player sprite, are only on the canvas. The list of players online (`#player-list`) is in the DOM.
 - A laptop with a touch screen matches `any-pointer: coarse`. It gets the touch controller, and it loses the keyboard hints (`#key-hints`, `.dlg-hint`), also in a dialogue.
-- The overlay buttons (Revive, Retry, Reload) and the name button are smaller than a touch target of about 44px.
+- The overlay buttons (Revive, Retry, Reload) and the name button are smaller than the touch minimum, `--touch-min` (48px) in `client/index.html`.
 
 ## Open items
 

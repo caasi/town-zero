@@ -9,6 +9,9 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { width: 100%; height: 100%; overflow: hidden; background: #111; }
+    /* The smallest touch target: Material asks 48dp, the iOS guidelines 44pt.
+       Every control on a touch screen is at least this big. */
+    :root { --touch-min: 48px; }
     /* Fast taps (dialogue text, Action) must not zoom the page. */
     body { touch-action: manipulation; }
     #game-container {
@@ -152,9 +155,8 @@
     @media (any-pointer: coarse) {
       #controller { display: block; }
       #key-hints, .dlg-hint { display: none; }
-      /* Touch targets of about 44px. */
-      .dlg-option { padding: 12px 8px; }
-      .dlg-close { min-width: 44px; min-height: 44px; }
+      .dlg-option { min-height: var(--touch-min); }
+      .dlg-close { min-width: var(--touch-min); min-height: var(--touch-min); }
     }
     body.hide-controller #controller { display: none; }
     #dpad, #ctl-buttons {
@@ -163,7 +165,7 @@
     }
     #dpad {
       left: calc(24px + env(safe-area-inset-left));
-      width: 144px; height: 144px;
+      width: calc(3 * var(--touch-min)); height: calc(3 * var(--touch-min));
     }
     /* The ring behind the arrows, a little smaller than the pad itself. */
     #dpad::before {
@@ -171,7 +173,7 @@
       background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2);
     }
     #dpad span {
-      position: absolute; width: 48px; height: 48px;
+      position: absolute; width: var(--touch-min); height: var(--touch-min);
       background: #fff; border-radius: 8px;
     }
     #dpad span.held { background: #bbb; }
@@ -183,10 +185,10 @@
     #dpad [data-code="TouchRight"]::before { transform: rotate(90deg); }
     #dpad [data-code="TouchDown"]::before { transform: rotate(180deg); }
     #dpad [data-code="TouchLeft"]::before { transform: rotate(270deg); }
-    #dpad [data-code="TouchUp"] { left: 48px; top: 0; }
-    #dpad [data-code="TouchDown"] { left: 48px; bottom: 0; }
-    #dpad [data-code="TouchLeft"] { left: 0; top: 48px; }
-    #dpad [data-code="TouchRight"] { right: 0; top: 48px; }
+    #dpad [data-code="TouchUp"] { left: var(--touch-min); top: 0; }
+    #dpad [data-code="TouchDown"] { left: var(--touch-min); bottom: 0; }
+    #dpad [data-code="TouchLeft"] { left: 0; top: var(--touch-min); }
+    #dpad [data-code="TouchRight"] { right: 0; top: var(--touch-min); }
     /* Face buttons in the Xbox layout: A at the bottom, B at the right.
        The left (X) and top (Y) cells stay empty for later buttons. */
     #ctl-buttons {
@@ -194,7 +196,7 @@
       display: grid; grid-template: repeat(3, 52px) / repeat(3, 52px);
     }
     #ctl-buttons button {
-      width: 52px; height: 52px; border-radius: 50%; border: none;
+      width: 52px; height: 52px; border-radius: 50%; border: none; /* above --touch-min */
       background: #fff; font: bold 26px sans-serif;
     }
     #ctl-buttons button:active { background: #ddd; } /* keeps the green A and red B above 3:1 */
