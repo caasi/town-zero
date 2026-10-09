@@ -8,6 +8,11 @@ export class DialogueUI {
   private optionsEl: HTMLElement;
   private timerEl: HTMLElement;
 
+  // Taps and clicks; the keyboard path goes through InputHandler.
+  onAdvance: (() => void) | null = null;
+  onChoose: ((optionId: string) => void) | null = null;
+  onClose: (() => void) | null = null;
+
   private selectedIndex = 0;
   private options: Array<{ id: string; label: string; enabled: boolean }> = [];
 
@@ -17,6 +22,10 @@ export class DialogueUI {
     this.contentEl = this.container.querySelector(".dlg-content")!;
     this.optionsEl = this.container.querySelector(".dlg-options")!;
     this.timerEl = this.container.querySelector(".dlg-timer")!;
+    this.contentEl.addEventListener("click", () => {
+      if (this.isShowingText()) this.onAdvance?.();
+    });
+    this.container.querySelector(".dlg-close")!.addEventListener("click", () => this.onClose?.());
   }
 
   private waiting = false;
@@ -97,8 +106,11 @@ export class DialogueUI {
     const children: HTMLElement[] = [];
     for (let i = 0; i < this.options.length; i++) {
       const opt = this.options[i];
-      const el = document.createElement("div");
+      const el = document.createElement("button");
+      el.type = "button";
       el.className = "dlg-option";
+      el.disabled = !opt.enabled;
+      el.addEventListener("click", () => this.onChoose?.(opt.id));
       if (i === this.selectedIndex) el.classList.add("selected");
       if (!opt.enabled) el.classList.add("disabled");
       el.textContent = opt.label;

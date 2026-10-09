@@ -10,11 +10,11 @@ interface AgentInfo {
 }
 
 
-const ACTION_CODES = ["KeyW", "KeyA", "KeyS", "KeyD", "KeyE", "KeyT"] as const;
+const ACTION_CODES = ["KeyW", "KeyA", "KeyS", "KeyD", "KeyE"] as const;
 
 const QWERTY_LABELS: Record<string, string> = {
   KeyW: "W", KeyA: "A", KeyS: "S", KeyD: "D",
-  KeyE: "E", KeyT: "T",
+  KeyE: "E",
 };
 
 export async function getKeyLabels(): Promise<Record<string, string>> {
@@ -35,7 +35,7 @@ export async function getKeyLabels(): Promise<Record<string, string>> {
 
 export function formatKeyHints(labels: Record<string, string>): string {
   const move = `${labels.KeyW}${labels.KeyA}${labels.KeyS}${labels.KeyD}`;
-  return `${move}:Move  ${labels.KeyE}:Interact  ${labels.KeyT}:Deposit`;
+  return `${move}:Move  ${labels.KeyE}:Interact`;
 }
 
 export function formatDialogueKeyHints(labels: Record<string, string>): string {
@@ -49,6 +49,8 @@ const MOVE_KEYS: Record<string, { dx: number; dy: number }> = {
   KeyA: { dx: -1, dy: 0 }, ArrowLeft: { dx: -1, dy: 0 },
   KeyS: { dx: 0, dy: 1 },  ArrowDown: { dx: 0, dy: 1 },
   KeyD: { dx: 1, dy: 0 },  ArrowRight: { dx: 1, dy: 0 },
+  TouchUp: { dx: 0, dy: -1 }, TouchLeft: { dx: -1, dy: 0 },
+  TouchDown: { dx: 0, dy: 1 }, TouchRight: { dx: 1, dy: 0 },
 };
 
 const CODE_TO_DIRECTION: Record<string, Facing> = {
@@ -56,7 +58,12 @@ const CODE_TO_DIRECTION: Record<string, Facing> = {
   KeyA: "west",  ArrowLeft: "west",
   KeyS: "south", ArrowDown: "south",
   KeyD: "east",  ArrowRight: "east",
+  TouchUp: "north", TouchLeft: "west", TouchDown: "south", TouchRight: "east",
 };
+
+// Own codes, so a D-pad release never drops a key held on a keyboard.
+const TOUCH_CODES = ["TouchUp", "TouchDown", "TouchLeft", "TouchRight"] as const;
+export type TouchCode = typeof TOUCH_CODES[number];
 
 export class InputHandler {
   private lastMoveTime = 0;
@@ -64,7 +71,6 @@ export class InputHandler {
 
   // Updated each tick by main loop
   private playerAgent: AgentInfo | null = null;
-  private currentSettlementId: string | null = null;
 
   // Movement prediction
   private displayState: DisplayState | null = null;
@@ -113,13 +119,8 @@ export class InputHandler {
     this.tiles = tiles;
   }
 
-  setPlayerInfo(
-    agent: AgentInfo | null,
-    settlementId: string | null,
-    agentState?: string,
-  ): void {
+  setPlayerInfo(agent: AgentInfo | null, agentState?: string): void {
     this.playerAgent = agent;
-    this.currentSettlementId = settlementId;
     this.playerState = agentState ?? "idle";
   }
 
@@ -251,28 +252,26 @@ export class InputHandler {
     // Block repeat for action keys
     if (e.repeat) return;
 
-    switch (code) {
-      case "KeyT":
-        if (this.currentSettlementId) {
-          ++this.inputSeq;
-          const frame: InputFrame = { seq: this.inputSeq, action: { type: "deposit", settlementId: this.currentSettlementId } };
-          this.onSendInput?.(frame);
-          this.pendingInputs.push(frame);
-        }
-        break;
-      case "KeyE":
-        this.handleInteract();
-        break;
-    }
+    if (code === "KeyE") this.interact();
   }
 
-  private handleInteract(): void {
-    if (!this.playerAgent) return;
+  /** The E key and the touch Action button. */
+  interact(): void {
+    if (!this.enabled || !this.playerAgent || this._dialogueMode) return;
 
     ++this.inputSeq;
     const frame: InputFrame = { seq: this.inputSeq, action: { type: "interact" } };
     this.onSendInput?.(frame);
     this.pendingInputs.push(frame);
+  }
+
+  /**
+   * The touch D-pad holds one touch code at a time, so update() moves the
+   * player as it does for a held key. null releases it.
+   */
+  setTouchDirection(code: TouchCode | null): void {
+    for (const c of TOUCH_CODES) if (c !== code) this.heldKeys.delete(c);
+    if (code && !this.heldKeys.has(code)) this.heldKeys.add(code);
   }
 
   private handleKeyUp(e: KeyboardEvent): void {

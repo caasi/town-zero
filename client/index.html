@@ -2,13 +2,15 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>town-zero</title>
   <!-- No icon file: an empty data URI stops the browser asking for /favicon.ico (a 404). -->
   <link rel="icon" href="data:,">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { width: 100%; height: 100%; overflow: hidden; background: #111; }
+    /* Fast taps (dialogue text, Action) must not zoom the page. */
+    body { touch-action: manipulation; }
     #game-container {
       position: relative; width: 100%; height: 100%;
     }
@@ -112,16 +114,18 @@
     #dialogue-overlay {
       position: absolute; bottom: 0; left: 0; right: 0;
       background: rgba(0,0,0,0.85); border-top: 2px solid #555;
-      padding: 16px 24px; font: 14px monospace; color: #eee;
+      padding: 16px 24px 28px; font: 14px monospace; color: #eee;
       min-height: 120px;
     }
     #dialogue-overlay.hidden { display: none; }
     .dlg-speaker {
       font-size: 13px; color: #8cf; margin-bottom: 8px; font-weight: bold;
     }
-    .dlg-content { line-height: 1.5; margin-bottom: 8px; }
+    .dlg-content { line-height: 1.5; margin-bottom: 8px; cursor: pointer; }
     .dlg-options { margin-top: 4px; }
     .dlg-option {
+      display: block; width: 100%; text-align: left; font: inherit;
+      background: none; border: none; cursor: pointer;
       padding: 4px 8px; margin: 2px 0; color: #ccc;
     }
     .dlg-option.selected {
@@ -129,10 +133,80 @@
     }
     .dlg-option.selected::before { content: "\25B6 "; }
     .dlg-option.disabled {
-      color: #666; font-style: italic;
+      color: #666; font-style: italic; cursor: default;
     }
+    .dlg-close {
+      position: absolute; top: 4px; right: 4px;
+      font: 18px monospace; color: #aaa; background: none; border: none;
+      padding: 4px 8px; cursor: pointer;
+    }
+    .dlg-close:hover, .dlg-close:focus-visible { color: #fff; }
+
+    /* Touch controller: above all other UI, only on a touch screen, and
+       main.ts hides it outside play and in a dialogue. */
+    #controller {
+      display: none; position: absolute; inset: 0; z-index: 10;
+      pointer-events: none;
+      user-select: none; -webkit-user-select: none;
+    }
+    @media (any-pointer: coarse) {
+      #controller { display: block; }
+      #key-hints, .dlg-hint { display: none; }
+      /* Touch targets of about 44px. */
+      .dlg-option { padding: 12px 8px; }
+      .dlg-close { min-width: 44px; min-height: 44px; }
+    }
+    body.hide-controller #controller { display: none; }
+    #dpad, #ctl-buttons {
+      position: absolute; pointer-events: auto; touch-action: none;
+      bottom: calc(24px + env(safe-area-inset-bottom));
+    }
+    #dpad {
+      left: calc(24px + env(safe-area-inset-left));
+      width: 144px; height: 144px;
+    }
+    /* The ring behind the arrows, a little smaller than the pad itself. */
+    #dpad::before {
+      content: ""; position: absolute; inset: 14px; border-radius: 50%;
+      background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2);
+    }
+    #dpad span {
+      position: absolute; width: 48px; height: 48px;
+      background: #fff; border-radius: 8px;
+    }
+    #dpad span.held { background: #bbb; }
+    /* The arrow: a black triangle drawn by CSS, pointing up, turned per direction. */
+    #dpad span::before {
+      content: ""; position: absolute; inset: 14px;
+      background: #000; clip-path: polygon(50% 15%, 95% 85%, 5% 85%);
+    }
+    #dpad [data-code="TouchRight"]::before { transform: rotate(90deg); }
+    #dpad [data-code="TouchDown"]::before { transform: rotate(180deg); }
+    #dpad [data-code="TouchLeft"]::before { transform: rotate(270deg); }
+    #dpad [data-code="TouchUp"] { left: 48px; top: 0; }
+    #dpad [data-code="TouchDown"] { left: 48px; bottom: 0; }
+    #dpad [data-code="TouchLeft"] { left: 0; top: 48px; }
+    #dpad [data-code="TouchRight"] { right: 0; top: 48px; }
+    /* Face buttons in the Xbox layout: A at the bottom, B at the right.
+       The left (X) and top (Y) cells stay empty for later buttons. */
+    #ctl-buttons {
+      right: calc(24px + env(safe-area-inset-right));
+      display: grid; grid-template: repeat(3, 52px) / repeat(3, 52px);
+    }
+    #ctl-buttons button {
+      width: 52px; height: 52px; border-radius: 50%; border: none;
+      background: #fff; font: bold 26px sans-serif;
+    }
+    #ctl-buttons button:active { background: #ddd; } /* keeps the green A and red B above 3:1 */
+    #action-btn { grid-area: 3 / 2; color: #107c10; }
+    #back-btn { grid-area: 2 / 3; color: #d13438; }
+    /* Portrait: a phone held upright has its thumbs higher on the screen. */
+    @media (orientation: portrait) {
+      #dpad, #ctl-buttons { bottom: calc(48px + env(safe-area-inset-bottom)); }
+    }
+    /* Bottom left: the close button keeps the top right, the key hints the bottom right. */
     .dlg-timer {
-      position: absolute; top: 8px; right: 16px;
+      position: absolute; bottom: 8px; left: 24px;
       font-size: 12px; color: #aaa;
     }
     .dlg-timer.hidden { display: none; }
@@ -157,7 +231,7 @@
         <div id="hp-bar-container"><div id="hp-bar" style="width:100%"></div></div>
         <div id="inventory">🍖0 🪵0 💰0</div>
       </div>
-      <div id="key-hints">WASD:Move  E:Interact  Q:Attack  G:Gather  T:Deposit</div>
+      <div id="key-hints">WASD:Move  E:Interact</div>
       <ul id="player-list" aria-label="Players online"></ul>
       <div id="commit">%VITE_COMMIT%</div>
     </div>
@@ -184,6 +258,20 @@
       <div class="dlg-options"></div>
       <span class="dlg-timer hidden"></span>
       <span class="dlg-hint">W/S:Select  E:Confirm  Esc:Close</span>
+      <button class="dlg-close" type="button" aria-label="Close">✕</button>
+    </div>
+
+    <div id="controller">
+      <div id="dpad" role="group" aria-label="Move">
+        <span data-code="TouchUp" aria-hidden="true"></span>
+        <span data-code="TouchLeft" aria-hidden="true"></span>
+        <span data-code="TouchRight" aria-hidden="true"></span>
+        <span data-code="TouchDown" aria-hidden="true"></span>
+      </div>
+      <div id="ctl-buttons">
+        <button id="action-btn" type="button" aria-label="Action">A</button>
+        <button id="back-btn" type="button" aria-label="Back">B</button>
+      </div>
     </div>
   </div>
   <script type="module" src="/src/main.ts"></script>

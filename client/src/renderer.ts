@@ -5,6 +5,7 @@ import type { FogManager } from "./fog.js";
 import type { Camera } from "./camera.js";
 import type { DisplayState, AgentDisplay } from "./display.js";
 import { TILE_SIZE } from "./constants.js";
+import { HINT_LABELS, type ActionHint } from "./action-hint.js";
 
 const EIGENGRAU = "#16161d"; // perceived color of darkness — used for unknown tiles
 
@@ -37,6 +38,7 @@ export class Renderer {
     camera: Camera,
     playerId: string | null,
     displayState?: DisplayState,
+    actionHint: ActionHint = null,
   ): void {
     const { width, height } = this.canvas;
     const ctx = this.ctx;
@@ -71,6 +73,9 @@ export class Renderer {
       }
     }
 
+    // Set inside the forEach below, which TypeScript does not follow, hence the cast.
+    let hintAt = null as { left: number; right: number; y: number; facing: string } | null;
+
     // Draw agents on visible tiles (from live server state)
     if (state?.agents) {
       state.agents.forEach((agent: any) => {
@@ -94,6 +99,9 @@ export class Renderer {
         if (tileX < vp.startX - 1 || tileX > vp.endX || tileY < vp.startY - 1 || tileY > vp.endY) return;
 
         this.drawAgent(ctx, px, py, agent, playerId, playerFaction, "visible", display);
+        if (agent.id === playerId) {
+          hintAt = { left: px - 4, right: px + TILE_SIZE + 4, y: py + TILE_SIZE / 2, facing: display?.facing ?? agent.facing };
+        }
 
         // Bubble text above sprite (server clears with empty string; no client-side expiry)
         const bubble: string = typeof agent.bubbleText === "string" ? agent.bubbleText : "";
@@ -130,6 +138,25 @@ export class Renderer {
           ctx.restore();
         }
       });
+    }
+
+    // What E or Action will do now, gray when it would change nothing. Drawn
+    // after all agents so that no sprite or speech bubble covers it.
+    // It goes to the right, or to the left when the player faces east, so it
+    // never covers the tile the action targets.
+    if (hintAt && actionHint) {
+      const text = HINT_LABELS[actionHint.action];
+      ctx.save();
+      ctx.font = "12px sans-serif";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      const w = ctx.measureText(text).width + 8;
+      const x = hintAt.facing === "east" ? hintAt.left - w : hintAt.right;
+      ctx.fillStyle = "rgba(0,0,0,0.7)";
+      ctx.fillRect(x, hintAt.y - 8, w, 16);
+      ctx.fillStyle = actionHint.disabled ? "#888" : "#fff";
+      ctx.fillText(text, x + 4, hintAt.y);
+      ctx.restore();
     }
 
     // Draw remembered entities on explored tiles (from fog memory)

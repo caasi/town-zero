@@ -1,5 +1,6 @@
 // client/src/main.ts
 import { DEFAULT_VISION_RADIUS, TICK_RATE_MS, normalizePlayerName, playerColor } from "@town-zero/shared";
+import type { Facing } from "@town-zero/shared";
 import { NetworkClient } from "./network.js";
 import { FogManager } from "./fog.js";
 import { Camera } from "./camera.js";
@@ -7,6 +8,8 @@ import { Renderer } from "./renderer.js";
 import { InputHandler, getKeyLabels, formatKeyHints, formatDialogueKeyHints } from "./input.js";
 import { DisplayState } from "./display.js";
 import { DialogueUI } from "./dialogue-ui.js";
+import { actionHint, type ActionHint } from "./action-hint.js";
+import { bindController } from "./controller.js";
 import { TILE_SIZE } from "./constants.js";
 import type { GameState } from "./types.js";
 import { isStaleClient } from "./version.js";
@@ -43,6 +46,11 @@ let isConnecting = false;
 let reviveTimer: ReturnType<typeof setInterval> | null = null;
 
 const dialogueUI = new DialogueUI("dialogue-overlay");
+dialogueUI.onAdvance = () => network.sendDialogueAdvance();
+dialogueUI.onChoose = (optionId) => network.sendDialogueChoose(optionId);
+dialogueUI.onClose = () => network.sendDialogueClose();
+const controller = bindController(() => input);
+let controllerHidden = false;
 let dialogueTimeoutAt: number | null = null;
 
 // Resize canvas to fill window
@@ -200,19 +208,34 @@ function updateInputContext(): void {
   const player = state.agents?.get(network.playerId);
   if (!player) return;
 
-  // Find settlement at player position
-  let settlementId: string | null = null;
-  const playerTile = state.tiles?.get(`${player.x},${player.y}`);
-  if (playerTile?.ownerFaction) {
-    state.settlements?.forEach((s: any) => {
-      if (s.faction === playerTile.ownerFaction) settlementId = s.id;
-    });
-  }
-
   input.setPlayerInfo(
     { x: player.x, y: player.y, faction: player.faction },
-    settlementId,
     player.state,  // FSM state for prediction gating
+  );
+}
+
+// From the predicted tile and facing, so the hint follows a turn at once.
+// The renderer draws it to the right of the player.
+function computeActionHint(): ActionHint {
+  const state = network.state;
+  const playerId = network.playerId;
+  const player = playerId ? state?.agents?.get(playerId) : undefined;
+  const display = playerId ? displayState.get(playerId) : undefined;
+  if (!state || !player || !display) return null;
+  const agentAt = (x: number, y: number) => {
+    let found: { faction: string; talkable: boolean } | undefined;
+    state.agents.forEach((a: any) => {
+      if (a.id !== playerId && a.state !== "dead" && a.x === x && a.y === y) found = a;
+    });
+    return found;
+  };
+  return actionHint(
+    {
+      x: display.displayX, y: display.displayY, facing: display.facing as Facing, faction: player.faction,
+      carriesAnything: ["food", "material", "currency"].some((r) => (player.inventory?.get(r) ?? 0) > 0),
+    },
+    (x, y) => fog.getSnapshot(x, y),
+    agentAt,
   );
 }
 
@@ -292,8 +315,14 @@ function gameLoop(now: number): void {
       }
     }
 
-    renderer.draw(network.state, fog, camera, network.playerId, displayState);
+    // In a dialogue E confirms, so the interact hint would be wrong.
+    renderer.draw(network.state, fog, camera, network.playerId, displayState, input?.dialogueMode ? null : computeActionHint());
   }
+  // The controller shows only in play, never over a dialogue or an overlay.
+  const hidden = gameState !== "playing" || !!input?.dialogueMode;
+  if (hidden && !controllerHidden) controller.release();
+  controllerHidden = hidden;
+  document.body.classList.toggle("hide-controller", hidden);
   requestAnimationFrame(gameLoop);
 }
 
