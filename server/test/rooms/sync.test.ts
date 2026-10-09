@@ -24,6 +24,17 @@ function makeAgent(id: string, x = 5, y = 5): Agent {
 }
 
 describe("syncToSchema", () => {
+  it("marks an NPC busy while a player talks to it", () => {
+    const npc = makeAgent("npc-1");
+    const sim = makeSimState({ agents: new Map([["npc-1", npc]]) });
+    const state = new WorldStateSchema();
+    syncToSchema(sim, state);
+    expect(state.agents.get("npc-1")!.busy).toBe(false);
+    npc.currentTalkingTo = "p1";
+    syncToSchema(sim, state);
+    expect(state.agents.get("npc-1")!.busy).toBe(true);
+  });
+
   it("marks an agent talkable when its dialogue tree has an entry point", () => {
     const sim = makeSimState({
       agents: new Map([["npc-1", makeAgent("npc-1")], ["a2", makeAgent("a2")]]),

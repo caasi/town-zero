@@ -8,12 +8,16 @@ const on = (action: string) => ({ action, disabled: false });
 const tiles = (map: Record<string, object>) => (x: number, y: number) => map[`${x},${y}`];
 const onHousing = { "5,5": { zoneType: ZoneType.HOUSING } };
 const noAgent = () => undefined;
-const agent = (faction: string, talkable = false) => (x: number, y: number) =>
-  x === 5 && y === 6 ? { faction, talkable } : undefined;
+const agent = (faction: string, talkable = false, busy = false) => (x: number, y: number) =>
+  x === 5 && y === 6 ? { faction, talkable, busy } : undefined;
 
 describe("actionHint", () => {
   it("talk for a talkable agent, also of another faction", () => {
     expect(actionHint(player, tiles(onHousing), agent("den-1", true))).toEqual(on("talk"));
+  });
+
+  it("a disabled talk to an NPC that talks to someone else", () => {
+    expect(actionHint(player, tiles(onHousing), agent("v1", true, true))).toEqual({ action: "talk", disabled: true });
   });
 
   it("attack for an agent of another faction", () => {

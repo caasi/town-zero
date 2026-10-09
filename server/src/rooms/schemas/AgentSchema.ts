@@ -15,7 +15,8 @@ export const AgentSchema = schema({
   lastProcessedInput: "number",
   inventory: { map: "number" },
   bubbleText: "string",
-  talkable: "boolean", // has a dialogue tree with an entry point; set once, a tree never changes
+  talkable: "boolean",
+  busy: "boolean", // an NPC in a dialogue with a player; a talk to it is refused // has a dialogue tree with an entry point; set once, a tree never changes
 }, "AgentSchema");
 
 export type AgentSchema = SchemaType<typeof AgentSchema>;

@@ -26,6 +26,7 @@ export function syncAgent(agent: Agent, agentSchema: AgentSchema): void {
   agentSchema.inventory.set("material", agent.inventory.material);
   agentSchema.inventory.set("currency", agent.inventory.currency);
   agentSchema.bubbleText = agent.bubbleText ?? "";
+  agentSchema.busy = agent.currentTalkingTo !== null;
 }
 
 function syncSettlement(settlement: Settlement, schema: SettlementSchema): void {

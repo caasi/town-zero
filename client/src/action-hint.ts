@@ -2,7 +2,7 @@
 import { DIRECTION_DELTA, ZoneType, resolveInteract } from "@town-zero/shared";
 import type { Facing, InteractKind } from "@town-zero/shared";
 
-/** disabled: the action applies here but changes nothing (a deposit with empty hands). */
+/** disabled: the action applies here but changes nothing (a deposit with empty hands, a talk to a busy NPC). */
 export type ActionHint = { action: InteractKind; disabled: boolean } | null;
 
 export const HINT_LABELS: Record<InteractKind, string> = {
@@ -10,7 +10,7 @@ export const HINT_LABELS: Record<InteractKind, string> = {
 };
 
 interface HintTile { resourceYield?: string; zoneType?: string }
-interface HintAgent { faction: string; talkable: boolean }
+interface HintAgent { faction: string; talkable: boolean; busy: boolean }
 
 /**
  * What interact will do, by the shared rules (resolveInteract). Tiles come
@@ -32,5 +32,7 @@ export function actionHint(
     onHousing: tileAt(player.x, player.y)?.zoneType === ZoneType.HOUSING,
   });
   if (!action) return null;
-  return { action, disabled: action === "deposit" && !player.carriesAnything };
+  // The server refuses a talk to an NPC that talks to another player (session-manager "busy").
+  const disabled = action === "deposit" ? !player.carriesAnything : action === "talk" && !!other?.busy;
+  return { action, disabled };
 }
