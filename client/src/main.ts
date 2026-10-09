@@ -225,7 +225,8 @@ function computeActionHint(): ActionHint {
   const agentAt = (x: number, y: number) => {
     let found: { faction: string; talkable: boolean; busy: boolean } | undefined;
     state.agents.forEach((a: any) => {
-      if (a.id !== playerId && a.state !== "dead" && a.x === x && a.y === y) found = a;
+      // The first match, as the server picks it (dispatchInteract).
+      if (!found && a.id !== playerId && a.state !== "dead" && a.x === x && a.y === y) found = a;
     });
     return found;
   };
