@@ -215,7 +215,7 @@ function updateInputContext(): void {
 }
 
 // From the predicted tile and facing, so the hint follows a turn at once.
-// The renderer draws it to the right of the player.
+// The renderer draws it beside the player, away from the target tile.
 function computeActionHint(): ActionHint {
   const state = network.state;
   const playerId = network.playerId;
