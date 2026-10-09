@@ -10,7 +10,7 @@ Limits and shortcuts in the code that are not fixed yet.
 
 - AI movement is a greedy step (`stepToward` in `jev-controller.ts`); a beast behind water gets no step and re-asks Jev at most once per second. Upgrade to BFS (breadth-first search) over passable tiles when maps get obstacles.
 - Player attacks have no cooldown (one per key press, up to 8/s). AI beasts wait ~1s between attacks, but the wait is stored on the attack goal: a new goal (target left sight and came back) can hit at once.
-- Speech bubbles are drawn in the same pass as the agents (`client/src/renderer.ts`), so an agent drawn later covers a bubble (seen: a player diamond over "Greetings, traveler!"). Draw them in a top layer: a canvas pass after all agents, or a glass / UI layer above the canvas.
+- Speech bubbles are drawn in the same pass as the agents (`client/src/renderer.ts`), so an agent drawn later covers a bubble (seen: a player diamond over "Greetings, traveler!"). The owner's direction: move the speech bubbles and the action hint to a UI (glass) layer above the canvas, directly under the touch controller. The hint is drawn after all agents for now.
 - Tabs of one browser share the stored player name (localStorage): a second tab joins with the same name, the server gives it a number ("Quiet Otter 2"), and the client does not keep that number. Not fixed on purpose.
 - After death the HUD (heads-up display) can still show the last HP (hit points) before 0 (the `death` message arrives before the state patch).
 - `material` and `currency` have no use since production and merchants were removed.
