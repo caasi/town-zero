@@ -258,6 +258,8 @@ export class InputHandler {
   /** The E key and the touch Action button. */
   interact(): void {
     if (!this.enabled || !this.playerAgent || this._dialogueMode) return;
+    // As for E: no game action while the name field is open.
+    if (document.activeElement instanceof HTMLInputElement) return;
 
     ++this.inputSeq;
     const frame: InputFrame = { seq: this.inputSeq, action: { type: "interact" } };
