@@ -203,7 +203,10 @@
     #dpad [data-code="TouchRight"] { right: 0; top: var(--touch-min); }
     /* Face buttons in the Xbox layout: A at the bottom, B at the right.
        The left (X) and top (Y) cells stay empty for later buttons. */
+    /* Only the buttons take taps: the empty X and Y cells can lie over the
+       D-pad on a narrow phone (under about 350px). */
     #ctl-buttons {
+      pointer-events: none;
       right: calc(24px + env(safe-area-inset-right));
       --face: max(52px, var(--touch-min));
       display: grid; grid-template: repeat(3, var(--face)) / repeat(3, var(--face));
@@ -212,6 +215,7 @@
       width: var(--face); height: var(--face); border-radius: 50%; border: none;
       background: #fff; font: bold 26px sans-serif;
     }
+    #ctl-buttons button { pointer-events: auto; }
     #ctl-buttons button:active { background: #ddd; } /* keeps the green A and red B above 3:1 */
     #action-btn { grid-area: 3 / 2; color: #107c10; }
     #back-btn { grid-area: 2 / 3; color: #d13438; }
