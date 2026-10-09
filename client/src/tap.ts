@@ -7,8 +7,13 @@
  * from a keyboard or a screen reader, which make no pointerup.
  */
 export function onTap(el: HTMLElement, fn: () => void): void {
+  // A mouse has no implicit capture: its pointerup goes to whatever is under
+  // it, so a press that began elsewhere must not count.
+  let down: number | null = null;
+  el.addEventListener("pointerdown", (e) => { down = e.button === 0 ? e.pointerId : null; });
   el.addEventListener("pointerup", (e) => {
-    if (e.button !== 0) return; // a right click is not a press
+    if (e.pointerId !== down) return; // not pressed here, or not the primary button
+    down = null;
     // A touch pointer stays with the element it went down on, so check where it
     // was released: sliding off before the release cancels.
     const over = document.elementFromPoint(e.clientX, e.clientY);
