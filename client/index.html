@@ -136,10 +136,14 @@
       background: none; border: none; cursor: pointer;
       padding: 4px 8px; margin: 2px 0; color: #ccc;
     }
-    .dlg-option.selected {
-      background: #335; color: #fff;
+    /* The selection is for W/S on a keyboard, and hover needs a mouse: a
+       touch screen has neither, and a tap chooses at once. */
+    @media (hover: hover) {
+      .dlg-option.selected, .dlg-option:not(:disabled):hover {
+        background: #335; color: #fff;
+      }
+      .dlg-option.selected::before { content: "\25B6"; margin-right: 0.6em; }
     }
-    .dlg-option.selected::before { content: "\25B6 "; }
     .dlg-option.disabled {
       color: #666; font-style: italic; cursor: default;
     }
