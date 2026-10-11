@@ -200,9 +200,9 @@ describe("what the beast knows", () => {
   });
 
   it("says when the beast carries a full load", () => {
-    const { state, beast } = setup();
     // Without "(full)", real Jev calls picked explore 10 of 10 times for a
     // beast with 5 food; with it, guard_den 9 of 10 (spike, 2026-10-07).
+    const { state, beast } = setup();
     beast.addToInventory("food", 5);
     expect(describeState(beast, state).self).toBe("a beast of the den. HP 100 of 100. Carrying 5 food (full).");
     beast.inventory.food = 4;
