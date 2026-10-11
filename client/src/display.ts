@@ -1,10 +1,9 @@
-// client/src/display.ts
 import { DIRECTION_DELTA, isMoveBlocked } from "@town-zero/shared";
 import type { TerrainType, InputFrame } from "@town-zero/shared";
 import { TILE_SIZE } from "./constants.js";
 
 const BASE_LERP_FACTOR = 0.5;
-const BASE_FRAME_MS = 16.67; // 60fps baseline
+const BASE_FRAME_MS = 16.67;
 
 export interface AgentDisplay {
   displayX: number;
@@ -56,10 +55,6 @@ export class DisplayState {
     return display.facing;
   }
 
-  /**
-   * Attempt client-side predicted move for the local player.
-   * Returns true if prediction was applied, false if invalid.
-   */
   predictMove(
     targetX: number,
     targetY: number,
@@ -82,7 +77,6 @@ export class DisplayState {
     else if (dy > 0) intendedFacing = "south";
     else if (dy < 0) intendedFacing = "north";
 
-    // Turn-before-move: if facing differs, only turn (no position change)
     if (intendedFacing !== display.facing) {
       display.facing = intendedFacing;
       return true;
@@ -95,13 +89,6 @@ export class DisplayState {
     return true;
   }
 
-  /**
-   * Gambetta reconciliation for the local player.
-   * 1. Accept server state as authoritative baseline
-   * 2. Prune acknowledged inputs (seq <= lastProcessedInput)
-   * 3. Replay remaining inputs from baseline
-   * Returns the pruned pending input array.
-   */
   reconcileFromServer(
     id: string,
     server: ServerAgent,
@@ -109,7 +96,6 @@ export class DisplayState {
   ): InputFrame[] {
     const display = this.getOrCreate(id, server.x, server.y, server.facing);
 
-    // Non-idle: clear all predictions, snap to server
     if (server.state !== "idle") {
       display.displayX = server.x;
       display.displayY = server.y;
@@ -117,16 +103,12 @@ export class DisplayState {
       return [];
     }
 
-    // Prune acknowledged inputs
     const remaining = pendingInputs.filter((p) => p.seq > server.lastProcessedInput);
 
-    // Reset to server baseline before replay
     display.displayX = server.x;
     display.displayY = server.y;
     display.facing = server.facing;
 
-    // Replay unacknowledged inputs that would move on the server.
-    // If an action is present, the server gives it priority over direction.
     const tiles = this.tileSource;
     if (tiles) {
       for (const input of remaining) {
@@ -135,7 +117,6 @@ export class DisplayState {
         if (!delta) continue;
         const targetX = display.displayX + delta.dx;
         const targetY = display.displayY + delta.dy;
-        // Inline turn-before-move + terrain check (same logic as predictMove)
         this.replayOne(display, targetX, targetY, input.direction, tiles);
       }
     }
@@ -143,11 +124,6 @@ export class DisplayState {
     return remaining;
   }
 
-  /**
-   * Update display state from server for all agents.
-   * Local player uses reconciliation (called separately via reconcileFromServer).
-   * Other agents: always set to server position.
-   */
   syncFromServer(
     agents: Iterable<[string, { x: number; y: number; facing: string }]>,
   ): void {
@@ -155,7 +131,7 @@ export class DisplayState {
 
     for (const [id, agent] of agents) {
       seen.add(id);
-      if (id === this.localPlayerId) continue; // handled by reconcileFromServer
+      if (id === this.localPlayerId) continue;
       const display = this.getOrCreate(id, agent.x, agent.y, agent.facing);
       display.displayX = agent.x;
       display.displayY = agent.y;
@@ -192,8 +168,6 @@ export class DisplayState {
     this.tileSource = null;
   }
 
-  // The server's rule (isMoveBlocked) on fog memory. A tile off the map is
-  // never in fog memory, so the bounds come from the room state.
   private blocked(x: number, y: number, tiles: TileSource): boolean {
     const map = this.gridSize ?? { width: Infinity, height: Infinity };
     return isMoveBlocked(x, y, map, tiles.get(`${x},${y}`)?.terrain as TerrainType | undefined);
@@ -206,7 +180,6 @@ export class DisplayState {
     direction: string,
     tiles: TileSource,
   ): void {
-    // Turn-before-move
     if (direction !== display.facing) {
       display.facing = direction;
       return;

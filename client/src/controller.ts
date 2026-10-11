@@ -1,10 +1,8 @@
-// client/src/controller.ts
 import type { InputHandler, TouchCode } from "./input.js";
 import { onTap } from "./tap.js";
 
 const DEAD_ZONE_PX = 10;
 
-/** The direction for a touch at (dx, dy) from the D-pad center; null near the center. */
 export function padDirection(dx: number, dy: number): TouchCode | null {
   if (Math.hypot(dx, dy) < DEAD_ZONE_PX) return null;
   if (Math.abs(dx) > Math.abs(dy)) return dx > 0 ? "TouchRight" : "TouchLeft";
@@ -12,14 +10,9 @@ export function padDirection(dx: number, dy: number): TouchCode | null {
 }
 
 export interface Controller {
-  /** Lets go of the D-pad; call when the controller hides under a finger. */
   release(): void;
 }
 
-/**
- * Binds the touch controller once; input is recreated on each join, so it is
- * read through a getter.
- */
 export function bindController(getInput: () => InputHandler | null): Controller {
   const pad = document.getElementById("dpad")!;
   const actionBtn = document.getElementById("action-btn")!;
@@ -43,9 +36,8 @@ export function bindController(getInput: () => InputHandler | null): Controller 
     if (e.pointerId === padPointer) releasePad();
   };
   pad.addEventListener("pointerdown", (e) => {
-    if (padPointer !== null) return; // a second finger on the pad does not steer
+    if (padPointer !== null) return;
     padPointer = e.pointerId;
-    // Capture keeps the moves coming when the finger slides off the pad.
     pad.setPointerCapture(e.pointerId);
     steer(e);
   });
@@ -59,7 +51,6 @@ export function bindController(getInput: () => InputHandler | null): Controller 
     // A focused button would take the next Space or Enter from a keyboard.
     actionBtn.blur();
   });
-  // Back: later it opens the system menu (issue #14).
 
   return { release: releasePad };
 }

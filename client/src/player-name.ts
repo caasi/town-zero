@@ -10,10 +10,9 @@ function read(storage: Storage, key: string): string | null {
 }
 
 function write(storage: Storage, key: string, value: string): void {
-  try { storage.setItem(key, value); } catch { /* the game works without it */ }
+  try { storage.setItem(key, value); } catch {}
 }
 
-/** The stored name, or a new random one (saved at once, so the next visit keeps it). */
 export function loadPlayerName(storage: Storage, rand?: () => number): { name: string; isNew: boolean } {
   const stored = normalizePlayerName(read(storage, NAME_KEY));
   if (stored) return { name: stored, isNew: false };
@@ -26,7 +25,6 @@ export function savePlayerName(storage: Storage, name: string): void {
   write(storage, NAME_KEY, name);
 }
 
-// Without storage the hint counts as seen: it could never be dismissed.
 export function renameHintSeen(storage: Storage): boolean {
   try { return storage.getItem(HINT_KEY) === "1"; } catch { return true; }
 }

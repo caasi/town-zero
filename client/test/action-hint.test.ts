@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import { ZoneType } from "@town-zero/shared";
 import { actionHint } from "../src/action-hint.js";
 
-// Player at (5,5) facing south; the cell in front is (5,6).
 const player = { x: 5, y: 5, facing: "south" as const, faction: "v1", carriesAnything: true };
 const on = (action: string) => ({ action, disabled: false });
 const tiles = (map: Record<string, object>) => (x: number, y: number) => map[`${x},${y}`];

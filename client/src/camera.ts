@@ -1,4 +1,3 @@
-// client/src/camera.ts
 import type { Viewport } from "./types.js";
 import { TILE_SIZE } from "./constants.js";
 
@@ -29,14 +28,12 @@ export class Camera {
     let startX = Math.floor(playerX - halfW + 0.5);
     let startY = Math.floor(playerY - halfH + 0.5);
 
-    // Clamp to grid bounds
     startX = Math.max(0, Math.min(startX, this.gridWidth - tilesX));
     startY = Math.max(0, Math.min(startY, this.gridHeight - tilesY));
 
     const endX = Math.min(startX + tilesX, this.gridWidth);
     const endY = Math.min(startY + tilesY, this.gridHeight);
 
-    // Pixel offset for centering
     const offsetX = (this.canvasWidth / 2) - (playerX - startX + 0.5) * TILE_SIZE;
     const offsetY = (this.canvasHeight / 2) - (playerY - startY + 0.5) * TILE_SIZE;
 

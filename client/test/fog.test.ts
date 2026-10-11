@@ -52,11 +52,9 @@ describe("FogManager", () => {
         "3,0": { terrain: "plains" },
       });
 
-      // First reveal around (0,0) with radius 1
       fog.revealAround(0, 0, 1, tiles, noAgents(), null);
       expect(fog.getLevel(0, 0)).toBe("visible");
 
-      // Move to (3,0) — (0,0) should become explored
       fog.revealAround(3, 0, 1, tiles, noAgents(), null);
       expect(fog.getLevel(0, 0)).toBe("explored");
       expect(fog.getLevel(3, 0)).toBe("visible");
@@ -67,7 +65,6 @@ describe("FogManager", () => {
     it("snapshots tiles from live state using last known tick", () => {
       const fog = new FogManager();
 
-      // Simulate a server vision update to set lastTick
       fog.update({ tick: 42, tiles: {} });
 
       const tiles = makeLiveTiles({ "2,2": { terrain: "forest" } });
@@ -119,14 +116,12 @@ describe("FogManager", () => {
 
       fog.revealAround(0, 0, 1, tiles, noAgents(), null);
 
-      // Manhattan distance 1: (0,0), (1,0), (-1,0), (0,1), (0,-1)
       expect(fog.getLevel(0, 0)).toBe("visible");
       expect(fog.getLevel(1, 0)).toBe("visible");
       expect(fog.getLevel(-1, 0)).toBe("visible");
       expect(fog.getLevel(0, 1)).toBe("visible");
       expect(fog.getLevel(0, -1)).toBe("visible");
 
-      // Manhattan distance 2: (1,1) — NOT visible at radius 1
       expect(fog.getLevel(1, 1)).toBe("unknown");
     });
 
@@ -161,11 +156,10 @@ describe("FogManager", () => {
 
     it("does not snapshot tiles not in live state", () => {
       const fog = new FogManager();
-      const tiles = makeLiveTiles({}); // no tiles
+      const tiles = makeLiveTiles({});
 
       fog.revealAround(0, 0, 1, tiles, noAgents(), null);
 
-      // Tiles are predicted-visible but have no snapshot data
       expect(fog.getLevel(0, 0)).toBe("visible");
       expect(fog.getSnapshot(0, 0)).toBeUndefined();
     });
@@ -175,13 +169,11 @@ describe("FogManager", () => {
     it("preserves objectType after server vision tick", () => {
       const fog = new FogManager();
 
-      // Player sees a tile with objectType via revealAround
       const tiles = new Map([
         ["4,4", { terrain: "plains", objectType: "bush" }],
       ]);
       fog.revealAround(4, 4, 0, tiles, [], null);
 
-      // Server vision tick arrives — only sends terrain/entities/timestamp
       fog.update({
         tick: 3,
         tiles: {
@@ -189,7 +181,6 @@ describe("FogManager", () => {
         },
       });
 
-      // objectType must survive the merge
       const snapshot = fog.getSnapshot(4, 4);
       expect(snapshot?.objectType).toBe("bush");
     });
@@ -197,7 +188,6 @@ describe("FogManager", () => {
     it("preserves zoneType, ownerFaction, structureId after server vision tick", () => {
       const fog = new FogManager();
 
-      // Player sees a tile with zone/structure data via revealAround
       const tiles = new Map([
         ["2,2", {
           terrain: "plains",
@@ -209,7 +199,6 @@ describe("FogManager", () => {
       ]);
       fog.revealAround(2, 2, 0, tiles, [], null);
 
-      // Server vision tick arrives — only sends terrain/entities/timestamp
       fog.update({
         tick: 5,
         tiles: {
@@ -217,7 +206,6 @@ describe("FogManager", () => {
         },
       });
 
-      // All client-only fields must survive the merge
       const snapshot = fog.getSnapshot(2, 2);
       expect(snapshot?.terrain).toBe("plains");
       expect(snapshot?.timestamp).toBe(5);

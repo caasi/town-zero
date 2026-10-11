@@ -1,4 +1,3 @@
-// client/src/input.ts
 import type { InputFrame, Facing } from "@town-zero/shared";
 import { PENDING_INPUT_CAP } from "@town-zero/shared";
 import type { DisplayState } from "./display.js";
@@ -8,7 +7,6 @@ interface AgentInfo {
   y: number;
   faction: string;
 }
-
 
 const ACTION_CODES = ["KeyW", "KeyA", "KeyS", "KeyD", "KeyE"] as const;
 
@@ -28,7 +26,6 @@ export async function getKeyLabels(): Promise<Record<string, string>> {
       if (char) labels[code] = char.toUpperCase();
     }
   } catch {
-    // API unavailable or permission denied — use QWERTY fallback
   }
   return labels;
 }
@@ -42,7 +39,7 @@ export function formatDialogueKeyHints(labels: Record<string, string>): string {
   return `${labels.KeyW}/${labels.KeyS}:Select  ${labels.KeyE}:Confirm  Esc:Close`;
 }
 
-const MOVE_THROTTLE_MS = 125; // match server TICK_RATE_MS
+const MOVE_THROTTLE_MS = 125;
 
 const MOVE_KEYS: Record<string, { dx: number; dy: number }> = {
   KeyW: { dx: 0, dy: -1 }, ArrowUp: { dx: 0, dy: -1 },
@@ -61,7 +58,6 @@ const CODE_TO_DIRECTION: Record<string, Facing> = {
   TouchUp: "north", TouchLeft: "west", TouchDown: "south", TouchRight: "east",
 };
 
-// Own codes, so a D-pad release never drops a key held on a keyboard.
 const TOUCH_CODES = ["TouchUp", "TouchDown", "TouchLeft", "TouchRight"] as const;
 export type TouchCode = typeof TOUCH_CODES[number];
 
@@ -69,25 +65,19 @@ export class InputHandler {
   private lastMoveTime = 0;
   private enabled = true;
 
-  // Updated each tick by main loop
   private playerAgent: AgentInfo | null = null;
 
-  // Movement prediction
   private displayState: DisplayState | null = null;
   private tiles: { get(key: string): { terrain: string } | undefined } | null = null;
   private playerState: string = "idle";
 
-  // Held-key tracking for continuous movement
   private heldKeys = new Set<string>();
 
-  // Movement reconciliation state
   inputSeq: number = 0;
   pendingInputs: InputFrame[] = [];
 
-  // Network send callbacks
   onSendInput: ((frame: InputFrame) => void) | null = null;
 
-  // Dialogue mode
   private _dialogueMode = false;
   onDialogueAdvance: (() => void) | null = null;
   onDialogueChoose: ((optionId: string) => void) | null = null;
@@ -96,8 +86,6 @@ export class InputHandler {
   onDialogueGetSelectedId: (() => string | null) | null = null;
   onDialogueIsText: (() => boolean) | null = null;
 
-  // Moves already sent stay in pendingInputs: the server still runs them, and
-  // reconciliation drops each one once lastProcessedInput covers it.
   private handleBlur = (): void => {
     this.heldKeys.clear();
   };
@@ -135,10 +123,6 @@ export class InputHandler {
   enterDialogueMode(): void {
     this._dialogueMode = true;
     this.heldKeys.clear();
-    // The talk frame has run, so every earlier frame is acknowledged; every
-    // later one is refused by the dialogue lock (the server acknowledges it a
-    // tick or two later, one frame per tick). Drop them now so the player is
-    // not drawn moving during that gap.
     this.pendingInputs = [];
   }
 
@@ -148,15 +132,12 @@ export class InputHandler {
 
   update(): void {
     if (!this.enabled || !this.playerAgent || this._dialogueMode) return;
-    // A key held when the name field took focus would keep moving the player:
-    // keydown ignores the field, but update() reads held keys every frame.
     if (document.activeElement instanceof HTMLInputElement) {
       this.heldKeys.clear();
       return;
     }
     if (!this.displayState || !this.tiles) return;
 
-    // Use the most recently pressed movement key (last in Set insertion order)
     const heldArray = [...this.heldKeys];
     let activeCode: string | undefined;
     for (let i = heldArray.length - 1; i >= 0; i--) {
@@ -169,7 +150,6 @@ export class InputHandler {
       if (now - this.lastMoveTime < MOVE_THROTTLE_MS) return;
       this.lastMoveTime = now;
 
-      // Determine direction and send per-tick move message
       const direction = CODE_TO_DIRECTION[activeCode];
       if (!direction) return;
 
@@ -177,7 +157,6 @@ export class InputHandler {
       const frame: InputFrame = { seq: this.inputSeq, direction };
       this.onSendInput?.(frame);
 
-      // Local prediction
       const origin = this.displayState.getLocalPlayerPosition()
         ?? { x: this.playerAgent.x, y: this.playerAgent.y };
       const targetX = origin.x + move.dx;
@@ -187,12 +166,8 @@ export class InputHandler {
         targetX, targetY, this.playerState, this.tiles,
       );
 
-      // Always push regardless of predictMove result — the server may accept
-      // moves the client rejects (different terrain knowledge). Reconciliation
-      // handles correctness; gaps in the buffer cause desync.
       this.pendingInputs.push(frame);
 
-      // Safety valve
       if (this.pendingInputs.length > PENDING_INPUT_CAP) {
         this.pendingInputs = [];
       }
@@ -203,10 +178,8 @@ export class InputHandler {
 
   private handleKey(e: KeyboardEvent): void {
     if (!this.enabled) return;
-    // Typing in a text field (the name field) is not a game key.
     if (e.target instanceof HTMLInputElement) return;
 
-    // Dialogue mode input
     if (this._dialogueMode) {
       e.preventDefault();
       if (e.repeat) return;
@@ -239,9 +212,6 @@ export class InputHandler {
 
     const code = e.code;
 
-    // Track movement key presses and send direction to server.
-    // preventDefault stops Arrow keys from scrolling the page.
-    // Delete+re-add so most recently pressed key is last in Set iteration order.
     if (code in MOVE_KEYS) {
       e.preventDefault();
       this.heldKeys.delete(code);
@@ -249,16 +219,13 @@ export class InputHandler {
       return;
     }
 
-    // Block repeat for action keys
     if (e.repeat) return;
 
     if (code === "KeyE") this.interact();
   }
 
-  /** The E key and the touch Action button. */
   interact(): void {
     if (!this.enabled || !this.playerAgent || this._dialogueMode) return;
-    // As for E: no game action while the name field is open.
     if (document.activeElement instanceof HTMLInputElement) return;
 
     ++this.inputSeq;
@@ -267,10 +234,6 @@ export class InputHandler {
     this.pendingInputs.push(frame);
   }
 
-  /**
-   * The touch D-pad holds one touch code at a time, so update() moves the
-   * player as it does for a held key. null releases it.
-   */
   setTouchDirection(code: TouchCode | null): void {
     for (const c of TOUCH_CODES) if (c !== code) this.heldKeys.delete(c);
     if (code && !this.heldKeys.has(code)) this.heldKeys.add(code);
