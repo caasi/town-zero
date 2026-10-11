@@ -54,6 +54,9 @@ export class NetworkClient {
     // freeze the screen. Turn them off: onLeave then fires at the drop.
     this.room.reconnection.enabled = false;
 
+    // The server closed the room or restarted (every deploy does). A leave we
+    // start (disconnect, join timeout) clears this.room in the same call, and
+    // onLeave only fires later on socket close, so the check skips it.
     const room = this.room;
     room.onLeave((code: number) => {
       if (this.room !== room) return;

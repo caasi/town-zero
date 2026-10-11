@@ -23,7 +23,17 @@ function commentKeys(file: string, text: string): string[] {
     node.getChildren(source).forEach(walk);
   };
   walk(source);
-  return [...starts].map(([pos, end]) => `${file}\t${text.slice(pos, end).split("\n")[0].trim()}`);
+  return [...starts].map(([pos, end]) => `${file}\t${JSON.stringify(text.slice(pos, end).replace(/\n\s*/g, "\n"))}`);
+}
+
+function missing(keys: string[], from: string[]): string[] {
+  const left = [...from];
+  return keys.filter((key) => {
+    const i = left.indexOf(key);
+    if (i === -1) return true;
+    left.splice(i, 1);
+    return false;
+  });
 }
 
 function allowed(): string[] {
@@ -35,16 +45,18 @@ describe("comments", () => {
   const allowList = allowed();
 
   it("adds no comment outside the keep-list (CLAUDE.md, Comments)", () => {
-    const extra = found.filter((key) => !allowList.includes(key));
-    expect(extra, `Delete these comments, or add them to ${allowedFile} if a keep-list rule in CLAUDE.md applies`).toEqual([]);
+    expect(missing(found, allowList), `Delete these comments, or add them to ${allowedFile} if an item of the keep-list in CLAUDE.md applies`).toEqual([]);
   });
 
   it("keeps no entry for a comment that is gone", () => {
-    const stale = allowList.filter((key) => !found.includes(key));
-    expect(stale, `Remove these lines from ${allowedFile}`).toEqual([]);
+    expect(missing(allowList, found), `Remove these lines from ${allowedFile}`).toEqual([]);
   });
 
   it("sees a new comment", () => {
-    expect(commentKeys("a.ts", "const a = 1; // why\n")).toEqual(["a.ts\t// why"]);
+    expect(commentKeys("a.ts", "const a = 1; // why\n")).toEqual([`a.ts\t"// why"`]);
+  });
+
+  it("counts a second copy of an allowed comment", () => {
+    expect(missing(["a\tx", "a\tx"], ["a\tx"])).toEqual(["a\tx"]);
   });
 });
