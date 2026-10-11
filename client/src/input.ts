@@ -1,5 +1,5 @@
 import type { InputFrame, Facing } from "@town-zero/shared";
-import { PENDING_INPUT_CAP } from "@town-zero/shared";
+import { PENDING_INPUT_CAP, TICK_RATE_MS } from "@town-zero/shared";
 import type { DisplayState } from "./display.js";
 
 interface AgentInfo {
@@ -39,7 +39,6 @@ export function formatDialogueKeyHints(labels: Record<string, string>): string {
   return `${labels.KeyW}/${labels.KeyS}:Select  ${labels.KeyE}:Confirm  Esc:Close`;
 }
 
-const MOVE_THROTTLE_MS = 125;
 
 const MOVE_KEYS: Record<string, { dx: number; dy: number }> = {
   KeyW: { dx: 0, dy: -1 }, ArrowUp: { dx: 0, dy: -1 },
@@ -147,7 +146,7 @@ export class InputHandler {
       const move = MOVE_KEYS[activeCode]!;
 
       const now = Date.now();
-      if (now - this.lastMoveTime < MOVE_THROTTLE_MS) return;
+      if (now - this.lastMoveTime < TICK_RATE_MS) return;
       this.lastMoveTime = now;
 
       const direction = CODE_TO_DIRECTION[activeCode];
