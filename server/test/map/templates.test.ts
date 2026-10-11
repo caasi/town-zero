@@ -44,23 +44,20 @@ describe("stampTemplate", () => {
     ];
     const result = stampTemplate(grid, template, 10, 10, "village-1");
 
-    // Core is at [1][0], so world position = (10 + 0 - 0, 10 + 1 - 1) = (10, 10)
     expect(grid.getZoneType(10, 10)).toBe(ZoneType.CORE);
     expect(grid.getZoneType(11, 9)).toBe(ZoneType.HOUSING);
     expect(grid.getZoneType(11, 10)).toBe(ZoneType.HOUSING);
     expect(grid.getZoneType(10, 9)).toBe(ZoneType.EMPTY);
 
-    // All tiles have ownerFaction set
     expect(grid.getOwner(10, 10)).toBe("village-1");
     expect(grid.getOwner(11, 9)).toBe("village-1");
     expect(grid.getOwner(10, 9)).toBe("village-1");
 
-    // Returns territory and structures
     expect(result.territory).toHaveLength(4);
-    expect(result.structures).toHaveLength(3); // core + 2 housing
+    expect(result.structures).toHaveLength(3);
     const core = result.structures.find((s) => s.type === "core");
     expect(core).toBeDefined();
-    expect(core!.id).toBe("village-1-core-10-10"); // deterministic ID from faction + zone + position
+    expect(core!.id).toBe("village-1-core-10-10");
   });
 
   it("clips template at grid edges", () => {
@@ -68,13 +65,11 @@ describe("stampTemplate", () => {
     const template = [
       [ZoneType.HOUSING, ZoneType.CORE, ZoneType.HOUSING],
     ];
-    // Core at [0][1], place at world (4, 2) → housing would be at (3,2), (4,2), (5,2)
-    // (5,2) is out of bounds
     const result = stampTemplate(grid, template, 4, 2, "test");
 
     expect(grid.getZoneType(4, 2)).toBe(ZoneType.CORE);
     expect(grid.getZoneType(3, 2)).toBe(ZoneType.HOUSING);
-    expect(grid.getZoneType(5, 2)).toBe(""); // out of bounds, not set
-    expect(result.territory).toHaveLength(2); // only in-bounds tiles
+    expect(grid.getZoneType(5, 2)).toBe("");
+    expect(result.territory).toHaveLength(2);
   });
 });

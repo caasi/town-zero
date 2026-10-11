@@ -137,12 +137,12 @@ describe("syncToSchema", () => {
     expect(schema!.id).toBe("v1");
     expect(schema!.faction).toBe("village-1");
     expect(schema!.type).toBe("village");
-    expect(schema!.x).toBe(10);  // core position
+    expect(schema!.x).toBe(10);
     expect(schema!.y).toBe(20);
     expect(schema!.population).toBe(3);
-    expect(schema!.maxPopulation).toBe(6); // 1 housing × HOUSING_POPULATION_CAP(6)
+    expect(schema!.maxPopulation).toBe(6);
     expect(schema!.inventory.get("food")).toBe(30);
-    expect(schema!.structures.length).toBe(2); // core + housing
+    expect(schema!.structures.length).toBe(2);
     expect(schema!.structures.at(0)!.id).toBe("c1");
     expect(schema!.structures.at(1)!.id).toBe("h1");
   });
@@ -239,7 +239,7 @@ describe("syncTiles", () => {
     const state = new WorldStateSchema();
     syncTiles(grid, state);
 
-    expect(state.tiles.size).toBe(9); // 3x3
+    expect(state.tiles.size).toBe(9);
     expect(state.tiles.get("1,1")!.terrain).toBe("forest");
     expect(state.tiles.get("0,0")!.resourceYield).toBe("food");
     expect(state.tiles.get("2,2")!.ownerFaction).toBe("village-1");

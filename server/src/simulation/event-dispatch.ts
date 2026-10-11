@@ -2,10 +2,6 @@ import type { EventEffect, NpcEventMap, NpcEventName } from "@town-zero/shared/s
 import type { Agent } from "./agent.js";
 import type { SimulationState } from "./tick.js";
 
-// Resolve special AgentRef prefixes against the event payload. Handlers in
-// scenarios often write `bubble(self.id, …)` directly, but code written against
-// the generic AgentRef convention may use "$npc" / "$self" / "$player". Without
-// resolution those would miss `state.agents.get(ref)` and silently no-op.
 function resolveAgentRef(ref: string, self: Agent, payload: unknown): string {
   if (!ref.startsWith("$")) return ref;
   if (ref === "$npc" || ref === "$self") return self.id;
@@ -13,8 +9,6 @@ function resolveAgentRef(ref: string, self: Agent, payload: unknown): string {
     const p = (payload as { player?: { id: string } }).player;
     if (p?.id) return p.id;
   }
-  // "$faction:xxx" (and any unknown prefix) is returned unchanged — caller
-  // will warn when the lookup fails.
   return ref;
 }
 

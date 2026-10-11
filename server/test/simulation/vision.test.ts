@@ -26,7 +26,7 @@ describe("updateVision", () => {
     grid.takeResource(6, 5);
     const agent = new Agent({ id: "a1", position: { x: 5, y: 5 }, faction: "v1", role: "farmer", controller: "llm" });
     updateVision(agent, grid, new Map([["a1", agent]]), 10);
-    grid.takeResource(6, 5); // later changes are not in the memory
+    grid.takeResource(6, 5);
     expect(agent.getMemory(6, 5)!.resourceAmount).toBe(RESOURCE_MAX_AMOUNT - 1);
     expect(agent.getMemory(5, 5)!.resourceAmount).toBe(0);
   });
@@ -62,7 +62,7 @@ describe("updateVision", () => {
     other.hp = 40;
     updateVision(agent, grid, new Map([["a1", agent], ["a2", other]]), 10);
 
-    other.hp = 100; // later changes are not in the memory
+    other.hp = 100;
     expect(agent.getMemory(6, 5)!.entities[0]).toMatchObject({ role: "beast", hp: 40, maxHp: 100 });
   });
 

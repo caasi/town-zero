@@ -16,10 +16,10 @@ describe("normalizePlayerName", () => {
   });
 
   it("counts characters as a person sees them, not UTF-16 units", () => {
-    const name = "卡西卡西卡西卡西卡西卡西卡西卡西"; // 16 characters
+    const name = "卡西卡西卡西卡西卡西卡西卡西卡西";
     expect(normalizePlayerName(name)).toBe(name);
     expect(normalizePlayerName(name + "卡")).toBe(name);
-    const family = "👨‍👩‍👧"; // one character of 5 code points joined by ZWJ
+    const family = "👨‍👩‍👧";
     expect(normalizePlayerName(family.repeat(17))).toBe(family.repeat(16));
     expect(graphemes(normalizePlayerName(family.repeat(17))!)).toBe(PLAYER_NAME_MAX);
   });
@@ -43,7 +43,6 @@ describe("normalizePlayerName", () => {
   });
 
   it("rejects a name with nothing visible in it", () => {
-    // Fillers and blank patterns look like nothing although they are letters or symbols.
     for (const bad of ["\u200B\u200B", "\u200D", "\u0301\u0301", "\u202E", "\u3164\u3164", "\u2800", "\uFFA0", "\u115F\u1160"]) {
       expect(normalizePlayerName(bad), JSON.stringify(bad)).toBeNull();
     }
@@ -88,9 +87,8 @@ describe("randomPlayerName", () => {
 describe("playerNameKey", () => {
   it("treats names that differ only in case or width as the same name", () => {
     expect(playerNameKey("Quiet Otter")).toBe(playerNameKey("quiet OTTER"));
-    expect(playerNameKey("Quiet Otter")).toBe(playerNameKey("\uFF31uiet \uFF2Ftter")); // full-width Q and O
+    expect(playerNameKey("Quiet Otter")).toBe(playerNameKey("\uFF31uiet \uFF2Ftter"));
     expect(playerNameKey("Quiet Otter")).not.toBe(playerNameKey("Quiet Otters"));
-    // ZWJ stays in a name (it joins emoji) but draws as nothing.
     expect(playerNameKey("Quiet\u200D Otter")).toBe(playerNameKey("Quiet Otter"));
     expect(playerNameKey("Quiet Ot\u200Dter")).toBe(playerNameKey("Quiet Otter"));
   });
@@ -109,7 +107,7 @@ describe("uniquePlayerName", () => {
   });
 
   it("cuts the name so that the number still fits", () => {
-    const long = "ABCDEFGHIJKLMNOP"; // 16 characters
+    const long = "ABCDEFGHIJKLMNOP";
     const name = uniquePlayerName(long, takenBy(long));
     expect(name).toBe("ABCDEFGHIJKLMN 2");
     expect(normalizePlayerName(name)).toBe(name);

@@ -20,12 +20,8 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
   private nextPlayerId = 0;
   private jev!: JevController;
   private replies!: ReplyController;
-  // Dead player agents → tick from which "revive" is accepted.
   private reviveAt = new Map<string, number>();
-  // Dead NPCs → tick at which they respawn (processRespawns).
   private respawnAt = new Map<string, number>();
-  // Session → tick of its last player message, and sessions whose tab is
-  // hidden. Jev runs only while some player is active (hasActivePlayer).
   private lastMessageTick = new Map<string, number>();
   private hiddenSessions = new Set<string>();
   private jevPaused = false;
@@ -51,8 +47,6 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
       if (!agent) return;
       if (!isValidInputFrame(data)) return;
       if (data.seq < 1) return;
-      // A dead agent does not act, but the frame is still acknowledged: the
-      // client predicted it and drops it only once lastProcessedInput covers it.
       if (!agent.isAlive()) {
         agent.lastProcessedInput = Math.max(agent.lastProcessedInput, data.seq);
         return;
@@ -67,7 +61,6 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
 
     this.onPlayerMessage("revive", (client: Client) => this.revive(client));
 
-    // A player may rename at any time; the name is shown to every client.
     this.onPlayerMessage("rename", (client: Client, data: unknown) => {
       const agent = this.simState.agents.get(this.sessionToAgent.get(client.sessionId) ?? "");
       if (!agent || !data || typeof data !== "object") return;
@@ -126,8 +119,6 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
       client.send("dialogue:end", { reason: "closed" });
     });
 
-    // The client sends this on visibilitychange. Coming back counts as activity.
-    // Not onPlayerMessage: { active: false } must not refresh lastMessageTick.
     this.onMessage("presence", (client: Client, data: unknown) => {
       const agentId = this.sessionToAgent.get(client.sessionId);
       if (!agentId) return;
@@ -140,7 +131,6 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
       console.log(`[presence] ${agentId} ${active ? "visible" : "hidden"}`);
     });
 
-    // Fixed-step simulation at 8 ticks/s: deltaTime is intentionally ignored
     this.setSimulationInterval(() => this.tick(), TICK_RATE_MS);
 
     console.log("GameRoom created");
@@ -160,9 +150,6 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
       return;
     }
 
-    // The client sends a stored or random name; Player-N is for a client that sends none.
-    // Two tabs of one browser send the same stored name, so a taken name
-    // gets a number here instead of a refusal.
     const name = uniquePlayerName(normalizePlayerName(options?.name) ?? `Player-${this.nextPlayerId}`, (n) => this.nameTaken(n));
     const id = `player-${this.nextPlayerId++}`;
 
@@ -185,8 +172,6 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
     village.populationIds.push(id);
     this.sessionToAgent.set(client.sessionId, id);
     this.lastMessageTick.set(client.sessionId, this.simState.tick);
-    // The build commit lets a client from another build ask the player to
-    // reload. The Dockerfile sets it; local runs get "dev".
     client.send("joined", { agentId: id, commit: process.env.TOWN_ZERO_COMMIT || "dev" });
 
     console.log(`${name} joined as ${id} (${client.sessionId})`);
@@ -199,7 +184,6 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
     const readyTick = this.reviveAt.get(agentId);
     if (!agent || agent.isAlive() || readyTick === undefined || this.simState.tick < readyTick) return;
 
-    // The dead player kept its population slot (processTick), so no cap check here.
     const village = Array.from(this.simState.settlements.values()).find((s) => s.populationIds.includes(agentId));
     if (!village) return;
 
@@ -216,7 +200,6 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
     if (agent?.talkingToNpcId) {
       endDialogue(agent.talkingToNpcId, this.simState, "player_left");
     }
-    // A new join always creates a new agent, so a left agent would only hold a population slot.
     this.simState.agents.delete(agentId);
     this.reviveAt.delete(agentId);
     for (const settlement of this.simState.settlements.values()) {
@@ -230,7 +213,6 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
     console.log(`${agentId} left and was removed (${client.sessionId})`);
   }
 
-  /** No two agents, players or NPCs, share a name (compared by playerNameKey). */
   private nameTaken(name: string, exceptId?: string): boolean {
     const key = playerNameKey(name);
     for (const agent of this.simState.agents.values()) {
@@ -239,7 +221,6 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
     return false;
   }
 
-  // A message from the player marks its session active.
   private onPlayerMessage(type: string, handler: (client: Client, data: unknown) => void) {
     this.onMessage(type, (client: Client, data: unknown) => {
       this.lastMessageTick.set(client.sessionId, this.simState.tick);
@@ -247,8 +228,6 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
     });
   }
 
-  // A tab left open must not cost Jev calls all night: a session counts only
-  // while its tab is visible and it sent a message in the last IDLE_TIMEOUT_TICKS.
   private hasActivePlayer(): boolean {
     for (const sessionId of this.sessionToAgent.keys()) {
       if (this.hiddenSessions.has(sessionId)) continue;
@@ -258,8 +237,6 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
     return false;
   }
 
-  // Records whether the hidden tab or the idle timeout paused Jev, so that
-  // the logs can show later whether the presence message earns its cost.
   private logPauseChange(paused: boolean): void {
     this.jevPaused = paused;
     if (!paused) {
@@ -272,16 +249,12 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
   }
 
   private tick() {
-    // Jev calls cost money: with no active player, no AI NPC gets a new
-    // frame or decision. processTick still runs (vision, hunger) for everyone
-    // except the paused llm agents, which do not get hungry.
     const llmPaused = !this.hasActivePlayer();
     if (llmPaused !== this.jevPaused) this.logPauseChange(llmPaused);
     if (!llmPaused) this.jev.update(this.simState);
     const talkResults = processTick(this.simState, { llmPaused });
     processRespawns(this.simState, this.respawnAt);
 
-    // Send dialogue messages for talk actions executed this tick
     for (const { agentId, targetId, result } of talkResults) {
       if (result.ok) {
         const playerAgent = this.simState.agents.get(agentId);
@@ -306,8 +279,6 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
       this.sendToAgent(playerId, "dialogue:end", { reason });
     }
 
-    // NPC replies that Jev picked since the last tick (spec 004). Not gated
-    // by hasActivePlayer: a dialogue means a player is there.
     for (const session of this.replies.update(this.simState)) {
       this.sendToAgent(session.playerId, "dialogue:state", buildPayload(session, this.simState));
     }
@@ -340,13 +311,11 @@ export class GameRoom extends Room<{ state: WorldStateSchema }> {
     }
   }
 
-  // The session stays bound to its dead agent so the player can revive it.
   private checkPlayerDeaths() {
     for (const [sessionId, agentId] of this.sessionToAgent) {
       const agent = this.simState.agents.get(agentId);
       if (!agent || agent.isAlive() || this.reviveAt.has(agentId)) continue;
 
-      // Death ends any dialogue, or its lock would outlive the revive and block all input.
       if (agent.talkingToNpcId) endDialogue(agent.talkingToNpcId, this.simState, "player_left");
       this.reviveAt.set(agentId, this.simState.tick + REVIVE_DELAY_TICKS);
       this.clients.getById(sessionId)?.send("death", {

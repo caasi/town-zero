@@ -1,7 +1,5 @@
 import type { Expr, Value, TextTemplate, Fact } from "@town-zero/shared";
 
-// --- Agent Accessor interface ---
-
 export interface AgentAccessor {
   get(prop: string): Value;
 }
@@ -9,8 +7,6 @@ export interface AgentAccessor {
 export interface SettlementAccessor {
   get(prop: string): Value;
 }
-
-// --- Eval Context ---
 
 export interface EvalContext {
   beliefs: ReadonlyMap<string, Fact>;
@@ -22,8 +18,6 @@ export interface EvalContext {
   };
   currentTick: number;
 }
-
-// --- Function Registry ---
 
 type BuiltinFn = (args: Value[], ctx: EvalContext) => Value;
 
@@ -68,8 +62,6 @@ function resolveAccessor(ref: string, ctx: EvalContext): AgentAccessor {
   }
   throw new Error(`Unknown agent reference: "${ref}"`);
 }
-
-// --- Evaluator ---
 
 export function evaluate(expr: Expr, ctx: EvalContext): Value | undefined {
   switch (expr.type) {
@@ -147,8 +139,6 @@ export function evaluate(expr: Expr, ctx: EvalContext): Value | undefined {
   }
 }
 
-// --- Convenience ---
-
 export function checkCondition(expr: Expr, ctx: EvalContext): boolean {
   return !!evaluate(expr, ctx);
 }
@@ -158,8 +148,6 @@ export function interpolate(template: TextTemplate, ctx: EvalContext): string {
     .map((part) => (typeof part === "string" ? part : String(evaluate(part, ctx) ?? "")))
     .join("");
 }
-
-// --- i18n helpers ---
 
 export function normalizeTemplateKey(template: TextTemplate): string {
   let index = 0;

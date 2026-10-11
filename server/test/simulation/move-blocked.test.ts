@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { isMoveBlocked } from "@town-zero/shared";
 
-// One rule for server moves, beast steps and client prediction.
 describe("isMoveBlocked", () => {
   const map = { width: 10, height: 10 };
 

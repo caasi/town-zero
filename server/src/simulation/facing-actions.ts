@@ -62,7 +62,6 @@ export function performTalkOnFacingTarget(targetId: string, ctx: FrameContext): 
   }
 }
 
-/** Moves all resources but `keepFood` food from the agent into the settlement. */
 export function performDeposit(settlement: Settlement, agent: Agent, keepFood = 0): void {
   for (const res of ["food", "material", "currency"] as ResourceType[]) {
     const keep = res === "food" ? keepFood : 0;
@@ -74,7 +73,6 @@ export function performDeposit(settlement: Settlement, agent: Agent, keepFood = 
   }
 }
 
-/** The settlement whose housing cell the agent stands on, of any faction. */
 export function depositTarget(ctx: FrameContext): Settlement | null {
   const { agent, grid, settlements } = ctx;
   if (grid.getZoneType(agent.position.x, agent.position.y) !== ZoneType.HOUSING) return null;

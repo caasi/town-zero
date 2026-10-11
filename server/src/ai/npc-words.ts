@@ -1,6 +1,5 @@
 import type { Gender } from "@town-zero/shared";
 
-// Jev reads state as words, never as codes (spec 003).
 export function describeGender(name: string, gender: Gender): string {
   switch (gender.kind) {
     case "male": return `${name} is a man.`;

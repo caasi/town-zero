@@ -82,9 +82,9 @@ describe("Agent", () => {
       agent.enqueueInput({ seq: 1, direction: "north" });
       agent.enqueueInput({ seq: 2, direction: "east" });
       agent.enqueueInput({ seq: 3, direction: "south" });
-      agent.enqueueInput({ seq: 4, direction: "west" }); // overflow
+      agent.enqueueInput({ seq: 4, direction: "west" });
       expect(agent.inputQueue).toHaveLength(3);
-      expect(agent.inputQueue[0].seq).toBe(2); // oldest (seq=1) dropped
+      expect(agent.inputQueue[0].seq).toBe(2);
     });
 
     it("player frame (seq > 0) flushes seq=0 frames and clears planBacklog", () => {
@@ -108,7 +108,7 @@ describe("Agent", () => {
     it("rejects duplicate seq (seq <= last queued seq)", () => {
       const agent = makeAgent();
       agent.enqueueInput({ seq: 1, direction: "north" });
-      agent.enqueueInput({ seq: 1, direction: "east" }); // duplicate
+      agent.enqueueInput({ seq: 1, direction: "east" });
       expect(agent.inputQueue).toHaveLength(1);
       expect(agent.inputQueue[0].direction).toBe("north");
     });

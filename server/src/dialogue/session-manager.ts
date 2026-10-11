@@ -23,8 +23,6 @@ export function buildPayload(session: DialogueSession, state: SimulationState): 
     npcId: session.npcId,
     npcName: npc.name,
     nodeType: nodeTypeFromMsg(msg.type),
-    // "npc" is the tree's marker for "the NPC in this dialogue" (the eDSL
-    // default), not a name: the client would show the word "npc".
     speaker: msg.speaker === "npc" ? npc.name : msg.speaker || undefined,
     content: msg.text || undefined,
     options: msg.type === "choice" ? session.getOptionsWithStatus() : undefined,
@@ -60,25 +58,20 @@ export function startDialogue(
   const target = state.agents.get(targetId);
   if (!player || !target) return { ok: false, error: "no_dialogue" };
 
-  // Prevent overlapping dialogue sessions for the same player
   if (player.talkingToNpcId !== null) {
     return { ok: false, error: "busy" };
   }
 
-  // Adjacency check
   const dx = Math.abs(player.position.x - target.position.x);
   const dy = Math.abs(player.position.y - target.position.y);
   if (dx + dy !== 1) return { ok: false, error: "too_far" };
 
-  // Busy check
   if (target.currentTalkingTo !== null) return { ok: false, error: "busy" };
 
-  // Find dialogue tree for this NPC
   const treeId = findTreeIdForNpc(targetId, state);
   if (!treeId) return { ok: false, error: "no_dialogue" };
   const tree = state.dialogueTrees.get(treeId)!;
 
-  // Auto-face both agents toward each other
   const fdx = target.position.x - player.position.x;
   const fdy = target.position.y - player.position.y;
   if (Math.abs(fdx) >= Math.abs(fdy)) {
@@ -89,10 +82,8 @@ export function startDialogue(
     target.facing = fdy > 0 ? "north" : "south";
   }
 
-  // Evaluate entry points for conditional root
   const entryNodeId = resolveDialogueEntryNode(player, target, state) ?? tree.root;
 
-  // Create a modified tree with the resolved root
   const resolvedTree = entryNodeId === tree.root
     ? tree
     : { ...tree, root: entryNodeId };
@@ -104,18 +95,12 @@ export function startDialogue(
     currentTick: state.tick,
   });
 
-  // Lock both agents and stop any queued actions. The player's queue stays:
-  // the lock acknowledges those frames without running them, and the client
-  // needs that acknowledgement to drop the moves it already predicted.
   target.inputQueue = [];
   target.planBacklog = [];
   player.talkingToNpcId = targetId;
   target.currentTalkingTo = playerId;
   state.activeSessions.set(targetId, session);
 
-  // Clear any active speech bubble up front so it can't render alongside the
-  // dialogue UI for NPCs that don't register a talk:start handler. Handlers
-  // may still re-set a bubble via the bubble effect below.
   target.setBubble("", 0, state.tick);
 
   const selfRef = { id: target.id, faction: target.faction, role: target.role, position: { ...target.position } };
@@ -125,7 +110,6 @@ export function startDialogue(
   });
   applyEventEffects(effs, state);
 
-  // Build payload — if this throws, dispose cleans up the locks
   try {
     const ended = session.isEnded();
     if (ended) {
@@ -210,7 +194,7 @@ export function chooseDialogue(
   }
 }
 
-const FAREWELL_BUBBLE_TICKS = 40; // ~5 s, as long as a proximity greeting
+const FAREWELL_BUBBLE_TICKS = 40;
 
 export function tickDialogues(
   state: SimulationState,
@@ -227,8 +211,6 @@ export function tickDialogues(
   }
 
   for (const { npcId, reason } of expired) {
-    // Spec 004: a timed-out NPC says goodbye instead of going silent. Read the
-    // line before the session ends; set it after, so a talk:end handler cannot hide it.
     const npc = state.agents.get(npcId);
     const farewell = reason === "timeout" && npc?.profile
       ? state.activeSessions.get(npcId)!.farewell(npc.profile.farewells)

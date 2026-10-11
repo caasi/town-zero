@@ -6,7 +6,7 @@ import { processTick, type SimulationState } from "../../src/simulation/tick.js"
 describe("Agent.setBubble", () => {
   it("sets bubbleText and computes bubbleExpiresAt from current tick", () => {
     const a = new Agent({ id: "a", position: { x: 0, y: 0 }, faction: "f", role: "villager", controller: "bot" });
-    a.setBubble("早安", 80, /*currentTick*/ 100);
+    a.setBubble("早安", 80, 100);
     expect(a.bubbleText).toBe("早安");
     expect(a.bubbleExpiresAt).toBe(180);
   });
@@ -42,34 +42,30 @@ describe("processTick — bubble upkeep", () => {
   it("clears bubble when bubbleExpiresAt is reached", () => {
     const world = makeBubbleWorld();
     const npc = new Agent({ id: "n1", position: { x: 5, y: 5 }, faction: "f", role: "villager", controller: "bot" });
-    npc.setBubble("hi", 2, 0); // bubbleExpiresAt = 2
+    npc.setBubble("hi", 2, 0);
     world.agents.set(npc.id, npc);
 
-    processTick(world); // tick → 1, still active
+    processTick(world);
     expect(npc.bubbleText).toBe("hi");
 
-    processTick(world); // tick → 2, expiry fires
+    processTick(world);
     expect(npc.bubbleText).toBeNull();
     expect(npc.bubbleExpiresAt).toBe(0);
   });
 
   it("clears an active bubble when the NPC dies before expiry", () => {
-    // If a bubble is active at the tick an NPC dies, the expiry check must
-    // still run on subsequent ticks — otherwise `bubbleText` keeps syncing
-    // to clients forever on a corpse.
     const world = makeBubbleWorld();
     const npc = new Agent({ id: "n1", position: { x: 5, y: 5 }, faction: "f", role: "villager", controller: "bot" });
-    npc.setBubble("hi", 5, 0); // bubbleExpiresAt = 5
+    npc.setBubble("hi", 5, 0);
     world.agents.set(npc.id, npc);
 
-    processTick(world); // tick → 1
+    processTick(world);
     expect(npc.bubbleText).toBe("hi");
 
     npc.takeDamage(npc.hp);
     expect(npc.isAlive()).toBe(false);
-    expect(npc.bubbleText).toBe("hi"); // death alone doesn't clear bubble
+    expect(npc.bubbleText).toBe("hi");
 
-    // Advance past the original expiry.
     for (let i = 0; i < 5; i++) processTick(world);
 
     expect(npc.bubbleText).toBeNull();

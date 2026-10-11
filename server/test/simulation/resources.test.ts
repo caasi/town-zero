@@ -8,7 +8,7 @@ describe("processConsumption", () => {
     const agent = new Agent({ id: "a1", position: { x: 0, y: 0 }, faction: "v1", role: "farmer", controller: "llm" });
     agent.addToInventory("food", 5);
 
-    processConsumption(agent, FOOD_CONSUMPTION_INTERVAL); // tick == consumption boundary
+    processConsumption(agent, FOOD_CONSUMPTION_INTERVAL);
     expect(agent.inventory.food).toBe(4);
     expect(agent.hp).toBe(100);
   });
@@ -17,13 +17,12 @@ describe("processConsumption", () => {
     const agent = new Agent({ id: "a1", position: { x: 0, y: 0 }, faction: "v1", role: "farmer", controller: "llm" });
     agent.addToInventory("food", 5);
 
-    processConsumption(agent, 1); // not on interval
+    processConsumption(agent, 1);
     expect(agent.inventory.food).toBe(5);
   });
 
   it("damages agent when starving", () => {
     const agent = new Agent({ id: "a1", position: { x: 0, y: 0 }, faction: "v1", role: "farmer", controller: "llm" });
-    // no food in inventory
 
     processConsumption(agent, FOOD_CONSUMPTION_INTERVAL);
     expect(agent.hp).toBe(100 - STARVATION_DAMAGE);
@@ -31,7 +30,7 @@ describe("processConsumption", () => {
 
   it("NPC starvation floors at 1 HP (cannot die from hunger)", () => {
     const agent = new Agent({ id: "npc-1", position: { x: 0, y: 0 }, faction: "v1", role: "farmer", controller: "llm" });
-    agent.hp = STARVATION_DAMAGE; // exactly one hit from death
+    agent.hp = STARVATION_DAMAGE;
 
     processConsumption(agent, FOOD_CONSUMPTION_INTERVAL);
     expect(agent.hp).toBe(1);

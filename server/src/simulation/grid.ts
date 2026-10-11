@@ -73,7 +73,6 @@ export class Grid {
     return this.tiles[this.index(x, y)].resourceAmount;
   }
 
-  /** Takes one unit; null when the tile has no resource or is used up. */
   takeResource(x: number, y: number): ResourceType | null {
     if (!this.inBounds(x, y)) return null;
     const tile = this.tiles[this.index(x, y)];

@@ -36,7 +36,7 @@ describe("processTick", () => {
   });
 
   it("resource tiles grow back one unit per interval", () => {
-    const world = makeWorld(); // food at (3,3)
+    const world = makeWorld();
     world.grid.takeResource(3, 3);
     for (let i = 1; i < RESOURCE_REGROW_TICKS; i++) processTick(world);
     expect(world.grid.getResourceAmount(3, 3)).toBe(RESOURCE_MAX_AMOUNT - 1);
@@ -70,7 +70,7 @@ describe("processTick", () => {
       agent.planBacklog = [{ seq: 0, action: { type: "idle" } }];
       processTick(world);
       expect(agent.planBacklog).toHaveLength(0);
-      expect(agent.lastProcessedInput).toBe(0); // seq=0 doesn't update
+      expect(agent.lastProcessedInput).toBe(0);
     });
 
     it("instant gather via InputFrame", () => {
@@ -79,8 +79,8 @@ describe("processTick", () => {
       agent.position = { x: 3, y: 2 };
       agent.enqueueInput({ seq: 1, action: { type: "gather", resourceTile: { x: 3, y: 3 } } });
       processTick(world);
-      expect(agent.inventory.food).toBe(11); // 10 initial + 1 gathered
-      expect(agent.state).toBe("idle"); // no FSM change
+      expect(agent.inventory.food).toBe(11);
+      expect(agent.state).toBe("idle");
     });
 
     it("instant attack via InputFrame", () => {
@@ -103,7 +103,7 @@ describe("processTick", () => {
       agent.enqueueInput({ seq: 1, direction: "east", action: { type: "gather", resourceTile: { x: 3, y: 3 } } });
       processTick(world);
       expect(agent.inventory.food).toBe(11);
-      expect(agent.facing).toBe("south"); // direction ignored
+      expect(agent.facing).toBe("south");
     });
 
     it("skips dead agents", () => {
@@ -113,7 +113,7 @@ describe("processTick", () => {
       agent.state = "dead";
       agent.inputQueue.push({ seq: 1, direction: "south" });
       processTick(world);
-      expect(agent.position).toEqual({ x: 5, y: 5 }); // didn't move
+      expect(agent.position).toEqual({ x: 5, y: 5 });
     });
 
     it("turn-before-move via InputFrame direction", () => {
@@ -123,7 +123,7 @@ describe("processTick", () => {
       agent.enqueueInput({ seq: 1, direction: "east" });
       processTick(world);
       expect(agent.facing).toBe("east");
-      expect(agent.position).toEqual({ x: 5, y: 5 }); // turned only
+      expect(agent.position).toEqual({ x: 5, y: 5 });
       expect(agent.lastProcessedInput).toBe(1);
     });
   });

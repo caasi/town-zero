@@ -49,11 +49,6 @@ export function updateVision(
 export const storeFoodKey = (settlementId: string) => `food:${settlementId}`;
 export const isStoreFoodKey = (key: string) => key.startsWith("food:");
 
-/**
- * An agent inside a settlement sees its store. Away from it, the agent knows
- * only the count of its last visit, or what a same-faction neighbour told it
- * (beliefs merge in mergeAdjacentMemories).
- */
 export function updateStoreKnowledge(agent: Agent, settlements: Map<string, Settlement>, tick: number): void {
   if (!agent.isAlive()) return;
   for (const s of settlements.values()) {

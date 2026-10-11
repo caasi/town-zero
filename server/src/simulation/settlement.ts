@@ -21,7 +21,7 @@ export class Settlement {
   inventory: ResourceStore;
   territory: Position[];
   structures: Structure[];
-  populationIds: string[]; // agent IDs that belong to this settlement
+  populationIds: string[];
 
   constructor(init: SettlementInit) {
     this.id = init.id;

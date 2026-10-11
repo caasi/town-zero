@@ -104,14 +104,14 @@ describe("ReplyController", () => {
     const state = waitingState();
     const answers: Array<(c: Choice) => void> = [];
     const replies = new ReplyController(() => new Promise((r) => answers.push(r)));
-    replies.update(state); // the first dialogue asks
+    replies.update(state);
     endDialogue("reed", state, "player_left");
     startDialogue("player-0", "reed", state);
     chooseDialogue("player-0", "ask_opt_0", state);
-    replies.update(state); // the second dialogue asks
+    replies.update(state);
     const second = state.activeSessions.get("reed")!;
 
-    answers[0]({ id: "curt" }); // the first answer comes late
+    answers[0]({ id: "curt" });
     await flush();
     expect(replies.update(state)).toEqual([]);
     expect(second.isWaiting()).toBe(true);
@@ -137,12 +137,12 @@ describe("ReplyController", () => {
         chooseDialogue("player-0", "ask_opt_0", state);
         return replies.update(state);
       };
-      const [cached] = again(); // same state: answered from the cache, on this tick
+      const [cached] = again();
       expect(choose).toHaveBeenCalledTimes(1);
       expect(cached.getState()).toMatchObject({ text: "Help or leave." });
       expect(log).toHaveBeenCalledWith("[jev] reed replied curt from calm, curt (cached)");
 
-      state.settlements.get("v")!.addResource("food", 100); // the state changes
+      state.settlements.get("v")!.addResource("food", 100);
       again();
       expect(choose).toHaveBeenCalledTimes(2);
     } finally {
@@ -164,7 +164,7 @@ describe("ReplyController", () => {
       chooseDialogue("player-0", "ask_opt_0", state);
       replies.update(state);
       expect(choose).toHaveBeenCalledTimes(2);
-      await flush(); // let the second failure log while the spy is on
+      await flush();
     } finally {
       error.mockRestore();
     }
@@ -198,8 +198,6 @@ describe("describeReplyState", () => {
   });
 
   it("leaves out the store count that agents keep as a belief", () => {
-    // The village line gives the store; the belief changes with every
-    // deposit and would make each reply a new cache key, so a paid call.
     const state = waitingState();
     const reed = state.agents.get("reed")!;
     updateStoreKnowledge(reed, state.settlements, state.tick);

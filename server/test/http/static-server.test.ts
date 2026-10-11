@@ -22,7 +22,6 @@ function rawGet(path: string, method = "GET"): Promise<{ status: number; headers
 }
 
 beforeAll(async () => {
-  // root/ is served; outer/secret.txt sits next to it and must stay unreachable.
   outer = mkdtempSync(join(tmpdir(), "static-"));
   const root = join(outer, "root");
   mkdirSync(join(root, "assets"), { recursive: true });
@@ -59,7 +58,6 @@ describe("static server", () => {
   });
 
   it("keeps dot segments inside the root: URL parsing resolves them first", async () => {
-    // "/../x" and "/%2e%2e/x" both become "/x" under the root, which does not exist.
     for (const path of ["/../secret.txt", "/%2e%2e/secret.txt"]) {
       expect((await rawGet(path)).status, path).toBe(404);
     }

@@ -7,7 +7,6 @@ export class DialogueEngine {
   private currentNodeId: string;
   private visitedNodes: string[] = [];
   private selectedOptions: Record<string, string> = {};
-  // Reply node state; moveTo() clears both.
   private pickedLineId: string | null = null;
   private replyAsked = false;
 
@@ -43,7 +42,6 @@ export class DialogueEngine {
     return this.selectedOptions;
   }
 
-  /** Get interpolated text content for the current text node. */
   getInterpolatedContent(ctx: EvalContext): string {
     const node = this.getCurrentNode();
     if (node.type === "text") {
@@ -52,7 +50,6 @@ export class DialogueEngine {
     return "";
   }
 
-  /** Get visible options for the current choice node, filtered by condition evaluation. */
   getVisibleOptions(ctx: EvalContext): ChoiceOptionData[] {
     const node = this.getCurrentNode();
     if (node.type !== "choice") return [];
@@ -62,7 +59,6 @@ export class DialogueEngine {
     });
   }
 
-  /** Get all options for the current choice node with enabled status. */
   getAllOptionsWithStatus(ctx: EvalContext): Array<ChoiceOptionData & { enabled: boolean }> {
     const node = this.getCurrentNode();
     if (node.type !== "choice") return [];
@@ -72,7 +68,6 @@ export class DialogueEngine {
     }));
   }
 
-  /** Lines of the current reply node: the first always, the others when their condition holds. */
   getVisibleReplyLines(ctx: EvalContext): ReplyLineData[] {
     const node = this.getCurrentNode();
     if (node.type !== "reply") return [];
@@ -99,7 +94,6 @@ export class DialogueEngine {
     this.replyAsked = true;
   }
 
-  /** Advance past a text or action node, or a reply node whose line is picked. For action nodes, effects are NOT executed — use advanceWithEffects() instead. */
   advance(): void {
     const node = this.getCurrentNode();
     const picked = this.getPickedLine();
@@ -112,7 +106,6 @@ export class DialogueEngine {
     }
   }
 
-  /** Advance past an action node, executing its effects. */
   advanceWithEffects(ctx: MutableContext): void {
     const node = this.getCurrentNode();
     if (node.type === "action") {
@@ -123,7 +116,6 @@ export class DialogueEngine {
     }
   }
 
-  /** Select a choice option by its id. */
   selectOptionById(optionId: string): void {
     const node = this.getCurrentNode();
     if (node.type !== "choice") {
@@ -138,7 +130,6 @@ export class DialogueEngine {
     this.moveTo(option.next);
   }
 
-  /** Select a choice option by its position index. Prefer selectOptionById() for explicit selection. */
   selectOption(index: number): void {
     const node = this.getCurrentNode();
     if (node.type !== "choice") {

@@ -16,37 +16,31 @@ export function generateMap(): SimulationState {
   const villageCx = 10, villageCy = 20;
   const denCx = 30, denCy = 20;
 
-  // Terrain: forest belt
   for (let x = 18; x <= 22; x++) {
     for (let y = 15; y <= 25; y++) {
       grid.setTerrain(x, y, "forest");
     }
   }
 
-  // Mountain patch
   for (let x = 28; x <= 32; x++) {
     for (let y = 15; y <= 17; y++) {
       grid.setTerrain(x, y, "mountain");
     }
   }
 
-  // Water feature
   for (let x = 15; x <= 17; x++) {
     grid.setTerrain(x, 28, "water");
     grid.setTerrain(x, 29, "water");
   }
 
-  // Road
   for (let x = 0; x <= villageCx; x++) {
     grid.setTerrain(x, villageCy, "road");
   }
 
-  // Material tiles
   for (let x = 18; x <= 20; x++) {
     grid.setResourceYield(x, 18, "material");
   }
 
-  // Bush tiles east of village
   const bushPositions = [
     { x: villageCx + 4, y: villageCy - 1 },
     { x: villageCx + 4, y: villageCy },
@@ -59,8 +53,6 @@ export function generateMap(): SimulationState {
     grid.setResourceYield(pos.x, pos.y, "food");
   }
 
-  // Berry bushes east of the den: the beasts' food source, in sight of the
-  // den so they find it without crossing the map to the village.
   for (const pos of [
     { x: denCx + 4, y: denCy + 1 }, { x: denCx + 5, y: denCy + 1 },
     { x: denCx + 4, y: denCy + 2 }, { x: denCx + 5, y: denCy + 2 },
@@ -69,7 +61,6 @@ export function generateMap(): SimulationState {
     grid.setResourceYield(pos.x, pos.y, "food");
   }
 
-  // Village
   const villageStamp = stampTemplate(grid, VILLAGE_TEMPLATE, villageCx, villageCy, "village-1");
   const village = new Settlement({
     id: "village-1",
@@ -84,7 +75,6 @@ export function generateMap(): SimulationState {
   village.addResource("material", 10);
   settlements.set("village-1", village);
 
-  // Monster den
   const denStamp = stampTemplate(grid, DEN_TEMPLATE, denCx, denCy, "den-1");
   const den = new Settlement({
     id: "den-1",
@@ -116,8 +106,6 @@ export function generateMap(): SimulationState {
 
   const state: SimulationState = { grid, agents, settlements, tick: 0, activeSessions: new Map(), dialogueTrees: new Map() };
 
-  // Village NPCs. The loader does not add them to the village, and each one
-  // takes a slot of the population cap (2 housing x 6 = 12, so 10 players).
   for (const data of [farmerReedScenario, innkeeperScenario]) {
     for (const [id, tree] of loadScenario(data, state).dialogueTrees) state.dialogueTrees.set(id, tree);
     for (const npc of data.npcs) village.populationIds.push(npc.id);

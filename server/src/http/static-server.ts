@@ -32,7 +32,6 @@ export function createStaticServer(root: string): Server {
       return;
     }
     if (path.endsWith("/")) path += "index.html";
-    // Trust boundary: the path comes from the client and must stay under root.
     const file = resolve(base, normalize("." + path));
     if (file !== base && !file.startsWith(base + sep)) {
       res.writeHead(403).end();

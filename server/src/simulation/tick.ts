@@ -18,15 +18,12 @@ export interface SimulationState {
   dialogueTrees: Map<string, DialogueTreeData>;
 }
 
-// llmPaused: GameRoom gave the llm agents no Jev update this tick. They
-// cannot decide to eat, so they must not get hungry either.
 export function processTick(state: SimulationState, { llmPaused = false } = {}): TalkResult[] {
   state.tick++;
 
   const { grid, agents, settlements, tick } = state;
   const talkResults: TalkResult[] = [];
 
-  // Phase 1: Consume one InputFrame per alive agent
   for (const [, agent] of agents) {
     if (!agent.isAlive()) continue;
 
@@ -44,7 +41,6 @@ export function processTick(state: SimulationState, { llmPaused = false } = {}):
     }
   }
 
-  // Phase 2: Bot controller for idle bot agents
   for (const [, agent] of agents) {
     if (!agent.isAlive() || agent.controller !== "bot") continue;
     if (agent.inputQueue.length > 0 || agent.planBacklog.length > 0) continue;
@@ -58,21 +54,17 @@ export function processTick(state: SimulationState, { llmPaused = false } = {}):
     }
   }
 
-  // Phase 3: Consumption and regrowth (regrowth runs while Jev is paused too:
-  // the world clock does not stop)
   if (tick % RESOURCE_REGROW_TICKS === 0) grid.regrowResources();
   for (const [, agent] of agents) {
     if (llmPaused && agent.controller === "llm") continue;
     processConsumption(agent, tick);
   }
 
-  // Phase 4: Vision update
   for (const [, agent] of agents) {
     updateVision(agent, grid, agents, tick);
     updateStoreKnowledge(agent, settlements, tick);
   }
 
-  // Phase 4b: Bubble expiry + event dispatch.
   for (const [, agent] of agents) {
     if (agent.bubbleText !== null && tick >= agent.bubbleExpiresAt) {
       agent.setBubble("", 0, tick);
@@ -89,10 +81,6 @@ export function processTick(state: SimulationState, { llmPaused = false } = {}):
     if (!npc.isAlive()) continue;
     if (npc.controller === "player") continue;
     if (npc.eventHandlers.size === 0) continue;
-    // Skip the O(N_players) scan + proximityState bookkeeping for NPCs that
-    // registered only non-proximity handlers (talk:*, combat:*). Checking all
-    // three keys keeps this cheap and avoids mutating proximityState for
-    // handlers that wouldn't observe it anyway.
     if (
       !npc.eventHandlers.has("proximity:enter") &&
       !npc.eventHandlers.has("proximity:stay") &&
@@ -145,8 +133,6 @@ export function processTick(state: SimulationState, { llmPaused = false } = {}):
     }
   }
 
-  // Dead members must not hold population slots, or joins are refused at the cap.
-  // A dead player keeps its slot so it can revive; GameRoom.onLeave frees it.
   for (const settlement of settlements.values()) {
     settlement.populationIds = settlement.populationIds.filter((id) => {
       const member = agents.get(id);
@@ -154,7 +140,6 @@ export function processTick(state: SimulationState, { llmPaused = false } = {}):
     });
   }
 
-  // Phase 5: Memory merge for adjacent same-faction agents
   const agentList = Array.from(agents.values()).filter((a) => a.isAlive());
   mergeAdjacentMemories(agentList, grid);
 

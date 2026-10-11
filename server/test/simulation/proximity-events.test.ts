@@ -94,13 +94,10 @@ describe("Phase 6b — proximity event dispatch", () => {
     expect(enters).toEqual(["p1"]);
     expect(npc.proximityState.get("p1")).toBe(2);
 
-    // Simulate disconnect: GameRoom.onLeave removes the player agent and
-    // calls purgeProximityState so the reconnecting player is treated as new.
     world.agents.delete("p1");
     purgeProximityState(world, "p1");
     expect(npc.proximityState.has("p1")).toBe(false);
 
-    // Reconnect: same id returns within range.
     const reconnected = new Agent({ id: "p1", position: { x: 6, y: 5 }, faction: "player", role: "player", controller: "player" });
     world.agents.set(reconnected.id, reconnected);
     processTick(world);

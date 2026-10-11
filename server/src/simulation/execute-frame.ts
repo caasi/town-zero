@@ -22,7 +22,6 @@ export {
 export function executeFrame(frame: InputFrame, ctx: FrameContext): void {
   const { grid, agent } = ctx;
 
-  // Dialogue lock: reject all input while in dialogue (player or NPC side)
   if (agent.talkingToNpcId || agent.currentTalkingTo) {
     if (frame.seq > 0) agent.lastProcessedInput = Math.max(agent.lastProcessedInput, frame.seq);
     return;
@@ -43,7 +42,6 @@ function executeDirection(direction: Facing, agent: Agent, grid: Grid): void {
   const delta = DIRECTION_DELTA[direction];
   if (!delta) return;
 
-  // Turn-before-move
   if (direction !== agent.facing) {
     agent.facing = direction;
     return;

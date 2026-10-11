@@ -1,12 +1,9 @@
-// Drives a GameRoom without the Colyseus server: onCreate runs on an object
-// made with Object.create, and messages and ticks are called by hand.
 import "../../src/polyfill.js";
 import "../../src/encoder-config.js";
 
 import { GameRoom } from "../../src/rooms/GameRoom.js";
 import type { WorldStateSchema } from "../../src/rooms/schemas/WorldStateSchema.js";
 
-// Minimal mock Client
 export function mockClient(sessionId: string): any {
   const messages: Array<{ type: string; data: any }> = [];
   return {
@@ -17,11 +14,9 @@ export function mockClient(sessionId: string): any {
   };
 }
 
-// Create a GameRoom and call onCreate, bypassing Colyseus server infrastructure
 export function createTestRoom(): { room: GameRoom; state: WorldStateSchema } {
   const room = Object.create(GameRoom.prototype) as any;
 
-  // Initialize class fields that Object.create skips
   room.sessionToAgent = new Map<string, string>();
   room.nextPlayerId = 0;
   room.reviveAt = new Map<string, number>();
@@ -30,7 +25,6 @@ export function createTestRoom(): { room: GameRoom; state: WorldStateSchema } {
   room.hiddenSessions = new Set<string>();
   room.jevPaused = false;
 
-  // Minimal Room internals that GameRoom needs
   room.clients = {
     _items: new Map<string, any>(),
     getById(id: string) { return room.clients._items.get(id); },
@@ -44,7 +38,6 @@ export function createTestRoom(): { room: GameRoom; state: WorldStateSchema } {
   };
   room.broadcast = function () {};
 
-  // Call onCreate
   room.onCreate();
 
   return { room, state: room.state as WorldStateSchema };

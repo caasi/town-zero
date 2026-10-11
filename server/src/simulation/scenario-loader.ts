@@ -12,7 +12,6 @@ export function loadScenario(
 ): ScenarioLoadResult {
   const dialogueTrees = new Map<string, DialogueTreeData>();
 
-  // Spawn NPCs
   for (const npcDef of data.npcs) {
     const agent = new Agent({
       id: npcDef.id,
@@ -24,7 +23,6 @@ export function loadScenario(
     });
     agent.profile = npcDef.profile;
 
-    // Inject initial beliefs
     for (const { key, value } of npcDef.initialBeliefs) {
       agent.setBelief(key, { key, value, tick: state.tick, source: npcDef.id });
     }
@@ -40,7 +38,6 @@ export function loadScenario(
     }
   }
 
-  // Register dialogue trees
   for (const tree of data.dialogues) {
     dialogueTrees.set(tree.id, tree);
   }

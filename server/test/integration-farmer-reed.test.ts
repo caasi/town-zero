@@ -53,47 +53,39 @@ describe("integration: Farmer Reed full flow", () => {
     const player = addPlayer(state, "player-0", reed.position.x, reed.position.y - 1);
     player.addToInventory("food", 10);
 
-    // Start dialogue
     const r1 = startDialogue("player-0", "farmer-reed", state);
     expect(r1.ok).toBe(true);
     if (!r1.ok) return;
     expect(r1.payload.nodeType).toBe("text");
-    expect(player.facing).toBe("south"); // auto-faced toward Reed
+    expect(player.facing).toBe("south");
 
-    // Advance to choice
     const r2 = advanceDialogue("player-0", state);
     expect(r2.ok && r2.payload.nodeType).toBe("choice");
     if (!r2.ok) return;
 
-    // Accept quest
     const acceptOpt = r2.payload.options!.find((o) => o.label.includes("help"));
     const r3 = chooseDialogue("player-0", acceptOpt!.id, state);
     expect(r3.ok).toBe(true);
     expect(reed.getBelief("food_quest_active")?.value).toBe(true);
 
-    // Advance past accept-text → done (auto-end)
     advanceDialogue("player-0", state);
     expect(state.activeSessions.has("farmer-reed")).toBe(false);
 
-    // Return: entry point routes to check-return
     const r5 = startDialogue("player-0", "farmer-reed", state);
     expect(r5.ok).toBe(true);
     if (!r5.ok) return;
     expect(r5.payload.content).toContain("back");
 
-    // Advance to check-food choice
     const r6 = advanceDialogue("player-0", state);
     expect(r6.ok).toBe(true);
     if (!r6.ok) return;
 
-    // "Here you go." should be enabled (player has 10 food)
     const handOver = r6.payload.options!.find((o) => o.label.includes("Here"));
     expect(handOver?.enabled).toBe(true);
 
-    // Hand over food
     const r7 = chooseDialogue("player-0", handOver!.id, state);
     expect(r7.ok).toBe(true);
-    expect(player.inventory.food).toBe(5); // 10 - 5
+    expect(player.inventory.food).toBe(5);
     expect(reed.getBelief("food_quest_active")?.value).toBe(false);
   });
 
@@ -135,9 +127,8 @@ describe("integration: Farmer Reed full flow", () => {
 
   it("disabled option: 'Here you go.' disabled without enough food", () => {
     const player = addPlayer(state, "player-0", reed.position.x, reed.position.y - 1);
-    player.addToInventory("food", 2); // not enough
+    player.addToInventory("food", 2);
 
-    // Set fact to enter check-return path
     reed.setBelief("food_quest_active", { key: "food_quest_active", value: true, tick: 0, source: "test" });
 
     startDialogue("player-0", "farmer-reed", state);
@@ -145,7 +136,6 @@ describe("integration: Farmer Reed full flow", () => {
     expect(r.ok).toBe(true);
     if (!r.ok) return;
 
-    // getAllOptionsWithStatus includes all options; condition-gated ones appear as disabled
     const options = r.payload.options!;
     const handOver = options.find((o) => o.label.includes("Here"));
     expect(handOver).toBeDefined();

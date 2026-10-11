@@ -11,7 +11,6 @@ import {
 import { hasMatchingDialogueEntry } from "./dialogue-entry-predicate.js";
 import type { Agent } from "./agent.js";
 
-/** Gathers the facts for the shared interact rules (resolveInteract), then acts. */
 export function dispatchInteract(ctx: FrameContext): void {
   const { agent, agents, grid, simState } = ctx;
   const target = facingTile(agent);

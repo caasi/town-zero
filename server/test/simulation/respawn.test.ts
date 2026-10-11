@@ -33,7 +33,7 @@ describe("processRespawns", () => {
     expect(farmer.isAlive()).toBe(false);
     runUntil(state, respawnAt, NPC_RESPAWN_TICKS + 1);
     expect(farmer.isAlive()).toBe(true);
-    expect(farmer.position).toEqual({ x: 2, y: 1 }); // (1,1) holds the player
+    expect(farmer.position).toEqual({ x: 2, y: 1 });
     expect(village.populationIds).toContain("farmer");
   });
 
@@ -50,17 +50,17 @@ describe("processRespawns", () => {
     const { state, den, beast } = setup();
     const mate = new Agent({ id: "b2", position: { x: 8, y: 8 }, faction: "den-1", role: "beast", controller: "llm" });
     state.agents.set("b2", mate);
-    den.populationIds.push("b2"); // a living den-mate: breeding is not free
+    den.populationIds.push("b2");
     const respawnAt = new Map<string, number>();
     beast.takeDamage(1000);
     runUntil(state, respawnAt, BEAST_BREED_TICKS + 5);
-    expect(beast.isAlive()).toBe(false); // den has no food
+    expect(beast.isAlive()).toBe(false);
 
     den.addResource("food", BEAST_BREED_FOOD + 1);
     runUntil(state, respawnAt, state.tick + 1);
     expect(beast.isAlive()).toBe(true);
     expect(den.inventory.food).toBe(1);
-    expect(beast.position).toEqual({ x: 8, y: 8 }); // the only tile, taken by b2
+    expect(beast.position).toEqual({ x: 8, y: 8 });
   });
 
   it("leaves dead players to the revive button", () => {

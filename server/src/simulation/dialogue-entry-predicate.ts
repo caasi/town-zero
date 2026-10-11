@@ -43,7 +43,6 @@ function buildEvalContext(player: Agent, npc: Agent, state: SimulationState): Ev
   };
 }
 
-/** Side-effect-free: evaluates entryPoints only. Returns the matching nodeId, or null. */
 export function resolveDialogueEntryNode(player: Agent, npc: Agent, state: SimulationState): string | null {
   const treeId = findTreeIdForNpc(npc.id, state);
   if (!treeId) return null;

@@ -5,7 +5,6 @@ import type { SimulationState } from "../simulation/tick.js";
 import type { DialogueSession } from "../dialogue/dialogue-session.js";
 import { isStoreFoodKey } from "../simulation/vision.js";
 
-// Tandi is short of food (docs/story.md); below this the state says "low".
 const VILLAGE_FOOD_LOW = 40;
 const CACHE_SIZE = 1000;
 
@@ -13,9 +12,7 @@ const instructions = (name: string, playerSaid: string | null) =>
   (playerSaid ? `The traveler said to ${name}: "${playerSaid}". ` : `${name} talks with a traveler. `)
   + `Pick the reply that ${name} would give, from the personality.`;
 
-/** The Jev state for a reply, in words (spec 003, spec 004). */
 export function describeReplyState(npc: Agent, playerSaid: string | null, state: SimulationState): Record<string, unknown> {
-  // A villager is at home, so the live storehouse is what the NPC knows.
   const home = Array.from(state.settlements.values()).find((s) => s.populationIds.includes(npc.id));
   const food = home?.inventory.food;
   return {
@@ -24,8 +21,6 @@ export function describeReplyState(npc: Agent, playerSaid: string | null, state:
       gender: describeGender(npc.name, npc.profile.gender),
       personality: npc.profile.personality,
     }),
-    // Store counts change with every deposit; in the state they would make each
-    // reply a new cache key. The village line below gives the count.
     beliefs: Array.from(npc.getAllBeliefs().values())
       .filter((f) => !isStoreFoodKey(f.key))
       .map((f) => `${f.key.replace(/_/g, " ")}: ${String(f.value)}`),
@@ -34,27 +29,13 @@ export function describeReplyState(npc: Agent, playerSaid: string | null, state:
   };
 }
 
-/**
- * Asks Jev for the reply line of each dialogue that waits at a reply node.
- * GameRoom owns the chooser and sends the payload of each session that
- * update() returns. One call per reply visit: the session hands out the
- * request once.
- */
 export class ReplyController {
   private answered = new Set<DialogueSession>();
-  // Jev answers arrive between ticks. They wait here and reach the session
-  // in update(), on the tick that sends them, so no advance can skip a picked
-  // line that the client has not seen.
   private arrived: Array<{ session: DialogueSession; token: number; lineId: string }> = [];
-  // Jev picks the same line for the same input (spec 004 runs: 3/3 and 4/4),
-  // so a pick is kept by everything Jev saw. This bounds the cost of a player
-  // who asks the same question again and again; a new state asks again.
-  // ponytail: oldest-first eviction at a fixed size; an LRU if hits matter.
   private cache = new Map<string, string>();
 
   constructor(private choose: ChooseFn | null) {}
 
-  /** Starts the calls that are due and returns the sessions answered since the last update. */
   update(state: SimulationState): DialogueSession[] {
     for (const { session, token, lineId } of this.arrived.splice(0)) this.answer(session, token, lineId);
     for (const session of state.activeSessions.values()) {

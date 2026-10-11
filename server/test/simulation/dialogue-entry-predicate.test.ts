@@ -28,9 +28,6 @@ describe("hasMatchingDialogueEntry", () => {
   });
 
   it("returns false for entry-less trees (rule 2 fall-through)", () => {
-    // Per spec §1.2 entry-less fallback: entry-less trees do NOT match rule 2;
-    // rule 4 for same-faction → noop; rule 3 for cross-faction → attack.
-    // The predicate therefore returns false for entry-less trees.
     const tree: DialogueTreeData = { id: "n1-tree", root: "start", nodes: { start: { id: "start", type: "text", text: "hi" } } } as any;
     const npc = new Agent({ id: "n1", position: { x: 0, y: 0 }, faction: "f1", role: "villager", controller: "bot" });
     const player = new Agent({ id: "p1", position: { x: 1, y: 0 }, faction: "f1", role: "player", controller: "player" });
