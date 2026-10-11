@@ -14,7 +14,6 @@ export class ExprBuilder {
     return this.expr;
   }
 
-  // --- Comparison ---
   eq(other: ExprOrValue): ExprBuilder {
     return new ExprBuilder({ type: "compare", op: "eq", left: this.expr, right: toExpr(other) });
   }
@@ -34,7 +33,6 @@ export class ExprBuilder {
     return new ExprBuilder({ type: "compare", op: "lte", left: this.expr, right: toExpr(other) });
   }
 
-  // --- Arithmetic ---
   add(other: ExprOrValue): ExprBuilder {
     return new ExprBuilder({ type: "arithmetic", op: "add", left: this.expr, right: toExpr(other) });
   }
@@ -48,7 +46,6 @@ export class ExprBuilder {
     return new ExprBuilder({ type: "arithmetic", op: "div", left: this.expr, right: toExpr(other) });
   }
 
-  // --- Logic ---
   and(other: ExprBuilder): ExprBuilder {
     return new ExprBuilder({ type: "logic", op: "and", args: [this.expr, other.toExpr()] });
   }
@@ -56,8 +53,6 @@ export class ExprBuilder {
     return new ExprBuilder({ type: "logic", op: "or", args: [this.expr, other.toExpr()] });
   }
 }
-
-// --- Factory functions ---
 
 export function not(expr: ExprBuilder): ExprBuilder {
   return new ExprBuilder({ type: "logic", op: "not", args: [expr.toExpr()] });
@@ -74,8 +69,6 @@ export function fact(key: string): ExprBuilder {
 export function local(key: string): ExprBuilder {
   return new ExprBuilder({ type: "local_ref", key });
 }
-
-// --- Agent proxies ---
 
 interface AgentProxy {
   prop(name: string): ExprBuilder;

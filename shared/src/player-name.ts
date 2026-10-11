@@ -1,27 +1,11 @@
-// Player names: one rule for the client and the server, so a name the client
-// shows is the name the server keeps.
-
 import { PLAYER_NAME_MAX, PLAYER_NAME_MAX_MARKS, PLAYER_NAME_MAX_UNITS } from "./constants.js";
 
 const segmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 
-/**
- * The name to keep, or null when nothing visible is left. Client input is
- * untrusted, and every client draws the name:
- * - control and format characters go (bidi overrides could reverse other
- *   text, a zero-width space hides a name), except ZWJ, which joins emoji;
- * - white space folds to one space;
- * - at most PLAYER_NAME_MAX characters as a person sees them, never cut
- *   inside one; each keeps at most PLAYER_NAME_MAX_MARKS combining marks, as
- *   one character could stack thousands of them (Zalgo text);
- * - at most PLAYER_NAME_MAX_UNITS UTF-16 units in all.
- */
 export function normalizePlayerName(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
   const clean = raw
-    .replace(/(?!\u200D)\p{Cf}/gu, "")              // format characters: gone
-    // Controls, line breaks, white space, and letters that draw as nothing
-    // (Hangul fillers, the blank Braille pattern): one space.
+    .replace(/(?!\u200D)\p{Cf}/gu, "")
     .replace(/[\p{Cc}\u2028\u2029\s\u115F\u1160\u2800\u3164\uFFA0]+/gu, " ")
     .trim();
   let name = "";
@@ -37,21 +21,10 @@ export function normalizePlayerName(raw: unknown): string | null {
   return /[^\p{M}\p{Z}\u200D]/u.test(name) ? name : null;
 }
 
-/**
- * Two names with the same key are the same name for a person: case,
- * compatibility forms (full-width letters) and ZWJ, which a name keeps for
- * emoji but which draws as nothing, do not tell them apart.
- * Limits: letters of other scripts that look the same (Cyrillic "і") and
- * full case folding ("Straße" and "STRASSE") are not covered.
- */
 export function playerNameKey(name: string): string {
   return name.normalize("NFKC").toLowerCase().replace(/\u200D/g, "");
 }
 
-/**
- * The name, or the name with the first free number (" 2", " 3", ...) when it
- * is taken; the name is cut so that the number still fits PLAYER_NAME_MAX.
- */
 export function uniquePlayerName(name: string, taken: (name: string) => boolean): string {
   if (!taken(name)) return name;
   const chars = Array.from(segmenter.segment(name), (s) => s.segment);
@@ -62,12 +35,8 @@ export function uniquePlayerName(name: string, taken: (name: string) => boolean)
   }
 }
 
-// Not the green of friendly NPCs or the red of enemies (client/src/renderer.ts),
-// and no blue, which is close to water. A name always gets the same color: the color is a
-// hash of the name, so every client draws a player the same way.
 export const PLAYER_COLORS = ["#e6c", "#f93", "#ee5", "#b8f", "#4db", "#fa8"] as const;
 
-/** FNV-1a (32 bit) over UTF-16 code units: small, fixed, the same on every client. */
 function fnv1a(text: string): number {
   let hash = 0x811c9dc5;
   for (let i = 0; i < text.length; i++) {
@@ -81,8 +50,6 @@ export function playerColor(name: string): string {
   return PLAYER_COLORS[fnv1a(name) % PLAYER_COLORS.length];
 }
 
-// The default name on a first visit: an adjective and an animal, our own lists.
-// Every combination fits PLAYER_NAME_MAX.
 export const NAME_ADJECTIVES = [
   "Quiet", "Solid", "Liquid", "Silent", "Swift", "Iron", "Grey", "Wild",
   "Lone", "Crimson", "Old", "Little", "Bold", "Sly", "Calm", "Dusty",

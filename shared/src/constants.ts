@@ -1,60 +1,46 @@
 import type { Facing } from "./types.js";
 
-// --- World ---
 export const GRID_WIDTH = 40;
 export const GRID_HEIGHT = 40;
-export const TICK_RATE_MS = 125; // 8 ticks per second
+export const TICK_RATE_MS = 125;
 
-// --- Vision ---
 export const DEFAULT_VISION_RADIUS = 5;
 export const SCOUT_VISION_RADIUS = 8;
 
-// --- Agent ---
 export const DEFAULT_MAX_HP = 100;
-export const FOOD_CONSUMPTION_INTERVAL = 240; // ticks between food consumption (~30s)
-export const STARVATION_DAMAGE = 10;          // HP lost per interval when starving
+export const FOOD_CONSUMPTION_INTERVAL = 240;
+export const STARVATION_DAMAGE = 10;
 export const DEFAULT_INVENTORY_CAPACITY = 20;
 
-// --- Resources ---
-// The den has 4 berry bushes and 3 beasts that eat 1 food per ~30s: 4 food
-// per 30s just feeds them, so gathering by players makes the den short.
-export const RESOURCE_MAX_AMOUNT = 3;          // units a resource tile holds when full
-export const RESOURCE_REGROW_TICKS = 240;      // every resource tile grows back 1 unit per interval (~30s)
+export const RESOURCE_MAX_AMOUNT = 3;
+export const RESOURCE_REGROW_TICKS = 240;
 
-// --- Player ---
-export const PLAYER_NAME_MAX = 16;            // characters as a person sees them (grapheme clusters)
-export const PLAYER_NAME_MAX_MARKS = 3;       // combining marks kept per character (Vietnamese, emoji keycaps)
-export const PLAYER_NAME_MAX_UNITS = 128;     // UTF-16 units in a whole name, a backstop for long emoji sequences
+export const PLAYER_NAME_MAX = 16;
+export const PLAYER_NAME_MAX_MARKS = 3;
+export const PLAYER_NAME_MAX_UNITS = 128;
 
-// --- Join refusals ---
 // Close codes for a join that GameRoom.onJoin refuses. Not 4000 or 4001:
 // Colyseus uses those (CONSENTED, SERVER_SHUTDOWN, sent on every deploy).
 export const JOIN_REFUSED_NO_VILLAGE = 4100;
 export const JOIN_REFUSED_FULL = 4101;
 
-// --- Settlement ---
-export const HOUSING_POPULATION_CAP = 6;      // population per housing structure (village: 2 x 6 = 12)
+export const HOUSING_POPULATION_CAP = 6;
 
-// --- Zone ---
 export enum ZoneType {
   EMPTY = "",
   CORE = "core",
   HOUSING = "housing",
 }
 
-// --- Combat ---
 export const BASE_ATTACK_DAMAGE = 20;
-export const REVIVE_DELAY_TICKS = 40;          // ticks before a dead player may revive (~5s)
+export const REVIVE_DELAY_TICKS = 40;
 
-// --- Dialogue ---
-export const DIALOGUE_TIMEOUT_TICKS = 240;    // ticks before dialogue timeout (~30s)
+export const DIALOGUE_TIMEOUT_TICKS = 240;
 
-// --- Presence ---
-export const IDLE_TIMEOUT_TICKS = 960;        // ticks without a player message before the player counts as idle (~2 min)
+export const IDLE_TIMEOUT_TICKS = 960;
 
-// --- Movement reconciliation ---
-export const INPUT_QUEUE_CAP = 3;       // server-side per-agent input buffer depth
-export const PENDING_INPUT_CAP = 20;   // client-side pending input buffer safety valve
+export const INPUT_QUEUE_CAP = 3;
+export const PENDING_INPUT_CAP = 20;
 
 export const DIRECTION_DELTA: Record<Facing, { dx: number; dy: number }> = {
   north: { dx: 0, dy: -1 }, south: { dx: 0, dy: 1 },

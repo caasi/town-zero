@@ -1,13 +1,5 @@
 import type { AgentRef } from "../script-types.js";
 
-// Effects emitted by NPC event handlers. Deliberately kept tiny — and
-// deliberately _not_ a member of the general `Effect` union — so that:
-//   1. Returning `set_fact`/`give_item`/`damage`/etc. from an event handler is
-//      a compile-time error rather than a silent runtime no-op.
-//   2. Emitting `bubble` from dialogue actions is also impossible (the
-//      dialogue executor has no bubble handler, so previously it would have
-//      thrown "Unknown effect type: bubble" at runtime).
-// Dialogue actions remain the path for broader effect emission.
 export type EventEffect = {
   type: "bubble";
   target: AgentRef;
@@ -48,8 +40,6 @@ export interface TalkEndPayload extends EventBase {
   reason: "completed" | "timeout" | "player_left" | "npc_killed" | "error";
 }
 export interface CombatHitPayload extends EventBase {
-  // Nullable: scripted / environmental damage has no attacker.
-  // Handlers that only care about PvE-style hits should null-check before use.
   attacker: EntityRef | null;
   damage: number;
   hpAfter: number;
