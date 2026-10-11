@@ -11,6 +11,8 @@ Limits and shortcuts in the code that are not fixed yet.
 - AI movement is a greedy step (`stepToward` in `jev-controller.ts`); a beast behind water gets no step and re-asks Jev at most once per second. Upgrade to BFS (breadth-first search) over passable tiles when maps get obstacles.
 - The cache of NPC reply picks (`ReplyController`) holds `CACHE_SIZE` (1000) picks and removes the oldest one when it is full. If cache hits matter, change it to an LRU (least recently used) cache.
 - Two player names count as the same name when `playerNameKey` gives the same key. The key does not cover letters of other scripts that look the same (Cyrillic "і" and Latin "i"), or full case folding ("Straße" and "STRASSE").
+- Settlements are never removed from the synced state (`syncToSchema` in `server/src/rooms/sync.ts`), because no rule destroys a settlement yet. When one can be destroyed, remove it from the state as the agent removal does.
+- `GameRoom` keeps a no-op `input:stop` handler only for tabs opened before the deploy that stopped sending it. Remove the handler when no such tab is left.
 - Player attacks have no cooldown (one per key press, up to 8/s). AI beasts wait ~1s between attacks, but the wait is stored on the attack goal: a new goal (target left sight and came back) can hit at once.
 - Speech bubbles are drawn in the same pass as the agents (`client/src/renderer.ts`), so an agent drawn later covers a bubble (seen: a player diamond over "Greetings, traveler!"). The owner's direction: move the speech bubbles and the action hint to a UI (glass) layer above the canvas, directly under the touch controller. The hint is drawn after all agents for now.
 - Tabs of one browser share the stored player name (localStorage): a second tab joins with the same name, the server gives it a number ("Quiet Otter 2"), and the client does not keep that number. Not fixed on purpose.
@@ -29,6 +31,34 @@ Known gaps, accepted for now. The game draws on a canvas that a screen reader ca
 - Speech bubbles, and the name drawn over a player sprite, are only on the canvas. The list of players online (`#player-list`) is in the DOM.
 - A laptop with a touch screen matches `any-pointer: coarse`. It gets the touch controller, and it loses the keyboard hints (`#key-hints`, `.dlg-hint`), also in a dialogue.
 - The overlay buttons (Revive, Retry, Reload) and the name button are smaller than the touch minimum, `--touch-min` (48px) in `client/index.html`.
+
+## Rules that were comments
+
+Facts that were in code comments before the no-comments experiment (see `CLAUDE.md`, "Comments"). No test or document held them, so a later change can break them without a failing check. Move each one into the code (a name, a type, a test) or into `CLAUDE.md`, then remove it here. The old text is in `git log -p`.
+
+- **Client, no tests** (`client/src/input.ts`, `main.ts`, `renderer.ts`):
+  - `InputHandler.update` pushes each move frame also when `predictMove` rejects it. The server can accept a move that the client refuses, and a gap in the buffer breaks reconciliation.
+  - When the name field gets focus, the held keys are cleared. When the talk frame has run, the pending frames are dropped, so the player is not drawn moving.
+  - The game loop syncs display positions from the server before it reads input.
+  - The network handlers are registered once, because the network client lives across reconnects.
+  - A new rename refusal shows for its full time: an older timer must not hide it.
+  - After a revive, `displayState.clear()` in `client/src/main.ts` also drops the local player and the tile source, so prediction needs both set again.
+  - Fog and culling use the integer tile position (`displayX/Y`), not the lerped pixel position, to prevent flicker in the middle of a lerp.
+- **Links between modules:**
+  - A beast cannot die and come back before its Jev reply, because a respawn takes ~30 s and a Jev call times out after 5 s. `server/test/ai/jev-timing.property.test.ts` does not test that case.
+  - Player name colors avoid the green of friendly NPCs, the red of enemies and the blue of water in `client/src/renderer.ts`.
+  - `syncSettlement` compares only structure ids, because a structure is never changed after `addStructure`.
+  - `AgentSchema.talkable` is set once, because a dialogue tree never changes.
+- **Game balance:**
+  - The den has 4 berry bushes and 3 beasts that eat 1 food per ~30 s. So 4 food per 30 s only feeds them, and gathering by players makes the den short.
+  - Each village NPC takes a population slot: 2 housing x 6 = 12 slots, so 10 players.
+- **Contracts:**
+  - `DialogueEngine.advance()` does not run the effects of an action node. `advanceWithEffects()` runs them.
+  - An effect handler in `server/src/dialogue/executor.ts` returns `false` to stop the effects that come after it.
+  - `buildOptions` calls `nextFrame` to test each option. So `nextFrame` gets a copy of the goal (it starts the attack cooldown on the goal it gets), and the goal deadlines are set when the Jev reply arrives, not in `nextFrame`.
+  - On a dialogue timeout, the farewell line is read before the session ends and set after it, so a `talk:end` handler cannot hide it.
+  - `FogManager.tileSource()` returns a live view. Keep one reference, set at connect time.
+  - The type tests in `shared/type-tests/` import only from `shared/src/script-dsl`.
 
 ## Open items
 
