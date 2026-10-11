@@ -38,6 +38,7 @@ export function bindController(getInput: () => InputHandler | null): Controller 
   pad.addEventListener("pointerdown", (e) => {
     if (padPointer !== null) return;
     padPointer = e.pointerId;
+    // Capture keeps the moves coming when the finger slides off the pad.
     pad.setPointerCapture(e.pointerId);
     steer(e);
   });

@@ -84,10 +84,7 @@ function nearestKnownFood(agent: Agent, state: SimulationState, usedUp = false):
 }
 
 /**
- * The options a beast may pick from. Rules:
- * - Offer only what makes sense now, and every option must yield at least one
- *   frame. An option that is done at once makes the agent ask again at once,
- *   which loops on the API.
+ * The options a beast may pick from. Rules that Jev forces:
  * - Words, not coordinates: Jev is weak at spatial and numeric reasoning.
  * - "rest" goes first: Jev leans toward the first option (jev-1.13 known
  *   limitations), so that bias lands on the safest choice.

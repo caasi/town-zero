@@ -14,7 +14,6 @@ export type ChooseFn = (
 
 const isTokenCount = (n: unknown): n is number => Number.isInteger(n);
 
-/** Jev (TypeSafe AI) Choice question. See https://docs.typesafe.ai/api.md */
 export function jevChooser(apiKey: string, fetchFn: typeof fetch = fetch): ChooseFn {
   return async (state, instructions, options) => {
     const res = await fetchFn(JEV_URL, {
