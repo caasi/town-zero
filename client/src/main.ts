@@ -90,7 +90,7 @@ function updateHUD(): void {
   updatePlayerList();
 }
 
-// Reading window.localStorage itself can throw (blocked site data); an empty
+// external: Reading window.localStorage itself can throw (blocked site data); an empty
 // object makes every access throw, which player-name.ts handles.
 function storage(): Storage {
   try { return window.localStorage; } catch { return {} as Storage; }
@@ -135,14 +135,14 @@ nameBtn.addEventListener("click", () => {
 });
 
 nameInput.addEventListener("keydown", (e) => {
-  // Enter and Esc also accept or drop an input method (IME) candidate, for
+  // external: Enter and Esc also accept or drop an input method (IME) candidate, for
   // example while typing a CJK name; that key press is not for the field.
   // Safari ends the composition before this keydown, so isComposing is false
   // there and only keyCode 229 tells.
   if (e.isComposing || e.keyCode === 229) return;
   if (e.key === "Escape") { closeNameInput(); nameBtn.focus(); return; }
   if (e.key !== "Enter") return;
-  // Focus moves to the button below; without this the same Enter clicks it
+  // external: Focus moves to the button below; without this the same Enter clicks it
   // and opens the field again.
   e.preventDefault();
   const name = normalizePlayerName(nameInput.value);
@@ -294,7 +294,7 @@ function gameLoop(now: number): void {
 
 let staleClient = false;
 
-// An older server (rollback) has no presence handler, and Colyseus disconnects
+// external: An older server (rollback) has no presence handler, and Colyseus disconnects
 // a client that sends an unregistered type. A stale client sends none; the
 // server then counts it as visible and its idle timeout still applies.
 function reportPresence(): void {

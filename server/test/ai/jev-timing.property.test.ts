@@ -48,7 +48,7 @@ describe("Jev reply timing (property)", () => {
           const inFlight = new Map<string, number>();
           const askTicks = new Map<string, number[]>();
           let caller = "";
-          // scheduleFunction calls the function at once and holds its promise:
+          // external: scheduleFunction calls the function at once and holds its promise:
           // a rejection made there is unhandled until release. So the
           // scheduled value says "fail", and the rejection is made after release.
           const scheduled = s.scheduleFunction(async (criteria: Record<string, string>) => {

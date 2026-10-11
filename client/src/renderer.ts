@@ -68,7 +68,7 @@ export class Renderer {
       }
     }
 
-    // Set inside the forEach below, which TypeScript does not follow, hence the cast.
+    // external: Set inside the forEach below, which TypeScript does not follow, hence the cast.
     let hintAt = null as { left: number; right: number; y: number; facing: string } | null;
 
     if (state?.agents) {

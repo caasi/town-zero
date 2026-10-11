@@ -1,6 +1,6 @@
 import { normalizePlayerName, randomPlayerName } from "@town-zero/shared";
 
-// The name lives only in this browser. Storage can throw (private mode,
+// external: The name lives only in this browser. Storage can throw (private mode,
 // blocked site data), so every access is guarded and the game works without it.
 const NAME_KEY = "town-zero:name";
 const HINT_KEY = "town-zero:rename-hint-seen";

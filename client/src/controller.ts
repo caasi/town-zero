@@ -30,7 +30,7 @@ export function bindController(getInput: () => InputHandler | null): Controller 
     getInput()?.setTouchDirection(null);
     for (const el of pad.children) el.classList.remove("held");
   };
-  // A pad hidden under a finger may get no pointerup, and a pointer that is
+  // external: A pad hidden under a finger may get no pointerup, and a pointer that is
   // never released would make the pad ignore every later touch.
   const release = (e: PointerEvent) => {
     if (e.pointerId === padPointer) releasePad();
@@ -38,7 +38,7 @@ export function bindController(getInput: () => InputHandler | null): Controller 
   pad.addEventListener("pointerdown", (e) => {
     if (padPointer !== null) return;
     padPointer = e.pointerId;
-    // Capture keeps the moves coming when the finger slides off the pad.
+    // external: Capture keeps the moves coming when the finger slides off the pad.
     pad.setPointerCapture(e.pointerId);
     steer(e);
   });
@@ -49,7 +49,7 @@ export function bindController(getInput: () => InputHandler | null): Controller 
 
   onTap(actionBtn, () => {
     getInput()?.interact();
-    // A focused button would take the next Space or Enter from a keyboard.
+    // external: A focused button would take the next Space or Enter from a keyboard.
     actionBtn.blur();
   });
 

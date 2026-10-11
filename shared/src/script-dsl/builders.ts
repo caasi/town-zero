@@ -205,11 +205,9 @@ function createDialogueBuilder(
   return { api, build };
 }
 
-// SOURCE OF TRUTH for event keys + payloads: NpcEventMap (event-types.ts).
-// `on` is derived from NpcEventMap by turning the per-key signature union
+// external: `on` is derived from NpcEventMap by turning the per-key signature union
 // into an intersection — TypeScript treats an intersection of function types
 // as an overload set, so each event key narrows its payload exactly.
-// Adding a key to NpcEventMap adds a new overload automatically.
 type UnionToIntersection<U> =
   (U extends unknown ? (x: U) => void : never) extends (x: infer I) => void ? I : never;
 

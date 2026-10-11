@@ -10,7 +10,7 @@ let base: string;
 let port: number;
 let outer: string;
 
-// fetch() normalizes "../" and "%2e%2e" before sending, so traversal cases
+// external: fetch() normalizes "../" and "%2e%2e" before sending, so traversal cases
 // go through http.request, which sends the path as written.
 function rawGet(path: string, method = "GET"): Promise<{ status: number; headers: Record<string, unknown> }> {
   return new Promise((resolve, reject) => {
@@ -58,7 +58,7 @@ describe("static server", () => {
   });
 
   it("keeps dot segments inside the root: URL parsing resolves them first", async () => {
-    // "/../x" and "/%2e%2e/x" both become "/x" under the root, which does not exist.
+    // external: "/../x" and "/%2e%2e/x" both become "/x" under the root, which does not exist.
     for (const path of ["/../secret.txt", "/%2e%2e/secret.txt"]) {
       expect((await rawGet(path)).status, path).toBe(404);
     }
@@ -72,7 +72,7 @@ describe("static server", () => {
   });
 
   it("refuses encoded paths that leave the root with 403", async () => {
-    // An encoded slash survives URL parsing; decoding then yields "../".
+    // external: An encoded slash survives URL parsing; decoding then yields "../".
     for (const path of ["/assets/..%2f..%2fsecret.txt", "/%2e%2e%2fsecret.txt", "/..%2fsecret.txt"]) {
       expect((await rawGet(path)).status, path).toBe(403);
     }
