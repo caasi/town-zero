@@ -39,7 +39,6 @@ export function formatDialogueKeyHints(labels: Record<string, string>): string {
   return `${labels.KeyW}/${labels.KeyS}:Select  ${labels.KeyE}:Confirm  Esc:Close`;
 }
 
-
 const MOVE_KEYS: Record<string, { dx: number; dy: number }> = {
   KeyW: { dx: 0, dy: -1 }, ArrowUp: { dx: 0, dy: -1 },
   KeyA: { dx: -1, dy: 0 }, ArrowLeft: { dx: -1, dy: 0 },

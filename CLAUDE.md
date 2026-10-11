@@ -91,7 +91,7 @@ Source of truth: `processTick` in `server/src/simulation/tick.ts`.
 
 The TypeScript and JavaScript code of town-zero has no comments outside a short list. This is an experiment for this repository only. The rule covers the `.ts` and `.js` files that git tracks. It does not cover the Dockerfile, the shell scripts, the CI workflow or `client/index.html`.
 
-The rule comes from the `pstack` plugin of Lauren Tan: the `comment-sicko` agent and the `no-comments` and `correct` skills (<https://github.com/cursor/plugins/tree/main/pstack>). Her `correct` skill assumes that every contributor is an agent that "copies the nearest example", and it names "comments that explain workarounds" as a place where repeated mistakes start. A write-up of her talk gives the same reason: agents used a comment as a reason not to fix the real problem, and the workaround spread (<https://redreamality.com/cn/blog/lauren-tan-poteto-trust-before-parallel/>, from the auto-captions, not a transcript). The owner of this repository adds one more reason: a comment and the code often hold the same fact twice. The owner also sees a cost: two copies of a fact can make a system more robust. That is why the experiment is in this repository only.
+The rule comes from the `pstack` plugin of Lauren Tan: the `comment-sicko` agent and the `no-comments` and `correct` skills (<https://github.com/cursor/plugins/tree/main/pstack>). Her `correct` skill assumes that every contributor is an agent that "copies the nearest example". It names "comments that explain workarounds" as a place where repeated mistakes start. A write-up of her talk gives the same reason: agents used a comment as a reason not to fix the real problem, and the workaround spread. The write-up uses a transcript made from the automatic captions, which no person checked (<https://redreamality.com/cn/blog/lauren-tan-poteto-trust-before-parallel/>). The owner of this repository adds one more reason: a comment and the code often hold the same fact twice. The owner also sees a cost: two copies of a fact can make a system more robust. That is why the experiment is in this repository only.
 
 Do not write a comment. Put the fact in the code: a name, a type, a test, or a function with one job. If the code cannot hold a rule, write the rule in this file, a known limit in `TODO.md`, or a design decision in a spec.
 
@@ -104,7 +104,7 @@ A comment can stay only if it is one of these:
 
 If you are not sure that an item applies, delete the comment.
 
-This list differs from `comment-sicko` in four places:
+This list differs from `comment-sicko` in four main places. The list also has a shorter outside-behavior item and no item for lint suppressions.
 
 - It keeps `@ts-expect-error` in `shared/type-tests/`, because there the directive is the test. `comment-sicko` removes such suppressions.
 - It keeps `/// <reference ...>`, which `comment-sicko` does not name.
@@ -113,7 +113,7 @@ This list differs from `comment-sicko` in four places:
 
 `server/test/no-comments.test.ts` enforces the list. It reads every `.ts` and `.js` file that git tracks, and it compares the full text of each comment with `comments-allowed.txt`. It fails on a comment that is not in that file, also on a second copy of an allowed comment. It also fails on a line in that file whose comment is gone. To keep a comment, add its line to `comments-allowed.txt` in the same change. Name the item of the list in the commit message.
 
-Note: some facts were only in the removed comments, and are now only in git history (`git log -p -- <file>`). `TODO.md` lists the ones that a later change can break. If agents repeat mistakes that the old comments warned about, the experiment did not work. To stop it, revert the three commits "remove code comments" (one for `shared`, `server` and `client`), and remove the test.
+Note: some facts were only in the removed comments, and are now only in git history (`git log -p -- <file>`). `TODO.md` lists the ones that a later change can break. If agents repeat mistakes that the old comments warned about, the experiment did not work. To stop it, revert the three commits "remove code comments" (one for `shared`, `server` and `client`), and remove the test. Expect conflicts with the later commits that changed comments.
 
 ## Rules and what enforces them
 
