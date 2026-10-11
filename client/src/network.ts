@@ -1,4 +1,3 @@
-// client/src/network.ts
 import { Client, Room } from "@colyseus/sdk";
 import type { InputFrame, DialogueStatePayload } from "@town-zero/shared";
 import type { VisionData } from "./types.js";
@@ -29,8 +28,6 @@ export class NetworkClient {
   }
 
   async connect(name: string): Promise<void> {
-    // Dev: Vite on :3000, game server on :2567. Production: nginx serves both
-    // under one origin and routes matchmaking and WebSocket upgrades to the game.
     const protocol = window.location.protocol === "https:" ? "https" : "http";
     const endpoint = import.meta.env.DEV
       ? `${protocol}://${window.location.hostname}:2567`
@@ -57,9 +54,6 @@ export class NetworkClient {
     // freeze the screen. Turn them off: onLeave then fires at the drop.
     this.room.reconnection.enabled = false;
 
-    // The server closed the room or restarted (every deploy does). A leave we
-    // start (disconnect, join timeout) clears this.room in the same call, and
-    // onLeave only fires later on socket close, so the check skips it.
     const room = this.room;
     room.onLeave((code: number) => {
       if (this.room !== room) return;
@@ -110,7 +104,6 @@ export class NetworkClient {
     await joinedPromise;
   }
 
-  /** The build the server runs, from the joined message (undefined from older servers). */
   get serverCommit(): unknown {
     return this._serverCommit;
   }
@@ -123,7 +116,6 @@ export class NetworkClient {
     this.visionCallbacks.push(cb);
   }
 
-  /** The server refused a rename, because another agent has that name. */
   onRenameRejected(cb: (data: { name: string }) => void): void {
     this.renameRejectedCallbacks.push(cb);
   }
@@ -144,7 +136,6 @@ export class NetworkClient {
     this.room?.send("rename", { name });
   }
 
-  // The server pauses Jev while every player is idle or has the tab hidden.
   sendPresence(active: boolean): void {
     this.room?.send("presence", { active });
   }

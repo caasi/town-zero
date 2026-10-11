@@ -11,7 +11,6 @@ function makeTiles(entries: Record<string, { terrain: string }>) {
   };
 }
 
-/** Helper: init local player display via reconcileFromServer */
 function initLocal(
   ds: DisplayState,
   id: string,
@@ -60,8 +59,6 @@ describe("DisplayState", () => {
       expect(ds.get("p1")).toMatchObject({ displayX: from.x, displayY: from.y });
     });
 
-    // East, not west: x < 0 is blocked even with no map size, so only the
-    // east and south edges depend on the size that setGridSize stores.
     it("keeps the map size through clear(), which a revive calls", () => {
       const ds = new DisplayState();
       ds.setGridSize(10, 10);
@@ -102,7 +99,7 @@ describe("DisplayState", () => {
 
       const display = ds.get("p1");
       expect(display!.facing).toBe("east");
-      expect(display!.displayX).toBe(0); // didn't move
+      expect(display!.displayX).toBe(0);
     });
 
     it("turn-before-move: moves after facing matches", () => {
@@ -111,9 +108,7 @@ describe("DisplayState", () => {
       initLocal(ds, "p1", { x: 0, y: 0, facing: "south" });
 
       const tiles = makeTiles({ "1,0": { terrain: "plains" } });
-      // First call turns east
       ds.predictMove(1, 0, "idle", tiles);
-      // Second call moves (now facing east)
       ds.predictMove(1, 0, "idle", tiles);
 
       const display = ds.get("p1");
@@ -126,7 +121,7 @@ describe("DisplayState", () => {
       ds.setLocalPlayer("p1");
       initLocal(ds, "p1", { x: 0, y: 0, facing: "south" });
 
-      const tiles = makeTiles({}); // empty — tile is unknown
+      const tiles = makeTiles({});
       expect(ds.predictMove(0, 1, "idle", tiles)).toBe(true);
 
       const display = ds.get("p1");
@@ -139,7 +134,7 @@ describe("DisplayState", () => {
       ds.setLocalPlayer("p1");
       initLocal(ds, "p1", { x: 0, y: 0, facing: "east" });
 
-      const tiles = makeTiles({ "1,0": { terrain: "lava" } }); // unknown terrain
+      const tiles = makeTiles({ "1,0": { terrain: "lava" } });
       expect(ds.predictMove(1, 0, "idle", tiles)).toBe(true);
 
       const display = ds.get("p1");
@@ -193,11 +188,10 @@ describe("DisplayState", () => {
         { x: 3, y: 4, facing: "south", lastProcessedInput: 1, state: "idle" },
         pending,
       );
-      // seq 1 pruned, seq 2+3 replayed from (3,4) facing south
       expect(remaining).toHaveLength(2);
       expect(remaining[0].seq).toBe(2);
       expect(ds.get("p1")!.displayX).toBe(3);
-      expect(ds.get("p1")!.displayY).toBe(6); // moved 2 tiles south
+      expect(ds.get("p1")!.displayY).toBe(6);
     });
 
     it("skips replay for frames with action even if direction is also present", () => {
@@ -209,7 +203,6 @@ describe("DisplayState", () => {
       });
       ds.setTileSource(tiles);
 
-      // Frame has both direction and action — server executes action, ignores direction
       const pending: InputFrame[] = [
         { seq: 1, direction: "south", action: { type: "idle" } },
       ];
@@ -218,7 +211,6 @@ describe("DisplayState", () => {
         pending,
       );
       expect(remaining).toHaveLength(1);
-      // Should NOT have replayed the direction — position stays at server baseline
       expect(ds.get("p1")!.displayY).toBe(4);
     });
 
@@ -232,15 +224,15 @@ describe("DisplayState", () => {
       ds.setTileSource(tiles);
 
       const pending: InputFrame[] = [
-        { seq: 1, direction: "east" }, // turn only (was facing south)
-        { seq: 2, direction: "east" }, // actual move
+        { seq: 1, direction: "east" },
+        { seq: 2, direction: "east" },
       ];
       const remaining = ds.reconcileFromServer("p1",
         { x: 0, y: 0, facing: "south", lastProcessedInput: 0, state: "idle" },
         pending,
       );
       expect(remaining).toHaveLength(2);
-      expect(ds.get("p1")!.displayX).toBe(1); // turned then moved
+      expect(ds.get("p1")!.displayX).toBe(1);
       expect(ds.get("p1")!.facing).toBe("east");
     });
 
@@ -249,21 +241,20 @@ describe("DisplayState", () => {
       ds.setLocalPlayer("p1");
       const tiles = makeTiles({
         "0,0": { terrain: "plains" },
-        "1,0": { terrain: "water" }, // impassable
+        "1,0": { terrain: "water" },
       });
       ds.setTileSource(tiles);
 
       const pending: InputFrame[] = [
-        { seq: 1, direction: "east" }, // turn
-        { seq: 2, direction: "east" }, // would be rejected by replay (water)
+        { seq: 1, direction: "east" },
+        { seq: 2, direction: "east" },
       ];
-      // Server processed seq 1 (turn only), position didn't change
       const remaining = ds.reconcileFromServer("p1",
         { x: 0, y: 0, facing: "east", lastProcessedInput: 1, state: "idle" },
         pending,
       );
       expect(remaining).toHaveLength(1);
-      expect(ds.get("p1")!.displayX).toBe(0); // didn't move (water)
+      expect(ds.get("p1")!.displayX).toBe(0);
       expect(ds.get("p1")!.facing).toBe("east");
     });
 
@@ -277,22 +268,18 @@ describe("DisplayState", () => {
       });
       ds.setTileSource(tiles);
 
-      // seq 1: move south, seq 2: action (attack), seq 3: move south
-      // Action frame must be in buffer so pruning doesn't discard seq 1
       const pending: InputFrame[] = [
         { seq: 1, direction: "south" },
         { seq: 2, action: { type: "attack", targetId: "e1" } },
         { seq: 3, direction: "south" },
       ];
-      // Server acknowledges through seq 2 (the action)
       const remaining = ds.reconcileFromServer("p1",
         { x: 3, y: 4, facing: "south", lastProcessedInput: 2, state: "idle" },
         pending,
       );
-      // Only seq 3 should remain — replay it from baseline (3,4) facing south
       expect(remaining).toHaveLength(1);
       expect(remaining[0].seq).toBe(3);
-      expect(ds.get("p1")!.displayY).toBe(5); // replayed 1 move south
+      expect(ds.get("p1")!.displayY).toBe(5);
     });
 
     it("clears pending when agent state is not idle", () => {
@@ -335,7 +322,6 @@ describe("DisplayState", () => {
         ["npc1", { x: 1, y: 1, facing: "south" }],
       ]);
 
-      // Move npc1
       ds.syncFromServer([
         ["p1", { x: 0, y: 0, facing: "south" }],
         ["npc1", { x: 2, y: 1, facing: "south" }],
@@ -354,9 +340,8 @@ describe("DisplayState", () => {
         [],
       );
 
-      // syncFromServer should not override local player
       ds.syncFromServer([["p1", { x: 5, y: 5, facing: "north" }]]);
-      expect(ds.get("p1")!.displayX).toBe(0); // unchanged
+      expect(ds.get("p1")!.displayX).toBe(0);
     });
 
     it("removes displays for agents that disappear", () => {
@@ -376,10 +361,8 @@ describe("DisplayState", () => {
       const ds = new DisplayState();
       ds.syncFromServer([["a1", { x: 0, y: 0, facing: "south" }]]);
 
-      // Move display target
       ds.syncFromServer([["a1", { x: 1, y: 0, facing: "south" }]]);
 
-      // Simulate one frame (~16.67ms)
       ds.updateRender(16.67);
 
       const display = ds.get("a1")!;
@@ -392,7 +375,6 @@ describe("DisplayState", () => {
       ds.syncFromServer([["a1", { x: 0, y: 0, facing: "south" }]]);
       ds.syncFromServer([["a1", { x: 1, y: 0, facing: "south" }]]);
 
-      // Run many frames to converge
       for (let i = 0; i < 60; i++) {
         ds.updateRender(16.67);
       }

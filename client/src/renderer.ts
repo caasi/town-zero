@@ -1,4 +1,3 @@
-// client/src/renderer.ts
 import { ZoneType, playerColor, type EntitySnapshot, type Facing } from "@town-zero/shared";
 import type { FogLevel } from "./types.js";
 import type { FogManager } from "./fog.js";
@@ -7,7 +6,7 @@ import type { DisplayState, AgentDisplay } from "./display.js";
 import { TILE_SIZE } from "./constants.js";
 import { HINT_LABELS, type ActionHint } from "./action-hint.js";
 
-const EIGENGRAU = "#16161d"; // perceived color of darkness — used for unknown tiles
+const EIGENGRAU = "#16161d";
 
 const TERRAIN_COLORS: Record<string, string> = {
   plains: "#3a6a3e",
@@ -44,18 +43,15 @@ export class Renderer {
     const ctx = this.ctx;
     const vp = camera.getViewport();
 
-    // Extract player faction for enemy detection
     let playerFaction = "";
     if (playerId && state?.agents) {
       const pa = state.agents.get(playerId);
       if (pa) playerFaction = pa.faction;
     }
 
-    // Void (outside map) is true black
     ctx.fillStyle = "#000";
     ctx.fillRect(0, 0, width, height);
 
-    // Draw tiles
     for (let y = vp.startY; y < vp.endY; y++) {
       for (let x = vp.startX; x < vp.endX; x++) {
         const px = (x - vp.startX) * TILE_SIZE + vp.offsetX;
@@ -63,7 +59,6 @@ export class Renderer {
         const fogLevel = fog.getLevel(x, y);
 
         if (fogLevel === "unknown") {
-          // Eigengrau — distinguishes "unseen tile" from "void outside map"
           ctx.fillStyle = EIGENGRAU;
           ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
           continue;
@@ -76,26 +71,20 @@ export class Renderer {
     // Set inside the forEach below, which TypeScript does not follow, hence the cast.
     let hintAt = null as { left: number; right: number; y: number; facing: string } | null;
 
-    // Draw agents on visible tiles (from live server state)
     if (state?.agents) {
       state.agents.forEach((agent: any) => {
-        // Use lerped render position if available, else fall back to server position
         const display = displayState?.get(agent.id);
         const pxWorld = display ? display.renderX : agent.x * TILE_SIZE;
         const pyWorld = display ? display.renderY : agent.y * TILE_SIZE;
 
-        // Convert from world pixel coords to screen coords
         const px = pxWorld - vp.startX * TILE_SIZE + vp.offsetX;
         const py = pyWorld - vp.startY * TILE_SIZE + vp.offsetY;
 
-        // Use stable integer tile position for fog/culling to avoid
-        // mid-lerp flicker when rounding flips at the half-tile point.
         const tileX = display ? display.displayX : agent.x;
         const tileY = display ? display.displayY : agent.y;
         const fl = fog.getLevel(tileX, tileY);
         if (fl !== "visible") return;
 
-        // Cull agents outside viewport (with 1-tile margin for sliding agents)
         if (tileX < vp.startX - 1 || tileX > vp.endX || tileY < vp.startY - 1 || tileY > vp.endY) return;
 
         this.drawAgent(ctx, px, py, agent, playerId, playerFaction, "visible", display);
@@ -103,9 +92,7 @@ export class Renderer {
           hintAt = { left: px - 4, right: px + TILE_SIZE + 4, y: py + TILE_SIZE / 2, facing: display?.facing ?? agent.facing };
         }
 
-        // Bubble text above sprite (server clears with empty string; no client-side expiry)
         const bubble: string = typeof agent.bubbleText === "string" ? agent.bubbleText : "";
-        // Another player's name in its color; a bubble takes the same place and wins.
         if (!bubble && agent.role === "player" && agent.id !== playerId && agent.name) {
           ctx.save();
           ctx.font = "11px monospace";
@@ -119,7 +106,7 @@ export class Renderer {
         }
         if (bubble) {
           const cx = px + TILE_SIZE / 2;
-          const bubbleY = py - 6; // baseline of bubble bottom edge above the tile
+          const bubbleY = py - 6;
           ctx.save();
           ctx.font = "12px sans-serif";
           ctx.textAlign = "center";
@@ -140,10 +127,6 @@ export class Renderer {
       });
     }
 
-    // What E or Action will do now, gray when it would change nothing. Drawn
-    // after all agents so that no sprite or speech bubble covers it.
-    // It goes to the right, or to the left when the player faces east, so it
-    // never covers the tile the action targets.
     if (hintAt && actionHint) {
       const text = HINT_LABELS[actionHint.action];
       ctx.save();
@@ -159,7 +142,6 @@ export class Renderer {
       ctx.restore();
     }
 
-    // Draw remembered entities on explored tiles (from fog memory)
     for (let y = vp.startY; y < vp.endY; y++) {
       for (let x = vp.startX; x < vp.endX; x++) {
         const fl = fog.getLevel(x, y);
@@ -179,9 +161,6 @@ export class Renderer {
     ctx: CanvasRenderingContext2D, px: number, py: number,
     fog: FogManager, x: number, y: number, fogLevel: FogLevel,
   ): void {
-    // Read terrain from fog snapshots, not raw server state.
-    // This respects the information model: explored tiles show
-    // what the player last observed, not omniscient live data.
     let terrain = "plains";
     let resourceYield = "";
     const snapshot = fog.getSnapshot(x, y);
@@ -190,16 +169,13 @@ export class Renderer {
       resourceYield = snapshot.resourceYield || "";
     }
 
-    // Base color
     ctx.fillStyle = TERRAIN_COLORS[terrain] ?? TERRAIN_COLORS.plains;
     ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
 
-    // Terrain patterns (only if not unknown)
     if (fogLevel !== "unknown") {
       this.drawTerrainPattern(ctx, px, py, terrain);
     }
 
-    // Zone overlay (after terrain pattern, before resource dot)
     if (fogLevel !== "unknown") {
       const zoneType = snapshot?.zoneType ?? ZoneType.EMPTY;
       const ownerFaction = snapshot?.ownerFaction || "";
@@ -211,7 +187,6 @@ export class Renderer {
       }
     }
 
-    // Bush object (drawTile is only called for non-"unknown" fog levels)
     const objectType = snapshot?.objectType || "";
     if (objectType === "bush") {
       ctx.fillStyle = "#2a8a2a";
@@ -226,7 +201,6 @@ export class Renderer {
       ctx.fill();
     }
 
-    // Resource yield dot
     if (fogLevel !== "unknown" && resourceYield) {
       ctx.fillStyle = resourceYield === "food" ? "#6a6" : "#a86";
       ctx.beginPath();
@@ -234,12 +208,10 @@ export class Renderer {
       ctx.fill();
     }
 
-    // Grid lines
     ctx.strokeStyle = "rgba(255,255,255,0.08)";
     ctx.lineWidth = 1;
     ctx.strokeRect(px, py, TILE_SIZE, TILE_SIZE);
 
-    // Fog overlay
     const alpha = FOG_ALPHA[fogLevel];
     if (alpha > 0) {
       ctx.fillStyle = `rgba(0,0,0,${alpha})`;
@@ -301,7 +273,7 @@ export class Renderer {
     switch (zoneType) {
       case ZoneType.CORE:
         fillColor = factionColor;
-        marker = "\u2605"; // ★
+        marker = "\u2605";
         opacity = 0.6;
         break;
       case ZoneType.HOUSING:
@@ -351,10 +323,6 @@ export class Renderer {
     ctx.globalAlpha = isDead ? 0.5 : 1;
 
     if (agent.role === "player") {
-      // Diamond - a player, in the color of its name on every screen, so
-      // players can tell each other apart by it. Six colors repeat, so the
-      // fill tells you from the others: you are filled with your color and
-      // edged white; they are filled white and edged with their color.
       const color = playerColor(agent.name || agent.id);
       diamondPath(ctx, px, py);
       ctx.fillStyle = isPlayer ? color : "#fff";
@@ -363,7 +331,6 @@ export class Renderer {
       ctx.lineWidth = 1.5;
       ctx.stroke();
     } else {
-      // Triangle - NPCs
       const isEnemy = playerFaction !== "" && agent.faction !== playerFaction;
       ctx.fillStyle = isEnemy ? "#c44" : "#6c6";
       trianglePath(ctx, px, py);
@@ -375,13 +342,11 @@ export class Renderer {
       }
     }
 
-    // Facing indicator (skip for dead agents)
     if (!isDead) {
       const facing = (display?.facing ?? agent.facing) as Facing | undefined;
       this.drawFacingIndicator(ctx, px, py, cx, cy, facing);
     }
 
-    // Dead X mark
     if (isDead) {
       ctx.strokeStyle = "#f00";
       ctx.lineWidth = 2;
@@ -420,15 +385,11 @@ export class Renderer {
     ctx: CanvasRenderingContext2D, px: number, py: number,
     entity: EntitySnapshot,
     playerFaction: string,
-    name: string | undefined, // of a player still online; a player who left has no name to color by
+    name: string | undefined,
   ): void {
     ctx.globalAlpha = 0.4;
 
-    // A remembered player is never you: the server records your own tile
-    // each tick without you, and a merged copy from a neighbour replaces a
-    // tile only when it is newer.
     if (entity.role === "player") {
-      // White with a colored edge, as other players are drawn live.
       diamondPath(ctx, px, py);
       ctx.fillStyle = "#fff";
       ctx.fill();

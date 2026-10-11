@@ -1,4 +1,3 @@
-// client/src/dialogue-ui.ts
 import type { DialogueStatePayload } from "@town-zero/shared";
 import { onTap } from "./tap.js";
 
@@ -9,7 +8,6 @@ export class DialogueUI {
   private optionsEl: HTMLElement;
   private timerEl: HTMLElement;
 
-  // Taps and clicks; the keyboard path goes through InputHandler.
   onAdvance: (() => void) | null = null;
   onChoose: ((optionId: string) => void) | null = null;
   onClose: (() => void) | null = null;
@@ -36,9 +34,6 @@ export class DialogueUI {
 
     this.speakerEl.textContent = payload.speaker ?? payload.npcName;
 
-    // The NPC thinks (spec 004): show "…" like text, but isShowingText() is
-    // false and there are no options, so E sends nothing. An E here used to
-    // skip the reply that Jev picked before it reached the client.
     this.waiting = payload.nodeType === "waiting";
     if (payload.nodeType === "text" || payload.nodeType === "waiting") {
       this.contentEl.textContent = payload.content ?? "";
@@ -68,7 +63,6 @@ export class DialogueUI {
     if (next < 0) next = this.options.length - 1;
     if (next >= this.options.length) next = 0;
 
-    // Skip disabled options (up to full cycle)
     const start = next;
     while (!this.options[next].enabled) {
       next += delta;

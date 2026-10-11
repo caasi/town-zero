@@ -1,5 +1,3 @@
-// client/src/tap.ts
-
 const CLICK_AFTER_TAP_MS = 500;
 
 /**
@@ -22,7 +20,7 @@ export function onTap(el: HTMLElement, fn: () => void): void {
   });
   el.addEventListener("pointercancel", () => { down = null; });
   el.addEventListener("pointerup", (e) => {
-    if (e.pointerId !== down) return; // not pressed here, or not the primary button
+    if (e.pointerId !== down) return;
     down = null;
     // A touch pointer stays with the element it went down on, so check where it
     // was released: sliding off before the release cancels.

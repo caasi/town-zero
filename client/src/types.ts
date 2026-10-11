@@ -1,9 +1,7 @@
-// client/src/types.ts
 import type { TerrainType, EntitySnapshot, ZoneType } from "@town-zero/shared";
 
 export type FogLevel = "visible" | "explored" | "unknown";
 
-/** A frozen snapshot of a tile at the time it was last observed. */
 export interface TileSnapshot {
   terrain: TerrainType;
   entities: EntitySnapshot[];
