@@ -38,9 +38,9 @@ Facts that were in code comments before the no-comments experiment (see `CLAUDE.
 
 - **Client, no tests** (`client/src/input.ts`, `main.ts`, `renderer.ts`):
   - `InputHandler.update` pushes each move frame also when `predictMove` rejects it. The server can accept a move that the client refuses, and a gap in the buffer breaks reconciliation.
-  - When the name field gets focus, the held keys are cleared. When the talk frame has run, the pending frames are dropped, so the player is not drawn moving.
+  - While a text field has focus, `update()` clears the held keys on each frame. When the talk frame has run, the pending frames are dropped, so the player is not drawn moving.
   - The game loop syncs display positions from the server before it reads input.
-  - The network handlers are registered once, because the network client lives across reconnects.
+  - The `onRenameRejected` handler in `client/src/main.ts` is registered once, at module scope, because the network client lives across reconnects. The other handlers are registered again on each connect.
   - A new rename refusal shows for its full time: an older timer must not hide it.
   - After a revive, `displayState.clear()` in `client/src/main.ts` also drops the local player and the tile source, so prediction needs both set again.
   - Fog and culling use the integer tile position (`displayX/Y`), not the lerped pixel position, to prevent flicker in the middle of a lerp.
@@ -55,7 +55,7 @@ Facts that were in code comments before the no-comments experiment (see `CLAUDE.
 - **Contracts:**
   - `DialogueEngine.advance()` does not run the effects of an action node. `advanceWithEffects()` runs them.
   - An effect handler in `server/src/dialogue/executor.ts` returns `false` to stop the effects that come after it.
-  - `buildOptions` calls `nextFrame` to test each option. So `nextFrame` gets a copy of the goal (it starts the attack cooldown on the goal it gets), and the goal deadlines are set when the Jev reply arrives, not in `nextFrame`.
+  - `buildOptions` calls `nextFrame` to test each option. So `nextFrame` gets a copy of the goal, because it starts the attack cooldown on the goal it gets. For the same reason, the Jev reply handler sets the roar bubble, not `nextFrame`.
   - On a dialogue timeout, the farewell line is read before the session ends and set after it, so a `talk:end` handler cannot hide it.
   - `FogManager.tileSource()` returns a live view. Keep one reference, set at connect time.
   - The type tests in `shared/type-tests/` import only from `shared/src/script-dsl`.
