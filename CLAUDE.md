@@ -89,26 +89,35 @@ Source of truth: `processTick` in `server/src/simulation/tick.ts`.
 
 ## Comments (an experiment)
 
-The code of town-zero has no comments. This is an experiment for this repository only. It follows the `pstack` plugin of Lauren Tan (the `comment-sicko` agent and the `no-comments` and `correct` skills, <https://github.com/cursor/plugins/tree/main/pstack>). Her reason: an agent reads the code as its memory. It copies a comment that explains a workaround, and the workaround becomes the usual pattern. A comment also says again what the code says, and the two can become different.
+The TypeScript and JavaScript code of town-zero has no comments outside a short list. This is an experiment for this repository only. The rule covers the `.ts` and `.js` files that git tracks. It does not cover the Dockerfile, the shell scripts, the CI workflow or `client/index.html`.
+
+The rule comes from the `pstack` plugin of Lauren Tan: the `comment-sicko` agent and the `no-comments` and `correct` skills (<https://github.com/cursor/plugins/tree/main/pstack>). Her `correct` skill assumes that every contributor is an agent that "copies the nearest example", and it names "comments that explain workarounds" as a place where repeated mistakes start. A write-up of her talk gives the same reason: agents used a comment as a reason not to fix the real problem, and the workaround spread (<https://redreamality.com/cn/blog/lauren-tan-poteto-trust-before-parallel/>, from the auto-captions, not a transcript). The owner of this repository adds one more reason: a comment and the code often hold the same fact twice. The owner also sees a cost: two copies of a fact can make a system more robust. That is why the experiment is in this repository only.
 
 Do not write a comment. Put the fact in the code: a name, a type, a test, or a function with one job. If the code cannot hold a rule, write the rule in this file, a known limit in `TODO.md`, or a design decision in a spec.
 
 A comment can stay only if it is one of these:
 
 - A license header.
-- A behavior that an outside dependency, platform, browser or vendor forces, and that this project cannot change. Examples: Colyseus close codes, the TypeScript compiler, iOS Safari, the first-option bias of Jev.
+- A behavior that an outside dependency, platform, browser or vendor forces, and that this project cannot change. Examples: Colyseus close codes, the TypeScript compiler, iOS Safari, a measured bias of Jev.
 - A tool directive: `/// <reference ...>`, `@ts-expect-error` in a type test, or `// prettier-ignore`.
 - An issue or RFC link that explains a constraint that the code cannot show.
 
-If you are not sure that an item applies, delete the comment. Her list also keeps the doc comments of a public API. town-zero has no public API, because only this repository uses its packages.
+If you are not sure that an item applies, delete the comment.
 
-`server/test/no-comments.test.ts` enforces the list. It reads every `.ts` and `.js` file that git tracks. It fails on a comment that is not in `comments-allowed.txt`, and on a line in that file whose comment is gone. To keep a comment, add its line to `comments-allowed.txt` in the same change. Name the item of the list in the commit message.
+This list differs from `comment-sicko` in four places:
 
-Note: the removed comments held facts that are now only in this file, in `TODO.md` and in git history (`git log -p -- <file>`). If agents repeat mistakes that the old comments warned about, the experiment did not work. To stop it, revert the commit that removed the comments, and remove the test.
+- It keeps `@ts-expect-error` in `shared/type-tests/`, because there the directive is the test. `comment-sicko` removes such suppressions.
+- It keeps `/// <reference ...>`, which `comment-sicko` does not name.
+- It has no item for the doc comments of a public API, because only this repository uses its packages.
+- It does not use the `MUST KILL` step, where a surprise in our own code marks the symbol for a rename or a rewrite. A surprise in our own code goes to `TODO.md` or this file.
+
+`server/test/no-comments.test.ts` enforces the list. It reads every `.ts` and `.js` file that git tracks, and it compares the full text of each comment with `comments-allowed.txt`. It fails on a comment that is not in that file, also on a second copy of an allowed comment. It also fails on a line in that file whose comment is gone. To keep a comment, add its line to `comments-allowed.txt` in the same change. Name the item of the list in the commit message.
+
+Note: some facts were only in the removed comments, and are now only in git history (`git log -p -- <file>`). `TODO.md` lists the ones that a later change can break. If agents repeat mistakes that the old comments warned about, the experiment did not work. To stop it, revert the three commits "remove code comments" (one for `shared`, `server` and `client`), and remove the test.
 
 ## Rules and what enforces them
 
-A written rule does nothing when an agent does not read it. When you add a rule to this file, add a row here with the check that fails when someone breaks the rule. If no check exists, write "none" and try to make one.
+A written rule does nothing when an agent does not read it. When you add a rule to this file, add a row here with the check that fails when someone breaks the rule. If no check exists, write "none" and try to make one. The table is not complete yet: many rules above have no row.
 
 | Rule | Enforced by |
 |------|-------------|
@@ -116,38 +125,7 @@ A written rule does nothing when an agent does not read it. When you add a rule 
 | Tests never call the real Jev API | `server/vitest.config.ts` clears `TYPESAFE_API_KEY` |
 | Timing and protocol invariants hold | the `*.property.test.ts` files, in `pnpm run test:props` and CI |
 | Test files match the code they test | `pnpm run typecheck`, in CI |
-| The script DSL types reject a wrong event or effect | `shared/type-tests/`, in `pnpm run typecheck:types` |
-
-## Comments (an experiment)
-
-The code of town-zero has no comments. This is an experiment for this repository only. It follows the `pstack` plugin of Lauren Tan (the `comment-sicko` agent and the `no-comments` and `correct` skills, <https://github.com/cursor/plugins/tree/main/pstack>). Her reason: an agent reads the code as its memory. It copies a comment that explains a workaround, and the workaround becomes the usual pattern. A comment also says again what the code says, and the two can become different.
-
-Do not write a comment. Put the fact in the code: a name, a type, a test, or a function with one job. If the code cannot hold a rule, write the rule in this file, a known limit in `TODO.md`, or a design decision in a spec.
-
-A comment can stay only if it is one of these:
-
-- A license header.
-- A behavior that an outside dependency, platform, browser or vendor forces, and that this project cannot change. Examples: Colyseus close codes, the TypeScript compiler, iOS Safari, the first-option bias of Jev.
-- A tool directive: `/// <reference ...>`, `@ts-expect-error` in a type test, or `// prettier-ignore`.
-- An issue or RFC link that explains a constraint that the code cannot show.
-
-If you are not sure that an item applies, delete the comment. Her list also keeps the doc comments of a public API. town-zero has no public API, because only this repository uses its packages.
-
-`server/test/no-comments.test.ts` enforces the list. It reads every `.ts` and `.js` file that git tracks. It fails on a comment that is not in `comments-allowed.txt`, and on a line in that file whose comment is gone. To keep a comment, add its line to `comments-allowed.txt` in the same change. Name the item of the list in the commit message.
-
-Note: the removed comments held facts that are now only in this file, in `TODO.md` and in git history (`git log -p -- <file>`). If agents repeat mistakes that the old comments warned about, the experiment did not work. To stop it, revert the commit that removed the comments, and remove the test.
-
-## Rules and what enforces them
-
-A written rule does nothing when an agent does not read it. When you add a rule to this file, add a row here with the check that fails when someone breaks the rule. If no check exists, write "none" and try to make one.
-
-| Rule | Enforced by |
-|------|-------------|
-| No comment outside the list in "Comments" | `server/test/no-comments.test.ts`, in `pnpm run test` and CI |
-| Tests never call the real Jev API | `server/vitest.config.ts` clears `TYPESAFE_API_KEY` |
-| Timing and protocol invariants hold | the `*.property.test.ts` files, in `pnpm run test:props` and CI |
-| Test files match the code they test | `pnpm run typecheck`, in CI |
-| The script DSL types reject a wrong event or effect | `shared/type-tests/`, in `pnpm run typecheck:types` |
+| The script DSL types reject a wrong event or effect | `shared/type-tests/`, in `pnpm run typecheck:types`, and in `pnpm run typecheck` in CI |
 
 ## Development Notes
 

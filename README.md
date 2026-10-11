@@ -43,7 +43,7 @@ pnpm run typecheck   # types of src and test files; run pnpm run build first
 
 CI runs all three.
 
-The code has no comments, as an experiment. `pnpm run test` fails when a change adds one. The rules and the few exceptions are in `CLAUDE.md`, section "Comments".
+As an experiment, the TypeScript and JavaScript code has no comments outside a short list. `pnpm run test` fails when a change adds one. The rules and the few exceptions are in `CLAUDE.md`, section "Comments".
 
 ## Current State
 

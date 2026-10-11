@@ -8,8 +8,8 @@ entries are grouped by date, not by version. The format follows
 
 ### Changed
 
-- The code has no comments, as an experiment. A test fails when a change
-  adds a comment that is not on the short list in `CLAUDE.md`.
+- As an experiment, the TypeScript and JavaScript code has no comments
+  outside a short list in `CLAUDE.md`. A test fails when a change adds one.
 
 ## 2026-10-10
 
