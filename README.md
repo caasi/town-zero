@@ -43,6 +43,8 @@ pnpm run typecheck   # types of src and test files; run pnpm run build first
 
 CI runs all three.
 
+The code has no comments, as an experiment. `pnpm run test` fails when a change adds one. The rules and the few exceptions are in `CLAUDE.md`, section "Comments".
+
 ## Current State
 
 **Working:**
