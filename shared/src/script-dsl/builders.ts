@@ -8,8 +8,6 @@ import type { ResourceType } from "../types.js";
 import { ExprBuilder, toExpr, type ExprOrValue } from "./expressions.js";
 import type { NpcEventMap, NpcEventName, EventHandler, EventEffect } from "./event-types.js";
 
-// --- Simple effect builders ---
-
 export function belief(key: string, value: Value): { key: string; value: Value } {
   return { key, value };
 }
@@ -38,8 +36,6 @@ export function when(builder: ExprBuilder): Expr {
   return builder.toExpr();
 }
 
-// --- Option builder ---
-
 export interface OptionBuilder {
   when(condition: ExprBuilder): OptionBuilder;
   goto(nodeId: string): OptionBuilder;
@@ -66,8 +62,6 @@ function createOptionBuilder(label: TextTemplate): { builder: OptionBuilder; get
   return { builder, getData: () => data };
 }
 
-// --- Reply line builder ---
-
 export interface LineBuilder {
   when(condition: ExprBuilder): LineBuilder;
   goto(nodeId: string): LineBuilder;
@@ -90,12 +84,9 @@ function createLineBuilder(id: string, description: string, text: TextTemplate):
   return { builder, getData: () => data };
 }
 
-// --- Dialogue builder ---
-
 interface DialogueBuilderApi {
   text(id: string, content: TextTemplate, opts?: { context?: string; next?: string; speaker?: string }): void;
   choice(id: string, options: OptionBuilder[]): void;
-  /** NPC reply lines; Jev picks one from the NPC's profile (spec 004). The first line is the neutral fallback. */
   reply(id: string, lines: [LineBuilder, ...LineBuilder[]]): void;
   line(id: string, description: string, text: string | TextTemplate): LineBuilder;
   action(id: string, effects: Effect[], opts: { next: string }): void;
@@ -177,7 +168,6 @@ function createDialogueBuilder(
       registerNode(id, { type: "action", effects, next: opts.next });
     },
 
-
     end(id) {
       registerNode(id, { type: "end" });
     },
@@ -230,8 +220,6 @@ type NpcOnOverloads = UnionToIntersection<{
 export interface NpcBuilder {
   on: NpcOnOverloads;
 }
-
-// --- Scenario builder ---
 
 interface ScenarioBuilderApi {
   npc(id: string, opts: {
