@@ -19,7 +19,7 @@ export const PLAYER_NAME_MAX = 16;
 export const PLAYER_NAME_MAX_MARKS = 3;
 export const PLAYER_NAME_MAX_UNITS = 128;
 
-// Close codes for a join that GameRoom.onJoin refuses. Not 4000 or 4001:
+// external: Close codes for a join that GameRoom.onJoin refuses. Not 4000 or 4001:
 // Colyseus uses those (CONSENTED, SERVER_SHUTDOWN, sent on every deploy).
 export const JOIN_REFUSED_NO_VILLAGE = 4100;
 export const JOIN_REFUSED_FULL = 4101;

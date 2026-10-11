@@ -83,12 +83,10 @@ function nearestKnownFood(agent: Agent, state: SimulationState, usedUp = false):
   return best;
 }
 
-/**
- * The options a beast may pick from. Rules that Jev forces:
- * - Words, not coordinates: Jev is weak at spatial and numeric reasoning.
- * - "rest" goes first: Jev leans toward the first option (jev-1.13 known
- *   limitations), so that bias lands on the safest choice.
- */
+// external: The options a beast may pick from. Rules that Jev forces:
+// - Words, not coordinates: Jev is weak at spatial and numeric reasoning.
+// - "rest" goes first: Jev leans toward the first option (jev-1.13 known
+//   limitations), so that bias lands on the safest choice.
 export function buildOptions(agent: Agent, state: SimulationState, rand = Math.random): Option[] {
   const clamp = (v: number, max: number) => Math.min(Math.max(v, 0), max - 1);
   const around = (c: Position, r: number): Position => ({

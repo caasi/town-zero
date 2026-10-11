@@ -49,12 +49,12 @@ export class NetworkClient {
       }, 10_000);
     });
 
-    // The server removes a player at once on leave (no allowReconnection), so
+    // external: The server removes a player at once on leave (no allowReconnection), so
     // the SDK's retries (15 over ~56 s, measured) can never succeed and only
     // freeze the screen. Turn them off: onLeave then fires at the drop.
     this.room.reconnection.enabled = false;
 
-    // The server closed the room or restarted (every deploy does). A leave we
+    // external: The server closed the room or restarted (every deploy does). A leave we
     // start (disconnect, join timeout) clears this.room in the same call, and
     // onLeave only fires later on socket close, so the check skips it.
     const room = this.room;

@@ -9,7 +9,7 @@ describe("leaveMessage", () => {
   });
 
   it("keeps the deploy text for the codes Colyseus itself uses", () => {
-    // 4000 CONSENTED, 4001 SERVER_SHUTDOWN (every deploy), 4010 MAY_TRY_RECONNECT
+    // external: 4000 CONSENTED, 4001 SERVER_SHUTDOWN (every deploy), 4010 MAY_TRY_RECONNECT
     for (const code of [4000, 4001, 4010, 1006]) {
       expect(leaveMessage(code)).toBe(`Disconnected from the server (code ${code}). The game may have been updated.`);
     }

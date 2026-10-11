@@ -105,7 +105,7 @@ export class DialogueUI {
       el.type = "button";
       el.className = "dlg-option";
       el.disabled = !opt.enabled;
-      // Some browsers send pointer events to a disabled button.
+      // external: Some browsers send pointer events to a disabled button.
       onTap(el, () => { if (opt.enabled) this.onChoose?.(opt.id); });
       if (i === this.selectedIndex) el.classList.add("selected");
       if (!opt.enabled) el.classList.add("disabled");

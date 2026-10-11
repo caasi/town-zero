@@ -95,25 +95,28 @@ The rule comes from the `pstack` plugin of Lauren Tan: the `comment-sicko` agent
 
 Do not write a comment. Put the fact in the code: a name, a type, a test, or a function with one job. If the code cannot hold a rule, write the rule in this file, a known limit in `TODO.md`, or a design decision in a spec.
 
-A comment can stay only if it is one of these:
+A comment can stay only if it is one of these. The first line of a kept comment starts with the prefix of its item:
 
-- A license header.
-- A behavior that an outside dependency, platform, browser or vendor forces, and that this project cannot change. Examples: Colyseus close codes, the TypeScript compiler, iOS Safari, a measured bias of Jev.
-- A tool directive: `/// <reference ...>`, `@ts-expect-error` in a type test, or `// prettier-ignore`.
-- An issue or RFC link that explains a constraint that the code cannot show.
+- `license:` A license header.
+- `external:` A behavior that an outside dependency, platform, browser or vendor forces, and that this project cannot change. Examples: Colyseus close codes, the TypeScript compiler, iOS Safari, a measured bias of Jev.
+- `issue:` An issue or RFC link that explains a constraint that the code cannot show.
+- A tool directive, with no prefix: `/// <reference ...>`, `// prettier-ignore`, or `@ts-expect-error` in `shared/type-tests/`.
+
+A kept comment is a run of `//` comments, each on its own line, with no blank line between them. Only the first line has the prefix. A comment at the end of a code line, a block comment, or a line after a directive cannot continue a kept comment.
 
 If you are not sure that an item applies, delete the comment.
 
-This list differs from `comment-sicko` in four main places. The list also has a shorter outside-behavior item and no item for lint suppressions.
+This list differs from `comment-sicko` in five main places. The list also has a shorter outside-behavior item and no item for lint suppressions.
 
+- A test and a prefix enforce it. pstack has no such check: `comment-sicko` is an agent that judges each comment when it reviews a change, and a kept comment has no marker.
 - It keeps `@ts-expect-error` in `shared/type-tests/`, because there the directive is the test. `comment-sicko` removes such suppressions.
 - It keeps `/// <reference ...>`, which `comment-sicko` does not name.
 - It has no item for the doc comments of a public API, because only this repository uses its packages.
 - It does not use the `MUST KILL` step, where a surprise in our own code marks the symbol for a rename or a rewrite. A surprise in our own code goes to `TODO.md` or this file.
 
-`server/test/no-comments.test.ts` enforces the list. It reads every `.ts` and `.js` file that git tracks, and it compares the full text of each comment with `comments-allowed.txt`. It fails on a comment that is not in that file, also on a second copy of an allowed comment. It also fails on a line in that file whose comment is gone. To keep a comment, add its line to `comments-allowed.txt` in the same change. Name the item of the list in the commit message.
+`server/test/no-comments.test.ts` enforces the list. It reads every TypeScript and JavaScript file that git tracks. It fails on a comment that has no prefix and is not a directive. A prefix is a claim, and the test cannot judge it. So a review of each new prefix in a pull request is necessary.
 
-Note: some facts were only in the removed comments, and are now only in git history (`git log -p -- <file>`). `TODO.md` lists the ones that a later change can break. If agents repeat mistakes that the old comments warned about, the experiment did not work. To stop it, revert the three commits "remove code comments" (one for `shared`, `server` and `client`), and remove the test. Expect conflicts with the later commits that changed comments.
+Note: some facts were only in the removed comments, and are now only in git history (`git log -p -- <file>`). `TODO.md` lists the ones that a later change can break. If agents repeat mistakes that the old comments warned about, the experiment did not work. To stop it, revert the three commits "remove code comments" (one for `shared`, `server` and `client`) and the commit "mark kept comments with a prefix", and remove the test. Expect conflicts with the later commits that changed comments.
 
 ## Rules and what enforces them
 

@@ -13,10 +13,8 @@ const TYPES: Record<string, string> = {
   ".map": "application/json",
 };
 
-/**
- * Serves the built client. Colyseus answers every request on its own HTTP
- * server, so the client gets its own port; nginx routes between the two.
- */
+// external: Colyseus answers every request on its own HTTP server, so the client
+// gets its own port.
 export function createStaticServer(root: string): Server {
   const base = resolve(root);
   return createServer(async (req, res) => {
