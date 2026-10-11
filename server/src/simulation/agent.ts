@@ -45,17 +45,14 @@ export class Agent {
   private beliefs: Map<string, Fact> = new Map();
   private dialogueProgress: Map<string, DialogueProgressEntry> = new Map();
 
-  // Unified input queue (Gambetta reconciliation model)
   inputQueue: InputFrame[] = [];
   lastProcessedInput: number = 0;
   planBacklog: InputFrame[] = [];
 
-  // Dialogue lock state
-  talkingToNpcId: string | null = null;     // player → which NPC am I talking to
-  currentTalkingTo: string | null = null;   // NPC → which player is talking to me
-  profile: NpcProfile | null = null;        // scenario NPCs only (gender, personality, farewells)
+  talkingToNpcId: string | null = null;
+  currentTalkingTo: string | null = null;
+  profile: NpcProfile | null = null;
 
-  // Speech bubble
   bubbleText: string | null = null;
   bubbleExpiresAt: number = 0;
 
@@ -101,15 +98,12 @@ export class Agent {
     this.bubbleExpiresAt = currentTick + durationTicks;
   }
 
-  /** Back to life at `position` with full HP. Inventory, memory and beliefs stay. */
   revive(position: Position): void {
     this.hp = this.maxHp;
     this.state = "idle";
     this.position = { ...position };
     this.inputQueue = [];
     this.planBacklog = [];
-    // The proximity loop skips the dead, so this map is stale: clear it, or
-    // a player who stood near the body gets no proximity:enter greeting.
     this.proximityState.clear();
   }
 
@@ -117,7 +111,6 @@ export class Agent {
     this.hp = Math.max(0, this.hp - damage);
     if (this.hp <= 0) {
       this.state = "dead";
-      // Dropped player frames still count as handled (see GameRoom "input").
       for (const f of this.inputQueue) this.lastProcessedInput = Math.max(this.lastProcessedInput, f.seq);
       this.inputQueue = [];
       this.planBacklog = [];
@@ -129,7 +122,6 @@ export class Agent {
   }
 
   enqueueInput(frame: InputFrame): void {
-    // Player frame (seq > 0): reject stale/duplicate, then flush bot frames
     if (frame.seq > 0) {
       if (frame.seq <= this.lastProcessedInput) return;
       const lastQueued = this.inputQueue.length > 0
@@ -144,8 +136,6 @@ export class Agent {
       this.inputQueue.shift();
     }
   }
-
-  // --- MapMemory ---
 
   private memoryKey(x: number, y: number): string {
     return `${x},${y}`;
@@ -172,8 +162,6 @@ export class Agent {
     }
   }
 
-  // --- Beliefs ---
-
   setBelief(key: string, fact: Fact): void {
     this.beliefs.set(key, fact);
   }
@@ -194,8 +182,6 @@ export class Agent {
       }
     }
   }
-
-  // --- Dialogue Progress ---
 
   getDialogueProgress(treeId: string): DialogueProgressEntry | undefined {
     return this.dialogueProgress.get(treeId);

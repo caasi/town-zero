@@ -8,8 +8,6 @@ export const farmerReedScenario = scenario("farmer-reed", (s) => {
     position: { x: 9, y: 19 },
     initialBeliefs: [],
     gender: { kind: "male" },
-    // Wording checked with real Jev calls (spec 004): it picks the
-    // common-good reply at 98%.
     personality: "He cares most about the village. He thinks everyone must do their part.",
     farewells: [
       { text: "Don't forget the food! The storehouse won't fill itself.", when: fact("food_quest_active").eq(true) },
@@ -24,7 +22,6 @@ export const farmerReedScenario = scenario("farmer-reed", (s) => {
   ]);
 
   s.dialogue("farmer-reed", "farmer-reed-dialogue", (d) => {
-    // --- Default path: greeting → quest-offer ---
     d.text("greeting", ["Our food stores are running low. Could you gather 5 food from the bushes nearby?"], { next: "quest-offer" });
 
     d.choice("quest-offer", [
@@ -39,10 +36,6 @@ export const farmerReedScenario = scenario("farmer-reed", (s) => {
 
     d.text("accept-text", ["Thank you! Bring me 5 food when you can."], { next: "done" });
 
-    // Jev picks from his personality and the storehouse (spec 004); the first
-    // line is the fallback. A line changes with the state only when another
-    // line fits the same personality in another situation (real runs: low
-    // food → "hungry", a full storehouse → "common-good").
     d.reply("haggle", [
       d.line("common-good", "Explain calmly that the whole village benefits when there is enough food.",
         "The whole village eats from the same storehouse. You too, while you stay in Tandi.").goto("quest-offer"),
@@ -56,7 +49,6 @@ export const farmerReedScenario = scenario("farmer-reed", (s) => {
 
     d.text("refuse", ["I understand. Come back if you change your mind."], { next: "done" });
 
-    // --- Return path: check-return (entry when food_quest_active) ---
     d.text("check-return", ["Welcome back. Do you have the food?"], { next: "check-food" });
 
     d.choice("check-food", [
@@ -75,10 +67,6 @@ export const farmerReedScenario = scenario("farmer-reed", (s) => {
 
     d.end("done");
 
-    // Entry points (evaluated in order; first match wins):
-    // - If quest is active, resume at check-return.
-    // - Otherwise, always enter at greeting — this also makes the dispatcher's
-    //   rule 2 (dialogue-entry match) fire on KeyE for Reed at rest.
     d.entry("check-return", fact("food_quest_active").eq(true));
     d.entry("greeting", literal(true));
   });

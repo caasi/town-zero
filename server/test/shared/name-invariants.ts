@@ -3,7 +3,6 @@ import { normalizePlayerName, PLAYER_NAME_MAX, PLAYER_NAME_MAX_UNITS } from "@to
 
 const graphemes = (s: string) => [...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(s)].length;
 
-/** What every cleaned name must be, whatever came in. */
 export function expectCleanName(raw: string): void {
   const name = normalizePlayerName(raw);
   if (name === null) return;

@@ -3,11 +3,9 @@ const TIMEOUT_MS = 5_000;
 
 export interface Choice {
   id: string;
-  /** Tokens the call cost, when the reply says. */
   usage?: { input: number; output: number };
 }
 
-/** Picks one option id. `options` maps option id → plain-language description. */
 export type ChooseFn = (
   state: unknown,
   instructions: string,
@@ -35,7 +33,6 @@ export function jevChooser(apiKey: string, fetchFn: typeof fetch = fetch): Choos
       usage?: { input_tokens?: unknown; output_tokens?: unknown };
     };
     const choice = body.answers?.next?.choice;
-    // The answer comes from outside the server: accept only an id we offered.
     if (typeof choice !== "string" || !Object.hasOwn(options, choice)) {
       throw new Error(`Jev returned an unknown choice: ${String(choice)}`);
     }

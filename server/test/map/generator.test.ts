@@ -89,7 +89,6 @@ describe("generateMap", () => {
 
   it("places bush tiles east of village with food yield", () => {
     const state = generateMap();
-    // Bush positions are relative to village center (10, 20)
     const expectedBushes = [
       { x: 14, y: 19 },
       { x: 14, y: 20 },

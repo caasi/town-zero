@@ -13,11 +13,8 @@ export interface DialogueStateMessage {
   options?: Array<{ id: string; label: string }>;
 }
 
-/** What Jev needs to pick a reply line. Words only (spec 003). */
 export interface ReplyRequest {
-  /** Pass it back to answerReply: an answer counts only for the request it belongs to. */
   token: number;
-  /** "<tree id>/<node id>": with the state words, the key of a cached pick. */
   nodeKey: string;
   playerLine: string | null;
   lines: Array<{ id: string; description: string }>;
@@ -30,15 +27,10 @@ export class DialogueSession {
   private currentTick: number;
   private locals: Map<string, Value> = new Map();
   private disposed = false;
-  // The option text the player chose last: what the NPC replies to.
   private lastPlayerLine: string | null = null;
-  // The open request for Jev: its token, the lines it offered, and the visit
-  // (length of the visited-node list) it belongs to. An answer counts only on
-  // that visit, so a late answer cannot land on a later node or visit.
   private replyRequest: { token: number; lines: ReplyLineData[]; visit: number } | null = null;
   private nextReplyToken = 1;
 
-  // Timeout tracking
   startTick: number;
   lastInteractionTick: number;
 
@@ -55,7 +47,6 @@ export class DialogueSession {
     this.startTick = opts.currentTick;
     this.lastInteractionTick = opts.currentTick;
 
-    // Load existing dialogue progress locals
     const progress = opts.npc.getDialogueProgress(opts.tree.id);
     if (progress) {
       for (const [k, v] of Object.entries(progress.locals)) {
@@ -80,15 +71,10 @@ export class DialogueSession {
     return this.disposed;
   }
 
-  /**
-   * Release agent locks and persist progress. Idempotent — safe to call
-   * multiple times or from any cleanup path.
-   */
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
 
-    // Persist dialogue progress on NPC
     const localsObj: Record<string, Value> = {};
     for (const [k, v] of this.locals) {
       localsObj[k] = v;
@@ -99,13 +85,10 @@ export class DialogueSession {
       locals: localsObj,
     });
 
-    // Release locks on both agents
     this._npc.currentTalkingTo = null;
     this._player.talkingToNpcId = null;
   }
 
-  /** Get the current state as a pre-rendered message for the client.
-   *  Auto-advances through action nodes (executing effects) until a visible node is reached. */
   getState(depth = 0): DialogueStateMessage {
     const node = this.engine.getCurrentNode();
     const ctx = this.buildEvalContext();
@@ -140,7 +123,6 @@ export class DialogueSession {
       case "reply": {
         let picked = this.engine.getPickedLine();
         const lines = this.engine.getVisibleReplyLines(ctx);
-        // One line left: nothing to choose, so no Jev call.
         if (!picked && lines.length === 1) {
           this.engine.pickLine(lines[0].id);
           picked = lines[0];
@@ -152,7 +134,6 @@ export class DialogueSession {
       }
 
       case "action":
-        // Auto-advance through action nodes, executing effects
         if (depth >= 100) {
           throw new Error(`Dialogue "${treeId}" exceeded maximum action chain depth at node "${nodeId}" — possible cycle in action nodes`);
         }
@@ -170,21 +151,18 @@ export class DialogueSession {
     }
   }
 
-  /** The first farewell whose condition holds, in this dialogue's context. */
   farewell(lines: FarewellLine[]): string | null {
     const ctx = this.buildEvalContext();
     const line = lines.find((l) => !l.condition || checkCondition(l.condition, ctx));
     return line ? interpolate(line.text, ctx) : null;
   }
 
-  /** True while the NPC waits for Jev to pick its reply line. */
   isWaiting(): boolean {
     const node = this.engine.getCurrentNode();
     if (node.type !== "reply" || this.engine.getPickedLine()) return false;
     return this.engine.getVisibleReplyLines(this.buildEvalContext()).length > 1;
   }
 
-  /** The request for Jev, once per visit of a reply node; null when no call is needed. */
   takeReplyRequest(): ReplyRequest | null {
     if (!this.isWaiting() || this.engine.isReplyAsked()) return null;
     this.engine.markReplyAsked();
@@ -198,13 +176,6 @@ export class DialogueSession {
     };
   }
 
-  /**
-   * Jev's pick for request `token`. False when it is too late: the session
-   * ended, moved on, or asked again. The pick is checked against the lines
-   * that request offered (conditions may have changed since); an id it did
-   * not offer falls back to the first line. True even when the node already
-   * picked its only line meanwhile: the caller must still send that line.
-   */
   answerReply(token: number, lineId: string): boolean {
     const request = this.replyRequest;
     if (this.disposed || request?.token !== token) return false;
@@ -216,13 +187,11 @@ export class DialogueSession {
     return true;
   }
 
-  /** Player presses continue on a text node. A no-op while the NPC thinks. */
   advance(): DialogueStateMessage {
     if (!this.isWaiting()) this.engine.advance();
     return this.getState();
   }
 
-  /** Player picks a choice option. Validates the option is currently visible (condition-gated). A no-op while the NPC thinks. */
   select(optionId: string): DialogueStateMessage {
     if (this.isWaiting()) return this.getState();
     const ctx = this.buildEvalContext();
@@ -235,7 +204,6 @@ export class DialogueSession {
     return this.getState();
   }
 
-  /** Get all options with enabled status (includes condition-gated options as disabled). */
   getOptionsWithStatus(): Array<{ id: string; label: string; enabled: boolean }> | undefined {
     const ctx = this.buildEvalContext();
     const options = this.engine.getAllOptionsWithStatus(ctx);

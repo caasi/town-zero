@@ -232,7 +232,6 @@ describe("resolveLocale()", () => {
   it("handles out-of-range placeholder index gracefully", () => {
     const nameExpr: Expr = { type: "fact_ref", key: "name" };
     const tpl: TextTemplate = ["Hi ", nameExpr];
-    // Translation references {0} and {5} — {5} is out of range and should be omitted
     const locale = { "Hi {0}": "{0}こんにちは{5}" };
     const result = resolveLocale(tpl, locale);
     expect(result).toEqual([nameExpr, "こんにちは"]);
@@ -241,7 +240,6 @@ describe("resolveLocale()", () => {
   it("filters empty strings from translated result", () => {
     const nameExpr: Expr = { type: "fact_ref", key: "name" };
     const tpl: TextTemplate = ["Hello ", nameExpr];
-    // Translation starts with a placeholder — leading empty string is filtered
     const locale = { "Hello {0}": "{0}!" };
     const result = resolveLocale(tpl, locale);
     expect(result).toEqual([nameExpr, "!"]);

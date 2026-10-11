@@ -4,23 +4,18 @@ import { INPUT_QUEUE_CAP, REVIVE_DELAY_TICKS } from "@town-zero/shared";
 import type { Facing } from "@town-zero/shared";
 import { createTestRoom, joinClient, mockClient, sendInput, sendMessage, tick } from "./room-harness.js";
 
-// The client predicts every frame it sends and drops it only when
-// lastProcessedInput covers it. So every frame the server accepts must be
-// run, or acknowledged when the server drops it. A frame dropped without an
-// ack is a predicted move that never happens: the player is pulled back.
-
 interface Model {
   maxSeq: number;
-  maxQueued: number; // most frames allowed to wait on the server at once
-  queued: number;    // frames waiting: each tick runs one, death clears them
-  alive: boolean;    // a dead agent acknowledges frames at once, none wait
+  maxQueued: number;
+  queued: number;
+  alive: boolean;
 }
 
 interface Real {
   room: any;
   client: any;
   agent: () => any;
-  lastSeen: number; // lastProcessedInput after the previous command
+  lastSeen: number;
 }
 
 function sendMoves(r: Real, m: Model, dirs: Facing[]): void {
@@ -36,9 +31,6 @@ function sendMoves(r: Real, m: Model, dirs: Facing[]): void {
   }
 }
 
-// One tick, checked: an alive agent runs only the frame at the head of its
-// queue, and that frame's seq becomes lastProcessedInput. A frame that leaves
-// the queue any other way (death) must already be acknowledged.
 function tickChecked(r: Real): void {
   const agent = r.agent();
   const wasAlive = agent.isAlive();
@@ -88,7 +80,6 @@ class Tick implements fc.Command<Model, Real> {
 class Die implements fc.Command<Model, Real> {
   check = () => true;
   run(m: Model, r: Real) {
-    // takeDamage clears the queue; it must acknowledge what it drops.
     const before = r.agent().inputQueue.map((f: { seq: number }) => f.seq);
     r.agent().takeDamage(1_000_000);
     for (const seq of before) expect(seq, `frame ${seq} dropped at death without an ack`).toBeLessThanOrEqual(r.agent().lastProcessedInput);
@@ -104,13 +95,12 @@ class Revive implements fc.Command<Model, Real> {
     for (let i = 0; i <= REVIVE_DELAY_TICKS; i++) tickChecked(r);
     sendMessage(r.room, r.client, "revive");
     m.alive = r.agent().isAlive();
-    m.queued = 0; // the ticks above ran or cleared every waiting frame
+    m.queued = 0;
     checkAck(r, m);
   }
   toString = () => "revive";
 }
 
-// A send of several frames is a burst between two ticks (network jitter).
 const commands = fc.commands([
   fc.array(dir, { minLength: 1, maxLength: INPUT_QUEUE_CAP + 3 }).map((d) => new Send(d)),
   fc.integer({ min: 1, max: 3 }).map((n) => new Tick(n)),
@@ -128,7 +118,6 @@ function runAckProperty(maxQueued: number): void {
       const real: Real = { room, client, agent: () => (room as any).simState.agents.get(id), lastSeen: 0 };
       const model: Model = { maxSeq: 0, maxQueued, queued: 0, alive: true };
       fc.modelRun(() => ({ model, real }), cmds);
-      // Let the queue drain, as a released key does: then nothing is left unacknowledged.
       for (let i = 0; i < INPUT_QUEUE_CAP + 2; i++) tickChecked(real);
       expect(real.agent().lastProcessedInput).toBe(model.maxSeq);
     }),
@@ -137,18 +126,12 @@ function runAckProperty(maxQueued: number): void {
 }
 
 describe("input frames (property)", () => {
-  // GameRoom logs every create and join; hundreds of generated rooms flood CI.
   beforeAll(() => { vi.spyOn(console, "log").mockImplementation(() => {}); });
 
   it("every accepted frame is run or acknowledged", () => {
     runAckProperty(INPUT_QUEUE_CAP);
   });
 
-  // Known violation (TODO.md, Known debt): when more than INPUT_QUEUE_CAP
-  // frames wait (a burst, or more than one frame per tick for a while),
-  // enqueueInput drops the oldest without an ack. The property found this
-  // smallest case; it is pinned here so the result does not depend on the
-  // generator. When the drop is fixed this test goes red: turn it into it().
   it.fails("four moves in one tick are all run or acknowledged", () => {
     const { room } = createTestRoom();
     const client = mockClient("s1");

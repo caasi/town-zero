@@ -19,7 +19,6 @@ gameServer.listen(port).then(() => {
   console.log(`town-zero server listening on port ${port}`);
 });
 
-// Production only: serve the built client next to the game server.
 const staticDir = process.env.STATIC_DIR;
 if (staticDir) {
   const staticPort = Number(process.env.STATIC_PORT ?? 2568);

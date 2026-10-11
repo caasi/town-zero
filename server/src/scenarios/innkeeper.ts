@@ -1,8 +1,5 @@
 import { scenario, literal } from "@town-zero/shared/script-dsl";
 
-// Tandi's innkeeper (docs/story.md): grumpy, talks, gives no quest. Her
-// replies show her personality; Jev picks them (spec 004). Only facts that
-// docs/story.md lists as agreed go into her lines.
 export const innkeeperScenario = scenario("innkeeper", (s) => {
   s.npc("innkeeper", {
     name: "Innkeeper",
@@ -11,9 +8,6 @@ export const innkeeperScenario = scenario("innkeeper", (s) => {
     position: { x: 11, y: 21 },
     initialBeliefs: [],
     gender: { kind: "female" },
-    // Checked with real Jev calls (spec 004): "cares about the village"
-    // pulled her to the neutral lines, the same as Reed; "complains about
-    // everything" makes her pick the grumbling ones.
     personality: "She is grumpy and sharp-tongued, and she complains about everything. She shows her kindness only in what she does, never in what she says.",
     farewells: ["Staring won't fill your bowl. Off you go."],
   });
@@ -27,10 +21,6 @@ export const innkeeperScenario = scenario("innkeeper", (s) => {
       d.option("Nothing. Goodbye.").goto("bye"),
     ]);
 
-    // The first line of each reply is the neutral fallback. The two grumbling
-    // lines fit her personality in two situations, so the storehouse decides
-    // between them (real runs: almost empty → "grumble-hungry", full →
-    // "grumble-full").
     d.reply("news", [
       d.line("plain", "Give the news plainly: more monsters come near the village.",
         "More beasts in the hills every week. That's the news.").goto("menu"),
@@ -54,8 +44,6 @@ export const innkeeperScenario = scenario("innkeeper", (s) => {
     d.text("bye", ["Mind the door on your way out."], { next: "done" });
     d.end("done");
 
-    // No quest, but talking needs an entry: without one, interact is a noop
-    // for a same-faction agent.
     d.entry("greeting", literal(true));
   });
 });

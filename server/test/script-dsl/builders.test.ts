@@ -186,7 +186,6 @@ describe("builders", () => {
       expect(() => scenario("empty-dialogue", (s) => {
         s.npc("a", { gender: { kind: "male" }, personality: "A plain villager.", role: "scout", faction: "f", position: { x: 0, y: 0 }, initialBeliefs: [] });
         s.dialogue("a", "d", (_d) => {
-          // no nodes registered
         });
       })).toThrow(/must contain at least one node/);
     });
@@ -196,7 +195,6 @@ describe("builders", () => {
         s.npc("a", { gender: { kind: "male" }, personality: "A plain villager.", role: "scout", faction: "f", position: { x: 0, y: 0 }, initialBeliefs: [] });
         s.dialogue("a", "d", (d) => {
           d.text("only", t`Hello`);
-          // no end node, auto-chain leaves next: ""
         });
       })).toThrow(/missing a next node/);
     });

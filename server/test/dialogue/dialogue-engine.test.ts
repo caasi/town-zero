@@ -118,12 +118,10 @@ describe("DialogueEngine", () => {
     };
     const engine = new DialogueEngine(tree);
 
-    // rep = 3 (too low)
     const ctxLow = makeEvalCtx({ rep: { key: "rep", value: 3, tick: 1, source: "a" } });
     expect(engine.getVisibleOptions(ctxLow)).toHaveLength(1);
     expect(engine.getVisibleOptions(ctxLow)[0].id).toBe("opt_b");
 
-    // rep = 10 (high enough)
     const ctxHigh = makeEvalCtx({ rep: { key: "rep", value: 10, tick: 1, source: "a" } });
     expect(engine.getVisibleOptions(ctxHigh)).toHaveLength(2);
   });
@@ -169,8 +167,8 @@ describe("DialogueEngine", () => {
 
   it("tracks visited nodes", () => {
     const engine = new DialogueEngine(testTree);
-    engine.advance(); // start -> choices
-    engine.selectOption(1); // choices -> end
+    engine.advance();
+    engine.selectOption(1);
     expect(engine.getVisitedNodes()).toEqual(["start", "choices", "end"]);
   });
 
@@ -195,14 +193,13 @@ describe("DialogueEngine", () => {
 
   it("getInterpolatedContent returns empty string for non-text nodes", () => {
     const engine = new DialogueEngine(testTree);
-    engine.advance(); // now at choice node
+    engine.advance();
     const ctx = makeEvalCtx();
     expect(engine.getInterpolatedContent(ctx)).toBe("");
   });
 
   it("getVisibleOptions returns empty array for non-choice nodes", () => {
     const engine = new DialogueEngine(testTree);
-    // at text node
     const ctx = makeEvalCtx();
     expect(engine.getVisibleOptions(ctx)).toEqual([]);
   });

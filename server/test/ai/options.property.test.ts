@@ -7,20 +7,15 @@ import { Settlement } from "../../src/simulation/settlement.js";
 import { Grid } from "../../src/simulation/grid.js";
 import type { SimulationState } from "../../src/simulation/tick.js";
 
-// The rule behind every Jev option: it must yield at least one frame now.
-// An option that ends at once makes the agent ask again, and asks cost money.
-
 const SIZE = 20;
 const pos = fc.record({ x: fc.integer({ min: 0, max: SIZE - 1 }), y: fc.integer({ min: 0, max: SIZE - 1 }) });
 
 const world = fc.record({
   water: fc.array(pos, { maxLength: SIZE * SIZE / 2 }),
   beast: pos,
-  // Random water alone seldom blocks a path; wall off some sides of the beast.
   walls: fc.subarray([[1, 0], [-1, 0], [0, 1], [0, -1]]),
   carried: fc.integer({ min: 0, max: 7 }),
   denFood: fc.integer({ min: 0, max: 20 }),
-  // What the beast believes the den holds: may be stale or never seen.
   knownDenFood: fc.option(fc.integer({ min: 0, max: 20 }), { nil: undefined }),
   enemies: fc.array(fc.record({ at: pos, seenNow: fc.boolean() }), { maxLength: 3 }),
   foodTiles: fc.array(fc.record({ at: pos, remembered: fc.integer({ min: 0, max: 3 }) }), { maxLength: 4 }),

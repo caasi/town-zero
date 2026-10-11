@@ -7,8 +7,6 @@ const ZONE_TO_STRUCTURE = {
   [ZoneType.HOUSING]: "housing",
 } satisfies Record<Exclude<ZoneType, ZoneType.EMPTY>, StructureType>;
 
-// --- Templates ---
-
 const _ = ZoneType.EMPTY;
 const C = ZoneType.CORE;
 const H = ZoneType.HOUSING;
@@ -21,15 +19,12 @@ export const VILLAGE_TEMPLATE: ZoneType[][] = [
   [_, _, _, _, _],
 ];
 
-// Den is intentionally smaller than village (4×4 vs 5×5)
 export const DEN_TEMPLATE: ZoneType[][] = [
   [_, H, _, _],
   [_, C, _, _],
   [_, _, _, _],
   [_, _, _, _],
 ];
-
-// --- Helpers ---
 
 export function findCore(template: ZoneType[][]): { row: number; col: number } {
   for (let row = 0; row < template.length; row++) {

@@ -61,12 +61,10 @@ describe("session-manager", () => {
     state.agents.get("test-npc")!.name = "Innkeeper";
     const result = startDialogue("player-0", "test-npc", state);
     expect(result).toMatchObject({ ok: true, payload: { speaker: "Innkeeper" } });
-    // A choice node also carries the "npc" marker.
     expect(advanceDialogue("player-0", state)).toMatchObject({ ok: true, payload: { nodeType: "choice", speaker: "Innkeeper" } });
   });
 
   describe("while the NPC thinks about a reply", () => {
-    // "No" leads to a reply node with two lines, so the session waits for Jev.
     function waitingState(): SimulationState {
       const st = makeState();
       const tree = makeTree();
@@ -123,7 +121,6 @@ describe("session-manager", () => {
     it("auto-faces player toward NPC", () => {
       const result = startDialogue("player-0", "test-npc", state);
       expect(result.ok).toBe(true);
-      // Player is at (5,4), NPC at (5,5) → player should face south
       expect(state.agents.get("player-0")!.facing).toBe("south");
     });
 
@@ -152,8 +149,6 @@ describe("session-manager", () => {
       state.agents.set("silent-npc", npc2);
       state.agents.get("player-0")!.position = { x: 5, y: 3 - 1 };
 
-      // silent-npc has no tree in dialogueTrees
-      // But player is adjacent at (5,2), npc at (5,3) — distance 1
       state.agents.get("player-0")!.position = { x: 5, y: 2 };
       const result = startDialogue("player-0", "silent-npc", state);
       expect(result.ok).toBe(false);
@@ -195,12 +190,10 @@ describe("session-manager", () => {
       ];
       state.dialogueTrees.set("test-npc-dialogue", tree);
 
-      // Without the fact, should use default root
       const r1 = startDialogue("player-0", "test-npc", state);
       expect(r1.ok).toBe(true);
       if (r1.ok) expect(r1.payload.content).toBe("Hello!");
 
-      // Clean up and set fact
       endDialogue("test-npc", state, "completed");
       state.agents.get("test-npc")!.setBelief("quest_done", { key: "quest_done", value: true, tick: 1, source: "test" });
 
@@ -227,7 +220,7 @@ describe("session-manager", () => {
 
     it("returns error when current node is choice (not advanceable)", () => {
       startDialogue("player-0", "test-npc", state);
-      advanceDialogue("player-0", state); // greeting → offer (choice node)
+      advanceDialogue("player-0", state);
 
       const result = advanceDialogue("player-0", state);
       expect(result.ok).toBe(false);
@@ -247,7 +240,7 @@ describe("session-manager", () => {
   describe("chooseDialogue", () => {
     it("selects option and advances", () => {
       startDialogue("player-0", "test-npc", state);
-      advanceDialogue("player-0", state); // greeting → offer
+      advanceDialogue("player-0", state);
 
       const result = chooseDialogue("player-0", "accept", state);
       expect(result.ok).toBe(true);
@@ -257,7 +250,7 @@ describe("session-manager", () => {
 
     it("returns error for invalid option", () => {
       startDialogue("player-0", "test-npc", state);
-      advanceDialogue("player-0", state); // greeting → offer
+      advanceDialogue("player-0", state);
 
       const result = chooseDialogue("player-0", "nonexistent", state);
       expect(result.ok).toBe(false);
@@ -293,7 +286,6 @@ describe("session-manager", () => {
       expect(expired[0].playerId).toBe("player-0");
       expect(expired[0].reason).toBe("timeout");
 
-      // Session should be cleaned up
       expect(state.activeSessions.has("test-npc")).toBe(false);
       expect(state.agents.get("player-0")!.state).toBe("idle");
     });
@@ -330,7 +322,7 @@ describe("session-manager", () => {
 
     it("does not timeout active sessions", () => {
       startDialogue("player-0", "test-npc", state);
-      state.tick = 10 + Math.floor(DIALOGUE_TIMEOUT_TICKS / 2); // half the timeout
+      state.tick = 10 + Math.floor(DIALOGUE_TIMEOUT_TICKS / 2);
 
       const expired = tickDialogues(state);
       expect(expired).toHaveLength(0);

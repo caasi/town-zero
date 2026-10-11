@@ -42,9 +42,6 @@ function syncSettlement(settlement: Settlement, schema: SettlementSchema): void 
   schema.inventory.set("material", settlement.inventory.material);
   schema.inventory.set("currency", settlement.inventory.currency);
 
-  // Rebuild only when the list changed: new child schemas every tick made each
-  // patch re-send all structures (222 bytes per idle tick instead of 2).
-  // Structures are never edited in place after addStructure, so ids suffice.
   const ids = settlement.structures.map((st) => st.id).join(",");
   if (schema.structures.map((st) => st.id).join(",") === ids) return;
   schema.structures.clear();
@@ -58,12 +55,10 @@ function syncSettlement(settlement: Settlement, schema: SettlementSchema): void 
   }
 }
 
-// A used-up tile shows no resource, so a player sees that gathering there gives nothing.
 function shownYield(grid: Grid, x: number, y: number): string {
   return grid.getResourceAmount(x, y) > 0 ? grid.getResourceYield(x, y) ?? "" : "";
 }
 
-// A tree without entry points never starts a dialogue (resolveDialogueEntryNode).
 function isTalkable(id: string, simState: SimulationState): boolean {
   const treeId = findTreeIdForNpc(id, simState);
   return !!treeId && (simState.dialogueTrees.get(treeId)!.entryPoints?.length ?? 0) > 0;
@@ -72,15 +67,12 @@ function isTalkable(id: string, simState: SimulationState): boolean {
 export function syncToSchema(simState: SimulationState, roomState: WorldStateSchema): void {
   roomState.tick = simState.tick;
 
-  // Only resource amounts change after syncTiles. Assign only on change, so
-  // an idle tick adds nothing to the patch.
   const { grid } = simState;
   roomState.tiles.forEach((tile) => {
     const shown = shownYield(grid, tile.x, tile.y);
     if (tile.resourceYield !== shown) tile.resourceYield = shown;
   });
 
-  // Sync agents
   for (const [id, agent] of simState.agents) {
     let agentSchema = roomState.agents.get(id);
     if (!agentSchema) {
@@ -91,7 +83,6 @@ export function syncToSchema(simState: SimulationState, roomState: WorldStateSch
     syncAgent(agent, agentSchema);
   }
 
-  // Remove agents no longer in sim (players who left)
   const agentKeys: string[] = [];
   roomState.agents.forEach((_value, key) => { agentKeys.push(key); });
   for (const key of agentKeys) {
@@ -100,9 +91,6 @@ export function syncToSchema(simState: SimulationState, roomState: WorldStateSch
     }
   }
 
-  // Sync settlements (MVP: no settlement destruction mechanic exists,
-  // so removal sync is intentionally omitted. If settlements become
-  // removable, add cleanup logic mirroring agent removal above.)
   for (const [id, settlement] of simState.settlements) {
     let schema = roomState.settlements.get(id);
     if (!schema) {
@@ -118,7 +106,6 @@ export function syncTiles(
   roomState: WorldStateSchema,
   settlements?: Map<string, Settlement>,
 ): void {
-  // Build position → structure lookup from settlements
   const structureIdByPos = new Map<string, string>();
   if (settlements) {
     for (const [, settlement] of settlements) {

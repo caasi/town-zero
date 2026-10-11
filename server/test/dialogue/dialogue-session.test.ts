@@ -23,7 +23,6 @@ function makePlayer(): Agent {
   });
 }
 
-// Simple linear tree: text -> choice -> end
 const linearTree: DialogueTreeData = {
   id: "greet",
   root: "start",
@@ -41,7 +40,6 @@ const linearTree: DialogueTreeData = {
   },
 };
 
-// Tree with interpolation: uses fact_ref to show NPC belief in text
 const interpTree: DialogueTreeData = {
   id: "interp-tree",
   root: "start",
@@ -56,7 +54,6 @@ const interpTree: DialogueTreeData = {
   },
 };
 
-// Tree with action node: text -> action -> end
 const actionTree: DialogueTreeData = {
   id: "action-tree",
   root: "start",
@@ -117,7 +114,7 @@ describe("DialogueSession", () => {
       currentTick: 10,
     });
 
-    session.advance(); // -> choices
+    session.advance();
     const state = session.select("opt_thanks");
     expect(state.type).toBe("text");
     expect(state.text).toBe("Safe travels.");
@@ -132,7 +129,7 @@ describe("DialogueSession", () => {
       currentTick: 10,
     });
 
-    session.advance(); // -> choices
+    session.advance();
     const state = session.select("opt_bye");
     expect(state.type).toBe("end");
     expect(state.nodeId).toBe("end");
@@ -147,8 +144,8 @@ describe("DialogueSession", () => {
     });
 
     expect(session.isEnded()).toBe(false);
-    session.advance(); // -> choices
-    session.select("opt_bye"); // -> end
+    session.advance();
+    session.select("opt_bye");
     expect(session.isEnded()).toBe(true);
   });
 
@@ -161,9 +158,9 @@ describe("DialogueSession", () => {
       currentTick: 10,
     });
 
-    session.advance(); // -> choices
-    session.select("opt_thanks"); // -> farewell
-    session.advance(); // -> end
+    session.advance();
+    session.select("opt_thanks");
+    session.advance();
     session.dispose();
 
     const progress = npc.getDialogueProgress("greet");
@@ -203,16 +200,13 @@ describe("DialogueSession", () => {
       currentTick: 10,
     });
 
-    // Start at text node "Let me give you something."
     expect(session.getState().text).toBe("Let me give you something.");
 
-    // advance() should move past text -> action -> auto-advance to "after" text
     const state = session.advance();
     expect(state.type).toBe("text");
     expect(state.text).toBe("There you go.");
     expect(state.nodeId).toBe("after");
 
-    // The set_fact effect should have fired
     const belief = npc.getBelief("gave_gift");
     expect(belief).toBeDefined();
     expect(belief!.value).toBe(true);
@@ -220,7 +214,6 @@ describe("DialogueSession", () => {
 
   it("loads existing dialogue progress locals on construction", () => {
     const npc = makeNpc();
-    // Pre-set progress with a local variable
     npc.setDialogueProgress("local-tree", {
       visitedNodes: ["start"],
       selectedOptions: {},

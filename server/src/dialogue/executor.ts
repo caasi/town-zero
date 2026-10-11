@@ -10,7 +10,7 @@ export interface MutableContext extends EvalContext {
   damage(ref: string, amount: number): void;
 }
 
-type EffectHandler = (effect: Effect, ctx: MutableContext) => boolean; // false = short-circuit
+type EffectHandler = (effect: Effect, ctx: MutableContext) => boolean;
 
 const effectHandlers: Record<string, EffectHandler> = {
   set_fact(effect, ctx) {

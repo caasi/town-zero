@@ -72,14 +72,14 @@ describe("Grid", () => {
   it("finds tiles within radius", () => {
     const grid = new Grid(10, 10);
     const tiles = grid.getTilesInRadius({ x: 5, y: 5 }, 1);
-    expect(tiles).toHaveLength(5); // center + 4 cardinal
+    expect(tiles).toHaveLength(5);
     expect(tiles).toContainEqual({ x: 5, y: 5 });
   });
 
   it("clips radius at map edges", () => {
     const grid = new Grid(10, 10);
     const tiles = grid.getTilesInRadius({ x: 0, y: 0 }, 1);
-    expect(tiles).toHaveLength(3); // (0,0), (1,0), (0,1)
+    expect(tiles).toHaveLength(3);
   });
 
   it("defaults zoneType to empty string", () => {
@@ -142,7 +142,7 @@ describe("Grid", () => {
       for (let i = 0; i < RESOURCE_MAX_AMOUNT; i++) expect(grid.takeResource(1, 1)).toBe("food");
       expect(grid.takeResource(1, 1)).toBeNull();
       expect(grid.getResourceAmount(1, 1)).toBe(0);
-      expect(grid.getResourceYield(1, 1)).toBe("food"); // still a food place
+      expect(grid.getResourceYield(1, 1)).toBe("food");
       expect(grid.takeResource(2, 2)).toBeNull();
     });
 

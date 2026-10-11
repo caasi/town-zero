@@ -24,32 +24,20 @@ export interface Option {
 }
 
 const INSTRUCTIONS = "You are this beast. Which plan should it follow next?";
-const GUARD_PATROL_RADIUS = 3; // guard_den walks within this many steps of the den core
-const EXPLORE_RADIUS = 8; // around the den core, not the beast: repeated walks must not drift to the village
-// Enemies farther than this from the den core are not a threat to the den:
-// beasts do not hunt them, and drop a chase when the target leaves this area.
+const GUARD_PATROL_RADIUS = 3;
+const EXPLORE_RADIUS = 8;
 const GUARD_RADIUS = 6;
-const CARRY_FULL = 5;     // forage stops at this much food
-const DEN_FOOD_LOW = 10;  // below this, a beast with a full load is offered to bring it home
-const WANDER_TICKS = 40; // ~5s
-const REST_TICKS = 24;   // ~3s
-const ROAR_TICKS = 16;   // ~2s: the bubble shows and the beast stands still
-// One regrowth interval: a used-up place has food again by then. A long goal
-// means one paid call per ~30s instead of an explore call per ~5s.
+const CARRY_FULL = 5;
+const DEN_FOOD_LOW = 10;
+const WANDER_TICKS = 40;
+const REST_TICKS = 24;
+const ROAR_TICKS = 16;
 const WAIT_TICKS = RESOURCE_REGROW_TICKS;
-const WAIT_DISTANCE = 2; // close enough to see the place grow back
+const WAIT_DISTANCE = 2;
 const TAKE_FOOD = 3;
-// Like a wolf, a beast eats first and brings home only the rest: it keeps
-// what eat_at_den would take. Storing all of it made the beast hungry at
-// once, so it took food back: two paid calls for +2 food in the den.
 const KEEP_FOOD = TAKE_FOOD;
-// One attack per frame would be 8 hits/s; three beasts killed a player in under 1 s.
-const ATTACK_COOLDOWN_TICKS = 8; // ~1 attack/s
-// Backstop for the "every option yields a frame" rule: a goal that ends at
-// once (blocked path, bad option) must not turn into a paid call every tick.
-const ASK_INTERVAL_TICKS = 8; // ~1 Jev call/s per agent at most
-// Players move one step per tick at most and lose a tick to turn; beasts at
-// the same pace could not be outrun. One step (or turn) per 2 ticks: ~4 tiles/s.
+const ATTACK_COOLDOWN_TICKS = 8;
+const ASK_INTERVAL_TICKS = 8;
 const MOVE_INTERVAL_TICKS = 2;
 
 const distance = (a: Position, b: Position) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
@@ -62,17 +50,10 @@ function homeCenter(home: Settlement): Position {
   return home.structures.find((s) => s.type === "core")?.position ?? home.territory[0];
 }
 
-/** The den food count at the last visit (or from a den-mate); undefined if never seen. */
 function knownFood(agent: Agent, home: Settlement): number | undefined {
   return agent.getBelief(storeFoodKey(home.id))?.value as number | undefined;
 }
 
-/**
- * Enemies this agent saw this tick, as it saw them, read from its own
- * MapMemory (no global knowledge). That memory includes what adjacent
- * den-mates saw this tick, because mergeAdjacentMemories copies tiles with
- * their timestamp.
- */
 function visibleEnemies(agent: Agent, state: SimulationState): EntitySnapshot[] {
   const seen = new Map<string, EntitySnapshot>();
   for (const [, mem] of agent.getAllMemory()) {
@@ -82,10 +63,6 @@ function visibleEnemies(agent: Agent, state: SimulationState): EntitySnapshot[] 
   return [...seen.values()];
 }
 
-/**
- * A threat is an enemy near the den, or one close enough to hit this beast.
- * Only threats are offered as targets, so beasts guard home instead of hunting.
- */
 function isThreat(agent: Agent, enemy: EntitySnapshot, state: SimulationState): boolean {
   const home = homeOf(agent, state);
   return !home
@@ -93,8 +70,6 @@ function isThreat(agent: Agent, enemy: EntitySnapshot, state: SimulationState): 
     || distance(agent.position, enemy.position) <= 1;
 }
 
-// The kind of resource a tile yields never changes, so the grid gives it; how
-// much is left comes from the agent's memory of the tile.
 function nearestKnownFood(agent: Agent, state: SimulationState, usedUp = false): Position | undefined {
   let best: Position | undefined;
   for (const [key, mem] of agent.getAllMemory()) {
@@ -102,7 +77,6 @@ function nearestKnownFood(agent: Agent, state: SimulationState, usedUp = false):
     const [x, y] = key.split(",").map(Number);
     if (state.grid.getResourceYield(x, y) !== "food") continue;
     const d = distance(agent.position, { x, y });
-    // Gather needs the tile in front: the beast cannot use the tile it stands on.
     if (d === 0) continue;
     if (!best || d < distance(agent.position, best)) best = { x, y };
   }
@@ -127,8 +101,6 @@ export function buildOptions(agent: Agent, state: SimulationState, rand = Math.r
   const options: Option[] = [
     { id: "rest", description: "Stay where you are.", goal: { kind: "rest", untilTick: state.tick + REST_TICKS } },
   ];
-  // Only options whose first frame exists: see the rule above. A copy, as
-  // nextFrame starts the attack cooldown on the goal it is given.
   const offer = (id: string, description: string, goal: Goal) => {
     if (nextFrame(agent, { ...goal }, state)) options.push({ id, description, goal });
   };
@@ -153,9 +125,6 @@ export function buildOptions(agent: Agent, state: SimulationState, rand = Math.r
     offer("explore", "Walk away from here to find a place where food grows.",
       { kind: "wander", to: around(home ? homeCenter(home) : agent.position, EXPLORE_RADIUS), untilTick: state.tick + WANDER_TICKS });
   }
-  // Only a full load: food taken at the den (TAKE_FOOD < CARRY_FULL) is not
-  // stored back, or take and deposit alternate and each turn is a paid call.
-  // Not knowing the den food counts as low or as some: the beast goes to look.
   if (home && food >= CARRY_FULL && (denFood ?? 0) < DEN_FOOD_LOW) {
     offer("bring_food_home", "Carry your food back and store it in the den.", { kind: "store" });
   }
@@ -174,7 +143,6 @@ export function buildOptions(agent: Agent, state: SimulationState, rand = Math.r
   return options;
 }
 
-/** Short, decision-relevant state: accuracy drops as unrelated content grows. */
 export function describeState(agent: Agent, state: SimulationState): Record<string, unknown> {
   const home = homeOf(agent, state);
   const food = agent.inventory.food;
@@ -188,15 +156,12 @@ export function describeState(agent: Agent, state: SimulationState): Record<stri
   const foodTile = nearestKnownFood(agent, state);
   const emptyTile = nearestKnownFood(agent, state, true);
   return {
-    // "(full)" matters: without it Jev sent full beasts to look for food (spike).
     self: `a ${agent.role} of the den. HP ${agent.hp} of ${agent.maxHp}. Carrying ${food} food${food >= CARRY_FULL ? " (full)" : ""}.${food === 0 ? " Hungry." : ""}`,
     home: !home
       ? "no home"
       : home.isInTerritory(agent.position)
         ? `inside the den, which holds ${denFood}`
         : `the den is ${distance(agent.position, homeCenter(home))} steps away and holds ${denFood}`,
-    // Used-up places must show here too, or the state says "knows no place"
-    // while wait_for_food offers to wait at one, and Jev never picks it.
     food_places: foodTile
       ? `knows a place where food grows, ${distance(agent.position, foodTile)} steps away`
       : emptyTile
@@ -206,7 +171,6 @@ export function describeState(agent: Agent, state: SimulationState): Record<stri
   };
 }
 
-/** Used when no Jev key is set or a call fails, so the game still runs. */
 export function fallbackGoal(agent: Agent, state: SimulationState): Goal {
   const home = homeOf(agent, state);
   const food = agent.inventory.food;
@@ -217,7 +181,6 @@ export function fallbackGoal(agent: Agent, state: SimulationState): Goal {
   if (threat) return { kind: "attack", targetId: threat.id };
   if (home && food >= CARRY_FULL && (denFood ?? 0) < DEN_FOOD_LOW) return { kind: "store" };
   if (foodTile && food < CARRY_FULL) return { kind: "forage", tile: foodTile };
-  // Idle beasts wait at the den core, not where the last goal left them.
   if (home) return { kind: "wander", to: homeCenter(home), untilTick: state.tick + WANDER_TICKS };
   return { kind: "rest", untilTick: state.tick + REST_TICKS };
 }
@@ -226,9 +189,6 @@ function passable(state: SimulationState, p: Position): boolean {
   return !isMoveBlocked(p.x, p.y, state.grid, state.grid.getTerrain(p.x, p.y));
 }
 
-// ponytail: greedy step along the longer axis, then the other one. A beast
-// behind water gets no step, its goal ends, and it re-asks at most once per
-// ASK_INTERVAL_TICKS; switch to BFS over passable tiles if maps get obstacles.
 function stepToward(agent: Agent, to: Position, state: SimulationState): Facing | null {
   const dx = Math.sign(to.x - agent.position.x);
   const dy = Math.sign(to.y - agent.position.y);
@@ -246,7 +206,6 @@ function stepToward(agent: Agent, to: Position, state: SimulationState): Facing 
 
 const move = (direction: Facing): InputFrame => ({ seq: 0, direction });
 
-/** One frame toward the goal, or null when the goal is done or no longer valid. */
 export function nextFrame(agent: Agent, goal: Goal, state: SimulationState): InputFrame | null {
   switch (goal.kind) {
     case "attack": {
@@ -254,7 +213,6 @@ export function nextFrame(agent: Agent, goal: Goal, state: SimulationState): Inp
       if (!target || !isThreat(agent, target, state)) return null;
       if (distance(agent.position, target.position) === 1) {
         const dir = stepToward(agent, target.position, state) ?? agent.facing;
-        // Turn-before-move: a direction frame toward an adjacent tile only turns.
         if (dir !== agent.facing) return move(dir);
         if (state.tick < (goal.readyTick ?? 0)) return { seq: 0, action: { type: "idle" } };
         goal.readyTick = state.tick + ATTACK_COOLDOWN_TICKS;
@@ -279,13 +237,11 @@ export function nextFrame(agent: Agent, goal: Goal, state: SimulationState): Inp
     }
     case "forage": {
       if (agent.inventory.food >= CARRY_FULL) return null;
-      // Seen used up (vision reaches the tile before the beast does): re-ask.
       if (!agent.getMemory(goal.tile.x, goal.tile.y)?.resourceAmount) return null;
       const d = distance(agent.position, goal.tile);
       if (d === 0) return null;
       if (d === 1) {
         const dir = stepToward(agent, goal.tile, state) ?? agent.facing;
-        // Turn-before-move: a direction frame toward an adjacent tile only turns.
         if (dir !== agent.facing) return move(dir);
         return { seq: 0, action: { type: "gather", resourceTile: { ...goal.tile } } };
       }
@@ -303,9 +259,6 @@ export function nextFrame(agent: Agent, goal: Goal, state: SimulationState): Inp
     }
     case "wander": {
       if (state.tick >= goal.untilTick) return null;
-      // Hold the spot until the deadline: a patrol point is often 1-2 steps
-      // away, and ending on arrival made a paid call every second. A threat
-      // in sight ends the hold, so a guard does not stand still while hit.
       if (distance(agent.position, goal.to) === 0) {
         const threat = visibleEnemies(agent, state).some((e) => isThreat(agent, e, state));
         return threat ? null : { seq: 0, action: { type: "idle" } };
@@ -315,7 +268,6 @@ export function nextFrame(agent: Agent, goal: Goal, state: SimulationState): Inp
     }
     case "wait": {
       if (state.tick >= goal.untilTick) return null;
-      // Food in memory again (seen grow back, or told by a den-mate): re-ask, so forage is offered.
       if (nearestKnownFood(agent, state)) return null;
       if (visibleEnemies(agent, state).some((e) => isThreat(agent, e, state))) return null;
       if (distance(agent.position, goal.near) <= WAIT_DISTANCE) return { seq: 0, action: { type: "idle" } };
@@ -328,11 +280,6 @@ export function nextFrame(agent: Agent, goal: Goal, state: SimulationState): Inp
   }
 }
 
-/**
- * Drives every alive agent with controller "llm": code lists the options, Jev
- * picks one, code turns the picked goal into one InputFrame per tick.
- * Call once per tick before processTick.
- */
 export class JevController {
   private goals = new Map<string, Goal>();
   private pending = new Set<string>();
@@ -344,7 +291,6 @@ export class JevController {
   update(state: SimulationState): void {
     for (const agent of state.agents.values()) {
       if (agent.controller !== "llm") continue;
-      // A dead agent's goal must not survive into its respawn.
       if (!agent.isAlive()) { this.goals.delete(agent.id); continue; }
       if (agent.planBacklog.length > 0) continue;
 
@@ -352,7 +298,7 @@ export class JevController {
       const frame = goal && nextFrame(agent, goal, state);
       if (frame) {
         if (frame.direction) {
-          if (state.tick < (this.nextMoveTick.get(agent.id) ?? 0)) continue; // keep the goal, wait
+          if (state.tick < (this.nextMoveTick.get(agent.id) ?? 0)) continue;
           this.nextMoveTick.set(agent.id, state.tick + MOVE_INTERVAL_TICKS);
         }
         agent.planBacklog = [frame];
@@ -372,7 +318,6 @@ export class JevController {
       this.goals.set(agent.id, fallbackGoal(agent, state));
       return;
     }
-    // One call in flight per agent: the agent idles until the answer arrives.
     if (this.pending.has(agent.id)) return;
     const last = this.lastAskTick.get(agent.id);
     if (last !== undefined && state.tick - last < ASK_INTERVAL_TICKS) return;
@@ -380,8 +325,6 @@ export class JevController {
     this.lastAskTick.set(agent.id, state.tick);
 
     const askedTick = state.tick;
-    // For the log only (Jev gets no coordinates): what the beast was and
-    // believed when it asked, so a decision can be explained from the log.
     const home = homeOf(agent, state);
     const denFood = home ? knownFood(agent, home) ?? "unknown" : "none";
     const context = ` at (${agent.position.x},${agent.position.y}), carrying ${agent.inventory.food}, den food ${denFood}`;
@@ -389,15 +332,11 @@ export class JevController {
     const criteria = Object.fromEntries(options.map((o) => [o.id, o.description]));
     this.choose(describeState(agent, state), INSTRUCTIONS, criteria)
       .then(({ id, usage }) => {
-        // The token counts let the server log give the Jev cost per hour.
         const cost = usage ? ` (in ${usage.input}, out ${usage.output})` : "";
         console.log(`[jev] ${agent.id} chose ${id} from ${Object.keys(criteria).join(", ")}${cost}${context}`);
-        // Died while waiting: a goal or a roar bubble would outlive the death.
         if (!agent.isAlive()) return;
         const goal = options.find((o) => o.id === id)!.goal;
-        // Deadlines count from the reply: a slow call must not use up the goal.
         if ("untilTick" in goal) goal.untilTick += state.tick - askedTick;
-        // Set here, not in nextFrame: buildOptions calls nextFrame to test options.
         if (goal.kind === "roar") agent.setBubble("ROAR!", goal.untilTick - state.tick, state.tick);
         this.goals.set(agent.id, goal);
       })

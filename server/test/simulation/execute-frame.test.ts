@@ -26,13 +26,13 @@ describe("executeFrame", () => {
       const frame: InputFrame = { seq: 1, direction: "east" };
       executeFrame(frame, ctx);
       expect(ctx.agent.facing).toBe("east");
-      expect(ctx.agent.position).toEqual({ x: 5, y: 5 }); // didn't move
+      expect(ctx.agent.position).toEqual({ x: 5, y: 5 });
       expect(ctx.agent.lastProcessedInput).toBe(1);
     });
 
     it("moves when already facing that direction", () => {
       const ctx = makeCtx();
-      const frame: InputFrame = { seq: 1, direction: "south" }; // default facing
+      const frame: InputFrame = { seq: 1, direction: "south" };
       executeFrame(frame, ctx);
       expect(ctx.agent.position).toEqual({ x: 5, y: 6 });
       expect(ctx.agent.lastProcessedInput).toBe(1);
@@ -59,7 +59,7 @@ describe("executeFrame", () => {
       const frame: InputFrame = { seq: 1, direction: "north" };
       executeFrame(frame, ctx);
       expect(ctx.agent.position).toEqual({ x: 5, y: 5 });
-      expect(ctx.agent.lastProcessedInput).toBe(1); // seq still advances
+      expect(ctx.agent.lastProcessedInput).toBe(1);
     });
   });
 
@@ -99,10 +99,9 @@ describe("executeFrame", () => {
 
     it("rejects gather when adjacent but not on facing tile", () => {
       const ctx = makeCtx();
-      // Agent at (3,2) facing south → facing tile is (3,3). Resource at (4,2) is adjacent but not facing.
       ctx.agent.position = { x: 3, y: 2 };
       ctx.agent.facing = "south";
-      ctx.grid.setResourceYield(2, 2, "food"); // west of agent — adjacent but not facing
+      ctx.grid.setResourceYield(2, 2, "food");
       const frame: InputFrame = { seq: 1, action: { type: "gather", resourceTile: { x: 2, y: 2 } } };
       executeFrame(frame, ctx);
       expect(ctx.agent.inventory.food).toBe(0);
@@ -180,7 +179,7 @@ describe("executeFrame", () => {
       ctx.agent.addToInventory("food", 5);
       const frame: InputFrame = { seq: 1, action: { type: "deposit", settlementId: "v1" } };
       executeFrame(frame, ctx);
-      expect(ctx.agent.inventory.food).toBe(5); // not deposited
+      expect(ctx.agent.inventory.food).toBe(5);
     });
   });
 
@@ -198,7 +197,7 @@ describe("executeFrame", () => {
     it("rejects talk when target is adjacent but not on facing tile", () => {
       const ctx = makeCtx();
       ctx.agent.position = { x: 5, y: 5 };
-      ctx.agent.facing = "south"; // facing tile is (5,6)
+      ctx.agent.facing = "south";
       const npc = new Agent({ id: "npc-1", position: { x: 4, y: 5 }, faction: "v1", role: "farmer", controller: "llm" });
       ctx.agents.set("npc-1", npc);
       ctx.simState = {} as any;
@@ -217,8 +216,8 @@ describe("executeFrame", () => {
       const frame: InputFrame = { seq: 1, direction: "east", action: { type: "gather", resourceTile: { x: 3, y: 3 } } };
       executeFrame(frame, ctx);
       expect(ctx.agent.inventory.food).toBe(1);
-      expect(ctx.agent.facing).toBe("south"); // facing unchanged — direction ignored
-      expect(ctx.agent.position).toEqual({ x: 3, y: 2 }); // position unchanged
+      expect(ctx.agent.facing).toBe("south");
+      expect(ctx.agent.position).toEqual({ x: 3, y: 2 });
     });
   });
 
@@ -287,7 +286,6 @@ describe("executeFrame", () => {
       ctx.agent.controller = "bot";
       const enemy = new Agent({ id: "enemy", position: { x: 1, y: 0 }, faction: "den-1", role: "beast", controller: "bot" });
       ctx.agents.set("enemy", enemy);
-      // Bot path: seq = 0 (planBacklog convention)
       const frame: InputFrame = { seq: 0, action: { type: "attack", targetId: "enemy" } };
       executeFrame(frame, ctx);
       expect(enemy.hp).toBe(100);
@@ -322,7 +320,6 @@ describe("executeFrame", () => {
       const ctx = makeCtx();
       ctx.agent.position = { x: 1, y: 1 };
       ctx.agent.facing = "east";
-      // (2,1) is empty — no agent, no resource
       const frame: InputFrame = { seq: 1, action: { type: "interact" } };
       executeFrame(frame, ctx);
       expect(ctx.agent.inventory.food).toBe(0);
@@ -334,31 +331,27 @@ describe("executeFrame", () => {
   describe("dialogue lock", () => {
     it("rejects all frames when agent is in dialogue", () => {
       const ctx = makeCtx();
-      // Simulate active dialogue session for this agent
       ctx.activeSessions.set("npc-1", { playerId: "a1" } as any);
       ctx.agent.talkingToNpcId = "npc-1";
       const frame: InputFrame = { seq: 1, direction: "south" };
       executeFrame(frame, ctx);
-      expect(ctx.agent.position).toEqual({ x: 5, y: 5 }); // didn't move
+      expect(ctx.agent.position).toEqual({ x: 5, y: 5 });
     });
 
     it("rejects frames when talkingToNpcId is set even if session already cleaned up", () => {
       const ctx = makeCtx();
-      // talkingToNpcId set but no matching session (race: session expired between tick phases)
       ctx.agent.talkingToNpcId = "npc-1";
-      // activeSessions is empty — session was already removed
       const frame: InputFrame = { seq: 1, direction: "south" };
       executeFrame(frame, ctx);
-      expect(ctx.agent.position).toEqual({ x: 5, y: 5 }); // should still block
+      expect(ctx.agent.position).toEqual({ x: 5, y: 5 });
     });
 
     it("rejects frames for NPC when currentTalkingTo is set", () => {
       const ctx = makeCtx();
-      // NPC is the target of an active dialogue
       ctx.agent.currentTalkingTo = "player-1";
       const frame: InputFrame = { seq: 0, direction: "south" };
       executeFrame(frame, ctx);
-      expect(ctx.agent.position).toEqual({ x: 5, y: 5 }); // NPC should not move
+      expect(ctx.agent.position).toEqual({ x: 5, y: 5 });
     });
   });
 });

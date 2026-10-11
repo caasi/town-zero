@@ -9,7 +9,7 @@ describe("decideBotAction", () => {
     const settlement = new Settlement({ id: "v1", faction: "v1", type: "village", territory: [{ x: 5, y: 5 }] });
     const frames = decideBotAction(agent, settlement);
     expect(frames[0].seq).toBe(0);
-    expect(frames[0].direction).toBe("west"); // moving toward x=5
+    expect(frames[0].direction).toBe("west");
   });
 
   it("returns idle when already in settlement territory with food", () => {
