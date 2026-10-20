@@ -70,6 +70,7 @@ export class InputHandler {
   private playerState: string = "idle";
 
   private heldKeys = new Set<string>();
+  private bufferedCode: string | null = null;
 
   inputSeq: number = 0;
   pendingInputs: InputFrame[] = [];
@@ -85,8 +86,13 @@ export class InputHandler {
   onDialogueIsText: (() => boolean) | null = null;
 
   private handleBlur = (): void => {
-    this.heldKeys.clear();
+    this.clearKeys();
   };
+
+  private clearKeys(): void {
+    this.heldKeys.clear();
+    this.bufferedCode = null;
+  }
 
   constructor() {
     this.handleKey = this.handleKey.bind(this);
@@ -112,6 +118,7 @@ export class InputHandler {
 
   setEnabled(enabled: boolean): void {
     this.enabled = enabled;
+    if (!enabled) this.clearKeys();
   }
 
   get dialogueMode(): boolean {
@@ -120,7 +127,7 @@ export class InputHandler {
 
   enterDialogueMode(): void {
     this._dialogueMode = true;
-    this.heldKeys.clear();
+    this.clearKeys();
     this.pendingInputs = [];
   }
 
@@ -131,15 +138,15 @@ export class InputHandler {
   update(): void {
     if (!this.enabled || !this.playerAgent || this._dialogueMode) return;
     if (document.activeElement instanceof HTMLInputElement) {
-      this.heldKeys.clear();
+      this.clearKeys();
       return;
     }
     if (!this.displayState || !this.tiles) return;
 
     const heldArray = [...this.heldKeys];
-    let activeCode: string | undefined;
-    for (let i = heldArray.length - 1; i >= 0; i--) {
-      if (heldArray[i] in MOVE_KEYS) { activeCode = heldArray[i]; break; }
+    let activeCode = this.bufferedCode ?? undefined;
+    for (let i = heldArray.length - 1; !activeCode && i >= 0; i--) {
+      if (heldArray[i] in MOVE_KEYS) activeCode = heldArray[i];
     }
     if (activeCode) {
       const move = MOVE_KEYS[activeCode]!;
@@ -147,6 +154,7 @@ export class InputHandler {
       const now = Date.now();
       if (now - this.lastMoveTime < TICK_RATE_MS) return;
       this.lastMoveTime = now;
+      this.bufferedCode = null;
 
       const direction = CODE_TO_DIRECTION[activeCode];
       if (!direction) return;
@@ -214,6 +222,7 @@ export class InputHandler {
       e.preventDefault();
       this.heldKeys.delete(code);
       this.heldKeys.add(code);
+      if (!e.repeat) this.bufferedCode = code;
       return;
     }
 
@@ -234,7 +243,10 @@ export class InputHandler {
 
   setTouchDirection(code: TouchCode | null): void {
     for (const c of TOUCH_CODES) if (c !== code) this.heldKeys.delete(c);
-    if (code && !this.heldKeys.has(code)) this.heldKeys.add(code);
+    if (code && !this.heldKeys.has(code)) {
+      this.heldKeys.add(code);
+      if (this.enabled && !this._dialogueMode) this.bufferedCode = code;
+    }
   }
 
   private handleKeyUp(e: KeyboardEvent): void {
@@ -246,6 +258,6 @@ export class InputHandler {
     window.removeEventListener("keyup", this.handleKeyUp);
     window.removeEventListener("blur", this.handleBlur);
     document.removeEventListener("visibilitychange", this.handleBlur);
-    this.heldKeys.clear();
+    this.clearKeys();
   }
 }

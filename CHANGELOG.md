@@ -4,6 +4,14 @@ All notable changes to town-zero. Each push to `main` is deployed, so the
 entries are grouped by date, not by version. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 2026-10-20
+
+### Fixed
+
+- A short press of a move key while your character moves is no longer
+  lost. The game keeps the last press and moves you when the next step
+  is possible (#19).
+
 ## 2026-10-11
 
 ### Changed
