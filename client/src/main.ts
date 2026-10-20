@@ -259,7 +259,7 @@ function gameLoop(now: number): void {
     }
 
     updateInputContext();
-    input?.update();
+    input?.update(now);
     updateHUD();
 
     if (dialogueTimeoutAt !== null && network.state) {
@@ -269,7 +269,7 @@ function gameLoop(now: number): void {
       dialogueUI.updateTimer(remainingSeconds);
     }
 
-    displayState.updateRender(dt);
+    displayState.updateRender(dt, now);
 
     const player = network.state?.agents?.get(network.playerId ?? "");
     if (player) {
