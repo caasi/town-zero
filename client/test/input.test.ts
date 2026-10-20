@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { TICK_RATE_MS } from "@town-zero/shared";
 import type { DisplayState } from "../src/display.js";
 
@@ -24,11 +24,15 @@ const START = 10_000;
 function setup() {
   const handler = new InputHandler();
   const sent: (string | undefined)[] = [];
+  const stepTimes: number[] = [];
   handler.onSendInput = (frame) => sent.push(frame.direction ?? frame.action?.type);
   handler.setPlayerInfo({ x: 5, y: 5, faction: "village" });
-  const display = { getLocalPlayerPosition: () => null, predictMove: () => {} } as unknown as DisplayState;
+  const display = {
+    getLocalPlayerPosition: () => null,
+    predictMove: (_x: number, _y: number, _state: string, _tiles: unknown, stepAt: number) => stepTimes.push(stepAt),
+  } as unknown as DisplayState;
   handler.setPredictionContext(display, { get: () => ({ terrain: "grass" }) });
-  return { handler, sent };
+  return { handler, sent, stepTimes };
 }
 
 const key = (type: "keydown" | "keyup", code: string, repeat = false) =>
@@ -36,26 +40,20 @@ const key = (type: "keydown" | "keyup", code: string, repeat = false) =>
 
 function runFrames(handler: InstanceType<typeof InputHandler>, untilMs: number, events: Record<number, () => void> = {}) {
   for (let t = FRAME_MS; t <= untilMs; t += FRAME_MS) {
-    vi.setSystemTime(START + t);
     events[t]?.();
-    handler.update();
+    handler.update(START + t);
   }
 }
 
 describe("InputHandler move buffer", () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-    vi.setSystemTime(START);
-  });
   afterEach(() => {
-    vi.useRealTimers();
     listeners.clear();
     (document as unknown as { activeElement: unknown }).activeElement = null;
   });
 
   function stepEast(handler: InstanceType<typeof InputHandler>) {
     key("keydown", "KeyD");
-    handler.update();
+    handler.update(START);
     key("keyup", "KeyD");
   }
 
@@ -128,7 +126,7 @@ describe("InputHandler move buffer", () => {
     key("keyup", "KeyW");
     const doc = document as unknown as { activeElement: unknown };
     doc.activeElement = new HTMLInputElement();
-    handler.update();
+    handler.update(START);
     doc.activeElement = null;
     runFrames(handler, 4 * TICK_RATE_MS);
     expect(sent).toEqual(["east"]);
@@ -169,8 +167,61 @@ describe("InputHandler move buffer", () => {
   it("still steps every tick while a key is held", () => {
     const { handler, sent } = setup();
     key("keydown", "KeyW");
-    handler.update();
+    handler.update(START);
     runFrames(handler, 2 * TICK_RATE_MS + FRAME_MS);
     expect(sent).toEqual(["north", "north", "north"]);
+  });
+
+  it("steps on a fixed clock of one tick while a key is held", () => {
+    const { handler, stepTimes } = setup();
+    key("keydown", "KeyW");
+    handler.update(START);
+    runFrames(handler, 8 * TICK_RATE_MS);
+    const gaps = stepTimes.slice(1).map((t, i) => t - stepTimes[i]);
+    expect(gaps.length).toBeGreaterThanOrEqual(7);
+    expect(new Set(gaps)).toEqual(new Set([TICK_RATE_MS]));
+  });
+
+  it("starts a new walk at the time of the key press", () => {
+    const { handler, stepTimes } = setup();
+    stepEast(handler);
+    runFrames(handler, 1008, {
+      1008: () => key("keydown", "KeyW"),
+    });
+    expect(stepTimes).toEqual([START, START + 1008]);
+  });
+
+  it("stamps each step with the frame time it is given, not the wall clock", () => {
+    const { handler, stepTimes } = setup();
+    key("keydown", "KeyW");
+    handler.update(5_000);
+    handler.update(5_000 + TICK_RATE_MS);
+    expect(stepTimes).toEqual([5_000, 5_000 + TICK_RATE_MS]);
+  });
+
+  it("starts a new key press at its own frame time, also just after a step", () => {
+    const { handler, stepTimes } = setup();
+    stepEast(handler);
+    runFrames(handler, 144, {
+      144: () => key("keydown", "KeyW"),
+    });
+    expect(stepTimes).toEqual([START, START + 144]);
+  });
+
+  it("keeps the step clock when a held step is a little late", () => {
+    const { handler, stepTimes } = setup();
+    key("keydown", "KeyW");
+    handler.update(START);
+    handler.update(START + TICK_RATE_MS + 30);
+    handler.update(START + 2 * TICK_RATE_MS);
+    expect(stepTimes).toEqual([START, START + TICK_RATE_MS, START + 2 * TICK_RATE_MS]);
+  });
+
+  it("restarts the step clock when a held step is too late", () => {
+    const { handler, stepTimes } = setup();
+    key("keydown", "KeyW");
+    handler.update(START);
+    handler.update(START + TICK_RATE_MS + 40);
+    expect(stepTimes).toEqual([START, START + TICK_RATE_MS + 40]);
   });
 });

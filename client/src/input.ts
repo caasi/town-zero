@@ -8,6 +8,8 @@ interface AgentInfo {
   faction: string;
 }
 
+const MAX_STEP_LATENESS_MS = TICK_RATE_MS / 4;
+
 const ACTION_CODES = ["KeyW", "KeyA", "KeyS", "KeyD", "KeyE"] as const;
 
 const QWERTY_LABELS: Record<string, string> = {
@@ -135,7 +137,7 @@ export class InputHandler {
     this._dialogueMode = false;
   }
 
-  update(): void {
+  update(now: number): void {
     if (!this.enabled || !this.playerAgent || this._dialogueMode) return;
     if (document.activeElement instanceof HTMLInputElement) {
       this.clearKeys();
@@ -151,9 +153,12 @@ export class InputHandler {
     if (activeCode) {
       const move = MOVE_KEYS[activeCode]!;
 
-      const now = Date.now();
-      if (now - this.lastMoveTime < TICK_RATE_MS) return;
-      this.lastMoveTime = now;
+      const sinceLastStep = now - this.lastMoveTime;
+      if (sinceLastStep < TICK_RATE_MS) return;
+      const heldStep = this.bufferedCode === null;
+      this.lastMoveTime = heldStep && sinceLastStep < TICK_RATE_MS + MAX_STEP_LATENESS_MS
+        ? this.lastMoveTime + TICK_RATE_MS
+        : now;
       this.bufferedCode = null;
 
       const direction = CODE_TO_DIRECTION[activeCode];
@@ -169,7 +174,7 @@ export class InputHandler {
       const targetY = origin.y + move.dy;
 
       this.displayState.predictMove(
-        targetX, targetY, this.playerState, this.tiles,
+        targetX, targetY, this.playerState, this.tiles, this.lastMoveTime,
       );
 
       this.pendingInputs.push(frame);

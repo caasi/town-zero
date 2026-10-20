@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { DisplayState } from "../src/display.js";
 import { TILE_SIZE } from "../src/constants.js";
-import type { InputFrame } from "@town-zero/shared";
+import { TICK_RATE_MS, type InputFrame } from "@town-zero/shared";
 
 function makeTiles(entries: Record<string, { terrain: string }>) {
   return {
@@ -28,21 +28,21 @@ describe("DisplayState", () => {
     it("rejects when no local player is set", () => {
       const ds = new DisplayState();
       const tiles = makeTiles({ "1,0": { terrain: "plains" } });
-      expect(ds.predictMove(1, 0, "idle", tiles)).toBe(false);
+      expect(ds.predictMove(1, 0, "idle", tiles, 0)).toBe(false);
     });
 
     it("rejects when agent is not idle", () => {
       const ds = new DisplayState();
       ds.setLocalPlayer("p1");
       const tiles = makeTiles({ "1,0": { terrain: "plains" } });
-      expect(ds.predictMove(1, 0, "gathering", tiles)).toBe(false);
+      expect(ds.predictMove(1, 0, "gathering", tiles, 0)).toBe(false);
     });
 
     it("rejects move onto known impassable terrain (water)", () => {
       const ds = new DisplayState();
       ds.setLocalPlayer("p1");
       const tiles = makeTiles({ "1,0": { terrain: "water" } });
-      expect(ds.predictMove(1, 0, "idle", tiles)).toBe(false);
+      expect(ds.predictMove(1, 0, "idle", tiles, 0)).toBe(false);
     });
 
     it.each([
@@ -55,7 +55,7 @@ describe("DisplayState", () => {
       ds.setGridSize(10, 10);
       ds.setLocalPlayer("p1");
       initLocal(ds, "p1", { ...from, facing });
-      expect(ds.predictMove(to.x, to.y, "idle", makeTiles({}))).toBe(false);
+      expect(ds.predictMove(to.x, to.y, "idle", makeTiles({}), 0)).toBe(false);
       expect(ds.get("p1")).toMatchObject({ displayX: from.x, displayY: from.y });
     });
 
@@ -65,14 +65,14 @@ describe("DisplayState", () => {
       ds.clear();
       ds.setLocalPlayer("p1");
       initLocal(ds, "p1", { x: 9, y: 5, facing: "east" });
-      expect(ds.predictMove(10, 5, "idle", makeTiles({}))).toBe(false);
+      expect(ds.predictMove(10, 5, "idle", makeTiles({}), 0)).toBe(false);
     });
 
     it("has no east or south edge before the map size is known", () => {
       const ds = new DisplayState();
       ds.setLocalPlayer("p1");
       initLocal(ds, "p1", { x: 9, y: 5, facing: "east" });
-      expect(ds.predictMove(10, 5, "idle", makeTiles({}))).toBe(true);
+      expect(ds.predictMove(10, 5, "idle", makeTiles({}), 0)).toBe(true);
     });
 
     it("allows move in same facing direction and updates display position", () => {
@@ -81,7 +81,7 @@ describe("DisplayState", () => {
       initLocal(ds, "p1", { x: 0, y: 0, facing: "south" });
 
       const tiles = makeTiles({ "0,1": { terrain: "plains" } });
-      expect(ds.predictMove(0, 1, "idle", tiles)).toBe(true);
+      expect(ds.predictMove(0, 1, "idle", tiles, 0)).toBe(true);
 
       const display = ds.get("p1");
       expect(display).toBeDefined();
@@ -95,7 +95,7 @@ describe("DisplayState", () => {
       initLocal(ds, "p1", { x: 0, y: 0, facing: "south" });
 
       const tiles = makeTiles({ "1,0": { terrain: "plains" } });
-      expect(ds.predictMove(1, 0, "idle", tiles)).toBe(true);
+      expect(ds.predictMove(1, 0, "idle", tiles, 0)).toBe(true);
 
       const display = ds.get("p1");
       expect(display!.facing).toBe("east");
@@ -108,8 +108,8 @@ describe("DisplayState", () => {
       initLocal(ds, "p1", { x: 0, y: 0, facing: "south" });
 
       const tiles = makeTiles({ "1,0": { terrain: "plains" } });
-      ds.predictMove(1, 0, "idle", tiles);
-      ds.predictMove(1, 0, "idle", tiles);
+      ds.predictMove(1, 0, "idle", tiles, 0);
+      ds.predictMove(1, 0, "idle", tiles, 0);
 
       const display = ds.get("p1");
       expect(display!.displayX).toBe(1);
@@ -122,7 +122,7 @@ describe("DisplayState", () => {
       initLocal(ds, "p1", { x: 0, y: 0, facing: "south" });
 
       const tiles = makeTiles({});
-      expect(ds.predictMove(0, 1, "idle", tiles)).toBe(true);
+      expect(ds.predictMove(0, 1, "idle", tiles, 0)).toBe(true);
 
       const display = ds.get("p1");
       expect(display!.displayX).toBe(0);
@@ -135,7 +135,7 @@ describe("DisplayState", () => {
       initLocal(ds, "p1", { x: 0, y: 0, facing: "east" });
 
       const tiles = makeTiles({ "1,0": { terrain: "lava" } });
-      expect(ds.predictMove(1, 0, "idle", tiles)).toBe(true);
+      expect(ds.predictMove(1, 0, "idle", tiles, 0)).toBe(true);
 
       const display = ds.get("p1");
       expect(display!.displayX).toBe(1);
@@ -363,11 +363,112 @@ describe("DisplayState", () => {
 
       ds.syncFromServer([["a1", { x: 1, y: 0, facing: "south" }]]);
 
-      ds.updateRender(16.67);
+      ds.updateRender(16.67, 0);
 
       const display = ds.get("a1")!;
       expect(display.renderX).toBeGreaterThan(0);
       expect(display.renderX).toBeLessThan(TILE_SIZE);
+    });
+
+    it("moves the local player at a constant speed along a predicted step", () => {
+      const ds = new DisplayState();
+      ds.setLocalPlayer("me");
+      initLocal(ds, "me", { x: 0, y: 0, facing: "east" });
+      ds.predictMove(1, 0, "idle", makeTiles({}), 1000);
+
+      ds.updateRender(16, 1000 + TICK_RATE_MS / 4);
+      expect(ds.get("me")!.renderX).toBeCloseTo(TILE_SIZE / 4);
+      ds.updateRender(16, 1000 + TICK_RATE_MS / 2);
+      expect(ds.get("me")!.renderX).toBeCloseTo(TILE_SIZE / 2);
+      ds.updateRender(16, 1000 + TICK_RATE_MS);
+      expect(ds.get("me")!.renderX).toBe(TILE_SIZE);
+    });
+
+    it("goes on to the next predicted step without a stop", () => {
+      const ds = new DisplayState();
+      ds.setLocalPlayer("me");
+      initLocal(ds, "me", { x: 0, y: 0, facing: "east" });
+      ds.predictMove(1, 0, "idle", makeTiles({}), 1000);
+      ds.updateRender(16, 1000 + TICK_RATE_MS - 10);
+      ds.predictMove(2, 0, "idle", makeTiles({}), 1000 + TICK_RATE_MS);
+
+      ds.updateRender(16, 1000 + TICK_RATE_MS + TICK_RATE_MS / 2);
+      expect(ds.get("me")!.renderX).toBeCloseTo(1.5 * TILE_SIZE);
+    });
+
+    it("starts the next step from where the player is drawn after a server correction", () => {
+      const ds = new DisplayState();
+      ds.setLocalPlayer("me");
+      initLocal(ds, "me", { x: 0, y: 0, facing: "east" });
+      ds.predictMove(1, 0, "idle", makeTiles({}), 0);
+      ds.updateRender(16, TICK_RATE_MS / 2);
+      ds.reconcileFromServer("me", { x: 0, y: 0, facing: "east", lastProcessedInput: 0, state: "idle" }, []);
+      ds.updateRender(16, TICK_RATE_MS / 2 + 16);
+      const drawnAt = ds.get("me")!.renderX;
+      expect(drawnAt).toBeGreaterThan(0);
+
+      ds.predictMove(1, 0, "idle", makeTiles({}), TICK_RATE_MS);
+      ds.updateRender(16, TICK_RATE_MS);
+      expect(ds.get("me")!.renderX).toBeCloseTo(drawnAt);
+    });
+
+    it("eases a later server move back onto a tile that a finished step predicted", () => {
+      const ds = new DisplayState();
+      ds.setLocalPlayer("me");
+      initLocal(ds, "me", { x: 0, y: 0, facing: "east" });
+      ds.predictMove(1, 0, "idle", makeTiles({}), 0);
+      ds.updateRender(16, TICK_RATE_MS);
+      const server = { facing: "east", lastProcessedInput: 1, state: "idle" };
+      ds.reconcileFromServer("me", { ...server, x: 3, y: 0 }, []);
+      for (let t = 1; t <= 30; t++) ds.updateRender(16, TICK_RATE_MS + 16 * t);
+      ds.reconcileFromServer("me", { ...server, x: 1, y: 0 }, []);
+      ds.updateRender(16, TICK_RATE_MS + 16 * 31);
+      expect(ds.get("me")!.renderX).toBeGreaterThan(TILE_SIZE);
+    });
+
+    it("eases toward the corrected tile when the server rejects a predicted step", () => {
+      const ds = new DisplayState();
+      ds.setLocalPlayer("me");
+      initLocal(ds, "me", { x: 0, y: 0, facing: "east" });
+      ds.predictMove(1, 0, "idle", makeTiles({}), 0);
+      ds.updateRender(16, TICK_RATE_MS / 2);
+      ds.reconcileFromServer("me", { x: 0, y: 0, facing: "east", lastProcessedInput: 1, state: "idle" }, []);
+      ds.updateRender(16, TICK_RATE_MS / 2 + 16);
+      expect(ds.get("me")!.renderX).toBeLessThan(TILE_SIZE / 2);
+    });
+
+    it("moves the same distance in each frame across the end of a step", () => {
+      const ds = new DisplayState();
+      ds.setLocalPlayer("me");
+      initLocal(ds, "me", { x: 0, y: 0, facing: "east" });
+      const frameMs = 1000 / 60;
+      let nextStep = 0;
+      let x = 0;
+      const deltas: number[] = [];
+      for (let frame = 0; frame < 40; frame++) {
+        const now = frame * frameMs;
+        if (now >= nextStep) {
+          ds.predictMove(++x, 0, "idle", makeTiles({}), nextStep);
+          nextStep += TICK_RATE_MS;
+        }
+        const before = ds.get("me")!.renderX;
+        ds.updateRender(frameMs, now);
+        if (frame > 0) deltas.push(ds.get("me")!.renderX - before);
+      }
+      const perFrame = (TILE_SIZE / TICK_RATE_MS) * frameMs;
+      for (const d of deltas) expect(d).toBeCloseTo(perFrame, 5);
+    });
+
+    it("forgets the predicted step on clear()", () => {
+      const ds = new DisplayState();
+      ds.setLocalPlayer("me");
+      initLocal(ds, "me", { x: 0, y: 0, facing: "east" });
+      ds.predictMove(1, 0, "idle", makeTiles({}), 0);
+      ds.clear();
+      ds.setLocalPlayer("me");
+      initLocal(ds, "me", { x: 1, y: 0, facing: "east" });
+      ds.updateRender(16, 0);
+      expect(ds.get("me")!.renderX).toBe(TILE_SIZE);
     });
 
     it("snaps when close enough to target", () => {
@@ -376,7 +477,7 @@ describe("DisplayState", () => {
       ds.syncFromServer([["a1", { x: 1, y: 0, facing: "south" }]]);
 
       for (let i = 0; i < 60; i++) {
-        ds.updateRender(16.67);
+        ds.updateRender(16.67, 0);
       }
 
       const display = ds.get("a1")!;

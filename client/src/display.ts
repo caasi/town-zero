@@ -1,4 +1,4 @@
-import { DIRECTION_DELTA, isMoveBlocked } from "@town-zero/shared";
+import { DIRECTION_DELTA, TICK_RATE_MS, isMoveBlocked } from "@town-zero/shared";
 import type { TerrainType, InputFrame } from "@town-zero/shared";
 import { TILE_SIZE } from "./constants.js";
 
@@ -11,6 +11,14 @@ export interface AgentDisplay {
   renderX: number;
   renderY: number;
   facing: string;
+}
+
+interface PredictedStep {
+  fromRenderX: number;
+  fromRenderY: number;
+  toX: number;
+  toY: number;
+  startedAt: number;
 }
 
 type TileSource = { get(key: string): { terrain: string } | undefined };
@@ -26,6 +34,7 @@ interface ServerAgent {
 export class DisplayState {
   private displays = new Map<string, AgentDisplay>();
   private localPlayerId: string | null = null;
+  private predictedStep: PredictedStep | null = null;
   private tileSource: TileSource | null = null;
   private gridSize: { width: number; height: number } | null = null;
 
@@ -60,6 +69,7 @@ export class DisplayState {
     targetY: number,
     agentState: string,
     tiles: TileSource,
+    stepAt: number,
   ): boolean {
     if (!this.localPlayerId) return false;
     if (agentState !== "idle") return false;
@@ -84,6 +94,13 @@ export class DisplayState {
 
     if (this.blocked(targetX, targetY, tiles)) return false;
 
+    const walking = this.isOnPredictedStep(display);
+    this.predictedStep = {
+      fromRenderX: walking ? display.displayX * TILE_SIZE : display.renderX,
+      fromRenderY: walking ? display.displayY * TILE_SIZE : display.renderY,
+      toX: targetX, toY: targetY,
+      startedAt: stepAt,
+    };
     display.displayX = targetX;
     display.displayY = targetY;
     return true;
@@ -145,10 +162,11 @@ export class DisplayState {
     }
   }
 
-  updateRender(dt: number): void {
+  updateRender(dt: number, now: number): void {
     const factor = 1 - Math.pow(1 - BASE_LERP_FACTOR, dt / BASE_FRAME_MS);
 
-    for (const display of this.displays.values()) {
+    for (const [id, display] of this.displays) {
+      if (id === this.localPlayerId && this.followPredictedStep(display, now)) continue;
       const targetX = display.displayX * TILE_SIZE;
       const targetY = display.displayY * TILE_SIZE;
       display.renderX += (targetX - display.renderX) * factor;
@@ -158,6 +176,24 @@ export class DisplayState {
     }
   }
 
+  private isOnPredictedStep(display: AgentDisplay): boolean {
+    const step = this.predictedStep;
+    return step !== null && step.toX === display.displayX && step.toY === display.displayY;
+  }
+
+  private followPredictedStep(display: AgentDisplay, now: number): boolean {
+    const step = this.predictedStep;
+    if (!step || !this.isOnPredictedStep(display)) {
+      this.predictedStep = null;
+      return false;
+    }
+    const progress = Math.min(1, Math.max(0, (now - step.startedAt) / TICK_RATE_MS));
+    display.renderX = step.fromRenderX + (step.toX * TILE_SIZE - step.fromRenderX) * progress;
+    display.renderY = step.fromRenderY + (step.toY * TILE_SIZE - step.fromRenderY) * progress;
+    if (progress === 1) this.predictedStep = null;
+    return true;
+  }
+
   get(id: string): AgentDisplay | undefined {
     return this.displays.get(id);
   }
@@ -165,6 +201,7 @@ export class DisplayState {
   clear(): void {
     this.displays.clear();
     this.localPlayerId = null;
+    this.predictedStep = null;
     this.tileSource = null;
   }
 
